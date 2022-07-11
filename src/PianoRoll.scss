@@ -1,0 +1,41 @@
+
+table.pianoroll {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 10px;
+  td, th {
+    border: none;
+    border-bottom: 1px solid rgb(70%, 70%, 70%);
+    overflow: hidden;
+    height: 14px;
+    width: 14px;
+    margin: 0;
+    padding: 0;
+  }
+  td:nth-of-type(4n+1) {//per beat
+    border-right: 1px solid rgb(80%, 80%, 80%);
+  }
+  td:nth-of-type(16n+1) {//per bar
+    border-right: 1px solid rgb(60%, 60%, 60%);
+  }
+  td:nth-of-type(64n+1) {//per phrase
+    border-right: 3px double rgb(60%, 60%, 60%);
+  }
+  tr:not(.scale) {
+    background-color: rgb(90%, 90%, 90%);
+  }
+  tr.scaleroot {
+    td {
+      border-bottom: 1px solid rgb(60%, 60%, 60%);
+    }
+  }
+  tr.key {
+    background-color: rgb(100%, 94%, 70%);
+  }
+  /*td.chord {
+    background-color: rgb(100%, 60%, 20%);
+  }
+  td.note {
+    background-color: rgb(40%, 40%, 90%);
+  }*/
+}

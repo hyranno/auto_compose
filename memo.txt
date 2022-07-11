@@ -1,0 +1,72 @@
+npm run dev
+http://localhost:3000
+
+TypeScript + SolidJS + SCSS
+WebAudio
+
+パラメータは JSON Schema + JSON ?
+
+
+TODO:
+  SolidJS: Hello World
+  ピアノロールの表示
+  Keyの表示
+  Scaleの表示
+  Cadenceの生成, 表示
+    WeightedRandom
+    Timeline
+    MarkovChain
+  //
+  Chordの生成, 表示
+  Chord音の再生
+  Rhythmの生成, 表示
+  Noteの生成, 表示
+  Note音の再生
+
+
+
+
+画面構成
+  パラメータ設定
+    ...
+  出力結果
+    ピアノロール
+      縦に時間軸、横に音高を取る方が見やすい?
+      一般的には横に時間軸
+    Key, Scale, Chord, Note ... 音高に色
+    Rhythm ... 罫線
+    Cadence ... 左端に表記
+    音高 ... 上端に表記
+
+
+
+Key
+  絶対音高
+  12平均律, MIDIノートナンバー(69 = A4 = 440Hz)
+Scale
+  Keyからの相対音高ベクタ
+  static でプリセットを取り揃える
+Cadence
+  Enum
+CadenceGenerator
+  オートマトン?
+  パラメータ
+    seed
+    T/D/SD -> T/D/SD 重み
+    小説位置ごとの T/D/SD 重み
+  gen() -> Timeline<Cadence>
+Chord
+  Scale上でのKeyからの相対index
+ChordGenerator
+  無記憶情報源
+  パラメータ
+    seed
+    T/D/SD ごとの WeightedRandom<Chord>
+  gen(Timeline<Cadence>) -> Timeline<Chord>
+Rhythm
+  木
+  パラメータ
+    seed
+NoteGenerator
+  パラメータ
+    seed

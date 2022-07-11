@@ -1,0 +1,31 @@
+import { Component, createSignal } from 'solid-js';
+import './App.scss';
+
+import * as tunes from './tune';
+import {PianoRoll} from './PianoRoll';
+
+const App: Component = () => {
+  const [counter, setCounter] = createSignal(0);
+  setInterval(setCounter, 1000, (c: number) => c + 1);
+
+  let tune = new tunes.Tune();
+  tune.key = 69;
+  tune.scale = tunes.Scale.major(tune.key);
+  tune.time_measure = [4,4];
+  tune.max_beat_division_depth = 2;
+
+  let cadenceGen = new tunes.CadenceGenerator();
+  tune.cadence = cadenceGen.generate(tune);
+
+
+  return (
+    <>
+      <div>
+        <h1 class="header">{counter()}</h1>
+      </div>
+      {PianoRoll(tune, 57,81)}
+    </>
+  );
+};
+
+export default App;

@@ -1,0 +1,66 @@
+4小節生成のための理論
+
+key
+  依存: なし
+  実装: ユーザ入力
+
+scale
+  依存: key
+  実装: keyからの相対音高をユーザ入力
+
+cadence
+  依存: t, cadence(隣接)
+  概要:
+    和音機能(Tonic, Dominant, Sub-dominant) の進行のこと
+    K1(TDT), K2(TSDT), K3(TST) に分類される
+  束縛:
+    Tで開始する
+    各種終止形で終わる
+  実装:
+    オートマトン
+    "Tで開始"は"終止形で終わる"より緩い条件なので、逆順で生成した方が楽か
+    2拍ごとに遷移するものとする
+
+root
+  依存: t, scale, cadence
+    終止形に影響するのでtを含む
+  概要:
+    chordの根音
+    keyからの相対音高がcadenceに依存する
+    majorの主要三和音 ... T:0, D:4, S:3
+  実装:
+    和音機能からの確率分布
+    まずは主要三和音のみ
+
+chord(root, scale, cadence)
+  依存: t, scale, cadence, root
+    終止形に影響するのでtを含む
+  概要:
+    rootからの相対音高のセット
+  実装:
+    まずは三和音(triad)[0,2,4]のみ
+    借用, 転回
+
+rhythm
+  依存: t
+  概要:
+    理論を確認した方がよさそう
+  実装:
+    時間を再帰的+確率的に2分割して作る
+      分割する確率 = a * b^depth * (depth<d? 1:0)
+    時刻によっても増減?
+    確率で休符になる
+      休符になる確率 = 1 - c^depth
+
+note(scale, chord, rhythm)
+  依存: scale, chord, rhythm
+  概要:
+    発音される各々の音
+  実装:
+    各ノートの重みweightを用いて、weight/sum(weight) の確率で選出
+    weight = (absolute_height_factor * relative_height_factor * scale_factor * chord_factor)^( rhythm_length * regularity )
+    abusolute_height_factor ... keyからの距離に依存
+    relative_height_factor ... 前のnoteからの距離に依存
+    scale_factor ... is(note in scale)? Cs : 1;
+    chord_factor ... is(note in chord)? Cc : 1;
+    regularity ... 無難さ、変則的になりにくさ
