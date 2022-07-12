@@ -4,7 +4,15 @@ http://localhost:3000
 TypeScript + SolidJS + SCSS
 WebAudio
 
-パラメータは JSON Schema + JSON ?
+パラメータ
+  JSON Schema + JSON ?
+  Protocol Buffers ?
+
+位置付け
+  作曲補助
+やらないこと
+  完璧な音楽を目指す
+  テクニックを網羅する
 
 
 TODO:
@@ -16,14 +24,21 @@ TODO:
     WeightedRandom
     Timeline
     MarkovChain
-  //
+  ChordRootの生成, 表示
   Chordの生成, 表示
+  //
   Chord音の再生
-  Rhythmの生成, 表示
+  Rhythmの生成
   Noteの生成, 表示
   Note音の再生
+  設定画面の表示
+  既存データからの展開
+  Chord生成の改善
 
 
+リファクタリング
+  (new Generator()).generate() じゃなくて generate() だけでよくないか
+  Cadence以前に終止形Class/Generatorがあった方がよいか
 
 
 画面構成

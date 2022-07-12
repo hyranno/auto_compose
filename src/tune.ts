@@ -4,31 +4,48 @@ import * as util from './util';
 export class Tune {
   time_measure: [number, number];
   max_beat_division_depth: number;
-  key: number;
   scale: Scale;
   cadence: util.Timeline<Cadence>;
-  //chord: util.Timeline<Chord>;
+  chord: util.Timeline<Chord>;
   //Timeline<Rhythm>
   //Timeline<Note>
 }
 
+type notenum = number; //MIDI note number on 12 equal temperament
+type degree = number; //on scale, chord
 
-export class Scale {
-  notes: number[];
-  constructor(key: number, heights: number[]) {
-    this.notes = heights.map((h)=> (key+h)%12);
+
+abstract class RootedTones {
+  root: number;
+  tones: number[];
+  constructor(root: number, tones: number[]) {
+    this.root = root;
+    this.tones = tones;
   }
-  static major(key: number): Scale {
+  getNotenums(): notenum[] {
+    return this.tones.map((h)=> this.root+h);
+  }
+  includes(note: notenum): boolean {
+    return this.getNotenums().map(v => v%12).includes(note%12);
+  }
+  isRoot(note: notenum): boolean {
+    return this.getNotenums()[0]%12 == note%12;
+  }
+  get(pitch: degree): notenum {
+    let notenums = this.getNotenums();
+    return notenums[pitch % notenums.length] + 12*Math.floor(pitch / notenums.length);
+  }
+}
+
+export class Scale extends RootedTones {
+  constructor(key: notenum, tones: notenum[]) {
+    super(key, tones);
+  }
+  static major(key: notenum): Scale {
     return new Scale(key, [0,2,4,5,7,9,11]);
   }
-  static minor(key: number): Scale {
+  static minor(key: notenum): Scale {
     return new Scale(key, [0,2,3,5,7,8,10]);
-  }
-  includes(note: number): boolean {
-    return this.notes.includes(note%12);
-  }
-  isRoot(note: number): boolean {
-    return this.notes[0] == note%12;
   }
 }
 
@@ -64,14 +81,46 @@ export class CadenceGenerator {
   }
 }
 
-export class Chord {
-  notes: number[];
-  constructor(scale: Scale, root: number, heights: number[]) {
+export class Chord extends RootedTones {
+  scale: Scale;
+  constructor(scale: Scale, root: degree, tones: degree[]) {
+    super(root, tones);
+    this.scale = scale;
   }
-  includes(note: number): boolean {
-    return this.notes.includes(note%12);
-  }
-  isRoot(note: number): boolean {
-    return this.notes[0] == note%12;
+  override getNotenums(): number[] {
+    return this.tones.map(h => this.scale.get(this.root+h));
   }
 }
+
+export class ChordGenerator {
+  generateRoots(tune: Tune): util.Timeline<number> {
+    let probabilities = new Map<Cadence, util.WeightedItem<number>[]>([
+      [Cadence.T, [{value: 0, weight: 1}] ],
+      [Cadence.D, [{value: 4, weight: 1}] ],
+      [Cadence.S, [{value: 3, weight: 1}] ],
+    ]); // TODO: from setting
+    let rand = new Random(4649,459); //TODO: seed setting
+    let events = tune.cadence.list().map( c => {return {
+      t: c.t,
+      value: (new util.WeightedRandom(rand, probabilities.get(c.value))).get(),
+    }} );
+    return util.Timeline.fromItems(events);
+  }
+  generate(tune: Tune): util.Timeline<Chord> {
+    let roots = this.generateRoots(tune);
+    let rand = new Random(4649,459); //TODO: seed setting
+    let rand_tones = new util.WeightedRandom(rand, [
+      {value:[0,2,4], weight: 1},
+    ]); //TODO: setting
+    let events = roots.list().map( c => {return {
+      t: c.t,
+      value: new Chord(
+        tune.scale,
+        c.value,
+        rand_tones.get()
+      )
+    }} );
+    return util.Timeline.fromItems(events);
+  }
+}
+export class ChordModifier {}

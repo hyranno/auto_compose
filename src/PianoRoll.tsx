@@ -21,18 +21,22 @@ function CadenceCol(tune: tunes.Tune, times: number[]) {
 function NoteHeight(height: number) {
   return <td>{height}</td>;
 }
-function Note(tune: tunes.Tune, t: number) {
-  return <td class="chord note"></td>;
+function Note(tune: tunes.Tune, height: number, t: number) {
+  return <td classList={{
+    "chord": tune.chord.get(t).value.includes(height),
+    "chordroot": tune.chord.get(t).value.isRoot(height),
+    "note": false,
+  }}></td>;
 }
 function NoteRow(tune: tunes.Tune, height: number, times: number[]) {
   return <>
     <tr classList={{
-      "key": height==tune.key,
+      "key": height==tune.scale.root,
       "scale": tune.scale.includes(height),
       "scaleroot": tune.scale.isRoot(height),
     }}>
       {NoteHeight(height)}
-      {times.map((t)=>Note(tune, t))}
+      {times.map((t)=>Note(tune, height, t))}
     </tr>
   </>;
 }

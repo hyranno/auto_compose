@@ -1,5 +1,12 @@
 4小節生成のための理論
 
+BPM
+  依存: なし
+  概要:
+    Beat Per Minute
+    再生時のみ利用
+  実装: ユーザ入力
+
 key
   依存: なし
   実装: ユーザ入力
@@ -21,7 +28,7 @@ cadence
     "Tで開始"は"終止形で終わる"より緩い条件なので、逆順で生成した方が楽か
     2拍ごとに遷移するものとする
 
-root
+chord root
   依存: t, scale, cadence
     終止形に影響するのでtを含む
   概要:
@@ -32,7 +39,7 @@ root
     和音機能からの確率分布
     まずは主要三和音のみ
 
-chord(root, scale, cadence)
+chord
   依存: t, scale, cadence, root
     終止形に影響するのでtを含む
   概要:

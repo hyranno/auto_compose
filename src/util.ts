@@ -49,6 +49,9 @@ export class Timeline<T> {
   get(t: number): TimelineItem<T> {
     return this.items.slice().reverse().find((item) => item.t <= t); //.slice().reverse().find() == .findLast()
   }
+  list(): TimelineItem<T>[] {
+    return this.items.slice();
+  }
 }
 
 export class MarkovChain<T> {

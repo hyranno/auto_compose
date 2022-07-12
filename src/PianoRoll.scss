@@ -30,12 +30,15 @@ table.pianoroll {
     }
   }
   tr.key {
-    background-color: rgb(100%, 94%, 70%);
+    background-color: rgb(100%, 80%, 80%);
   }
-  /*td.chord {
-    background-color: rgb(100%, 60%, 20%);
+  td.chord {
+    background-color: rgb(100%, 100%, 80%);
+  }
+  td.chordroot {
+    background-color: rgb(100%, 92%, 70%);
   }
   td.note {
-    background-color: rgb(40%, 40%, 90%);
-  }*/
+    background-color: rgb(40%, 40%, 100%);
+  }
 }
