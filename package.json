@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "solid-js": "^1.4.2",
-    "reliable-random": "^0"
+    "reliable-random": "^0",
+    "tone": "^14"
   }
 }

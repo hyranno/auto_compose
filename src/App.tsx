@@ -3,6 +3,7 @@ import './App.scss';
 
 import * as tunes from './tune';
 import {PianoRoll} from './PianoRoll';
+import {TunePlayer} from './TunePlayer';
 
 const App: Component = () => {
   const [counter, setCounter] = createSignal(0);
@@ -25,6 +26,7 @@ const App: Component = () => {
         <h1 class="header">{counter()}</h1>
       </div>
       {PianoRoll(tune, 57,81)}
+      {TunePlayer(tune)}
     </>
   );
 };

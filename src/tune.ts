@@ -12,8 +12,11 @@ export class Tune {
 }
 
 type notenum = number; //MIDI note number on 12 equal temperament
-type degree = number; //on scale, chord
+type degree = number; //index on scale or chord
 
+export function notenumToHerzs(pitch: notenum): number {
+  return 440 * Math.pow(2, (pitch-69)/12);
+}
 
 abstract class RootedTones {
   root: number;

@@ -2,7 +2,7 @@ npm run dev
 http://localhost:3000
 
 TypeScript + SolidJS + SCSS
-WebAudio
+Tone.js
 
 パラメータ
   JSON Schema + JSON ?
@@ -26,8 +26,10 @@ TODO:
     MarkovChain
   ChordRootの生成, 表示
   Chordの生成, 表示
-  //
   Chord音の再生
+    Tone.js
+    TunePlayer.tsx
+  //
   Rhythmの生成
   Noteの生成, 表示
   Note音の再生
