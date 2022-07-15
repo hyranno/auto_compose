@@ -17,10 +17,25 @@ function playChord(tune: tunes.Tune) {
   });
 }
 
+function playNotes(tune: tunes.Tune) {
+  let now = Tone.now();
+  let synth = new Tone.PolySynth().toDestination();
+  let notes_hertz = tune.notes.list().map(e => {return {
+    t: e.t,
+    freq: tunes.notenumToHerzs( e.value.pitch ),
+    duration: e.value.duration,
+  }});
+  notes_hertz.forEach(e => {
+    synth.triggerAttackRelease(e.freq, e.duration, now + e.t);
+  });
+}
+
 export function TunePlayer(
     tune: tunes.Tune,
   ) {
   return <>
     <button onClick={() => playChord(tune)}>play chord</button>
+    <button onClick={() => playNotes(tune)}>play notes</button>
+    <button onClick={() => {playNotes(tune); playChord(tune);}}>play notes & chord</button>
   </>;
 }

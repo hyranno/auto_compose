@@ -20,6 +20,9 @@ const App: Component = () => {
   let chordGen = new tunes.ChordGenerator();
   tune.chord = chordGen.generate(tune);
 
+  let noteGen = new tunes.NoteGenerator();
+  tune.notes = noteGen.generate(tune);
+
   return (
     <>
       <div>

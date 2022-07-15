@@ -7,8 +7,7 @@ export class Tune {
   scale: Scale;
   cadence: util.Timeline<Cadence>;
   chord: util.Timeline<Chord>;
-  //Timeline<Rhythm>
-  //Timeline<Note>
+  notes: util.Timeline<Note>;
 }
 
 type notenum = number; //MIDI note number on 12 equal temperament
@@ -127,3 +126,96 @@ export class ChordGenerator {
   }
 }
 export class ChordModifier {}
+
+type Rhythm = {
+  isNoteOn: boolean,
+  t: number,
+  duration: number,
+}
+export class RhythmGenerator {
+  generateNode(rand: Random, depthcount: number, dest: Rhythm[], candidate: Rhythm) {
+    let pLeaf = 1 - util.smoothstep(1/2, 3, candidate.duration); //TODO: setting
+    let isLeaf = (rand.random() < pLeaf) || (depthcount <= 0);
+    if (isLeaf) {
+      let pNoteOn = util.smoothstep(0, 1.2, candidate.duration);//TODO: setting
+      let isNoteOn = rand.random() < pNoteOn;
+      candidate.isNoteOn = isNoteOn;
+      dest.push(candidate);
+    } else {
+      let c0 = {isNoteOn: true, t: candidate.t, duration: candidate.duration/2};
+      let c1 = {isNoteOn: true, t: c0.t + c0.duration, duration: c0.duration};
+      this.generateNode(rand, depthcount-1, dest, c0);
+      this.generateNode(rand, depthcount-1, dest, c1);
+    }
+  }
+  generate(tune: Tune): Rhythm[] {
+    let rand = new Random(4649,459); //TODO: seed setting
+    let res = [];
+    [...util.rangeIterator(0,tune.time_measure[1],1)].forEach( i =>
+      this.generateNode(rand, 3, res,
+        {isNoteOn:true, t:i*tune.time_measure[0], duration: tune.time_measure[0]}
+      )
+    );
+    return res;
+  }
+}
+
+export type Note = {
+  pitch: notenum;
+  duration: number;
+}
+export class NoteGenerator {
+  calcAbsolutePitchFactor(centor: notenum, candidate: Note): number {
+    let distance = Math.abs(candidate.pitch - centor);
+    return 1 - util.smoothstep(4,12, distance); //TODO: setting
+  }
+  calcRelativePitchFactor(prev: Note, candidate: Note): number {
+    let distance = Math.abs(candidate.pitch - prev.pitch);
+    return 1 - util.smoothstep(6,12, distance); //TODO: setting
+  }
+  calcFactorInScale(scale: Scale, candidate: Note): number {
+    let Cs = 8; //TODO: setting
+    return scale.includes(candidate.pitch)? Cs : 1;
+  }
+  calcFactorInChord(chord: Chord, candidate: Note): number {
+    let Cc = 4; //TODO: setting
+    return chord.includes(candidate.pitch)? Cc : 1;
+  }
+  calcRhythmModifier(duration: number): number {
+    return duration / 2; //TODO: setting
+  }
+  calcWeight(tune: Tune, t: number, prev: Note, candidate: Note): number {
+    let absPitchFactor = this.calcAbsolutePitchFactor(tune.scale.root, candidate);
+    let relPitchFactor = this.calcRelativePitchFactor(prev, candidate);
+    let factorInScale = this.calcFactorInScale(tune.scale, candidate);
+    let factorInChord = this.calcFactorInChord(tune.chord.get(t).value, candidate);
+    let rhythmModifier = this.calcRhythmModifier(candidate.duration);
+    let regularity = 1; //TODO: setting
+    return Math.pow(
+      absPitchFactor * relPitchFactor * factorInScale * factorInChord,
+      rhythmModifier + regularity
+    );
+  }
+  generateNote(rand: Random, tune: Tune, prev: Note, rhythm: Rhythm): Note{
+    let candidates: Note[] = [...util.rangeIterator(prev.pitch-12, prev.pitch+12, 1)].map(p => {return {
+      pitch: p,
+      duration: rhythm.duration
+    }});
+    let rand_notes = new util.WeightedRandom(
+      rand,
+      candidates.map((c) => {return {weight: this.calcWeight(tune, rhythm.t, prev, c), value: c}})
+    );
+    return rand_notes.get();
+  }
+  generate(tune: Tune): util.Timeline<Note> {
+    let rhythmGen = new RhythmGenerator();
+    let rhythms = rhythmGen.generate(tune);
+    let rand = new Random(4649,459); //TODO: seed setting
+    let prev = {pitch: tune.scale.root, duration: 0}; //dummy
+    let events = rhythms.map(r => {
+      prev = this.generateNote(rand, tune, prev, r);
+      return {t:r.t, value:prev};
+    });
+    return util.Timeline.fromItems(events);
+  }
+}

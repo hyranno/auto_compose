@@ -29,12 +29,13 @@ TODO:
   Chord音の再生
     Tone.js
     TunePlayer.tsx
-  //
   Rhythmの生成
   Noteの生成, 表示
   Note音の再生
+  //
   設定画面の表示
   既存データからの展開
+  Cadence生成の改善
   Chord生成の改善
 
 

@@ -7,6 +7,14 @@ export function* rangeIterator(start: number, end: number, tick: number){
   }
 }
 
+export function step(edge:number, x:number): number {
+  return (x<edge)? 0 : 1;
+}
+export function smoothstep(edge0: number, edge1: number, x: number): number {
+  let xn = (x - edge0) / (edge1 - edge0);
+  xn = Math.min(Math.max(xn, 0), 1);
+  return xn*xn*(3-2*xn);
+}
 
 export type WeightedItem<T> = {
   weight: number;

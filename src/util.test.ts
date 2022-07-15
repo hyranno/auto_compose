@@ -2,6 +2,15 @@ import * as util from './util';
 import {Random} from 'reliable-random';
 
 
+test('smoothstep', ()=>{
+  expect(util.smoothstep(0,1,-1)).toBeCloseTo(0);
+  expect(util.smoothstep(0,1,0)).toBeCloseTo(0);
+  expect(util.smoothstep(0,1,0.5)).toBeCloseTo(0.5);
+  expect(util.smoothstep(0,1,1)).toBeCloseTo(1);
+  expect(util.smoothstep(0,1,2)).toBeCloseTo(1);
+});
+
+
 let seed0 = [754, 489];
 let seed1 = [222, 9643];
 
