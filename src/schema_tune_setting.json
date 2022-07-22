@@ -1,0 +1,102 @@
+{
+  "type": "object",
+  "required": [],
+  "properties": {
+    "cadence": {},
+    "chord": {},
+    "note": {}
+  },
+
+  "definitions": {
+
+    "rand_seed": {
+      "type": "object",
+      "required": ["state", "sequence"],
+      "properties": {
+        "state": {"type": "number"},
+        "sequence": {"type": "number"}
+      }
+    },
+
+    "smoothstep_edge": {
+      "type": "object",
+      "required": ["edge0", "edge1"],
+      "properties": {
+        "edge0": {"type": "number"},
+        "edge1": {"type": "number"}
+      }
+    },
+
+    "cadence": {
+      "type": "string", "enum": ["T", "D", "S"]
+    },
+    "weighted_cadence": {
+      "type": "object",
+      "required": ["weight", "value"],
+      "properties": {
+        "weight": {"type": "number"},
+        "value": {"$ref": "#/definitions/cadence"},
+      }
+    },
+    "weighted_number": {
+      "type": "object",
+      "required": ["weight", "value"],
+      "properties": {
+        "weight": {"type": "number"},
+        "value": {"type": "number"},
+      }
+    },
+    "weighted_tones": {
+      "type": "object",
+      "required": ["weight", "value"],
+      "properties": {
+        "weight": {"type": "number"},
+        "value": {
+          "type": "array", "minItems": 1,
+          "items": {"type": "number"}
+        }
+      }
+    },
+
+    "cadence_settings": {
+      "type": "object",
+      "required": ["seed", "duration", "probabilities"],
+      "properties": {
+        "seed": {"$ref": "#/definitions/rand_seed"},
+        "duration": {"type": "number"},
+        "probabilities": {
+          "type": "array", "minItems": 1,
+          "items": {"$ref": "#/definitions/weighted_cadence"}
+        }
+      }
+    },
+
+    "chord_root_settings": {
+      "type": "object",
+      "required": ["seed", "probabilities"],
+      "properties": {
+        "seed": {"$ref": "#/definitions/rand_seed"},
+        "probabilities": {
+          "type": "array", "minItems": 1,
+          "items": {"$ref": "#/definitions/weighted_number"}
+        }
+      }
+    },
+    "chord_tones_settings": {
+      "type": "object",
+      "required": ["seed", "probabilities"],
+      "properties": {
+        "seed": {"$ref": "#/definitions/rand_seed"},
+        "probabilities": {
+          "type": "array", "minItems": 1,
+          "items": {"$ref": "#/definitions/weighted_tones"}
+        }
+      }
+    },
+    "chord_settings": {
+      "type": "object",
+      
+    }
+
+  }
+}

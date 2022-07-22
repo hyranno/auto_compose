@@ -1,0 +1,65 @@
+{
+  "scale": {"key":69, "tones":[0,2,4,5,7,9,11]},
+  "time_measure": [4,4],
+  "max_beat_division_depth": 2,
+  "cadence": {
+    "seed": {"state": 4649, "sequence": 459},
+    "duration": 2,
+    "probabilities": [
+      ["Tonic", [
+        {"value":"Tonic",       "weight":0.1},
+        {"value":"Dominant",    "weight":0.6},
+        {"value":"Subdominant", "weight":0.3}
+      ]],
+      ["Dominant", [
+        {"value":"Tonic",       "weight":0.6},
+        {"value":"Dominant",    "weight":0.1},
+        {"value":"Subdominant", "weight":0.3}
+      ]],
+      ["Subdominant", [
+        {"value":"Tonic",       "weight":0.9},
+        {"value":"Dominant",    "weight":0.0},
+        {"value":"Subdominant", "weight":0.1}
+      ]]
+    ]
+  },
+  "chord": {
+    "root": {
+      "seed": {"state": 4649, "sequence": 459},
+      "probabilities": [
+        ["Tonic", [
+          {"value":0, "weight":1}
+        ]],
+        ["Dominant", [
+          {"value":4, "weight":1}
+        ]],
+        ["Subdominant", [
+          {"value":3, "weight":1}
+        ]]
+      ]
+    },
+    "tone": {
+      "rand_tones": {
+        "seed": {"state": 4649, "sequence": 459},
+        "items": [
+          {"value":[0,2,4], "weight": 1}
+        ]
+      }
+    },
+    "modifier": {}
+  },
+  "note": {
+    "rhythm": {
+      "seed": {"state": 4649, "sequence": 459},
+      "pBranch": {"edge0": 0.5, "edge1": 3},
+      "pNoteOn": {"edge0": 0, "edge1": 1.2}
+    },
+    "seed": {"state": 4649, "sequence": 459},
+    "absPitchFactor": {"edge0": 4, "edge1": 12},
+    "relPitchFactor": {"edge0": 6, "edge1": 12},
+    "factorInScale": 8,
+    "factorInChord": 4,
+    "rhythmExponentFactor": 0.5,
+    "regularity": 1
+  }
+}

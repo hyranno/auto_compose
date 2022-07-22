@@ -1,0 +1,371 @@
+{
+  "type": "object",
+  "properties": {
+    "scale": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "number"
+        },
+        "tones": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "tones"
+      ]
+    },
+    "time_measure": {
+      "type": "array",
+      "items": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "max_beat_division_depth": {
+      "type": "number"
+    },
+    "cadence": {
+      "type": "object",
+      "properties": {
+        "seed": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "number"
+            },
+            "sequence": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "sequence",
+            "state"
+          ]
+        },
+        "probabilities": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "enum": [
+                  "Dominant",
+                  "Subdominant",
+                  "Tonic"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "weight": {
+                      "type": "number"
+                    },
+                    "value": {
+                      "$ref": "#/definitions/T"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "weight"
+                  ]
+                }
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "duration": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "duration",
+        "probabilities",
+        "seed"
+      ]
+    },
+    "chord": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "object",
+          "properties": {
+            "seed": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "number"
+                },
+                "sequence": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sequence",
+                "state"
+              ]
+            },
+            "probabilities": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": [
+                  {
+                    "$ref": "#/definitions/T"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "weight": {
+                          "type": "number"
+                        },
+                        "value": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "weight"
+                      ]
+                    }
+                  }
+                ],
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          },
+          "required": [
+            "probabilities",
+            "seed"
+          ]
+        },
+        "tone": {
+          "type": "object",
+          "properties": {
+            "rand_tones": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "weight": {
+                        "type": "number"
+                      },
+                      "value": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "weight"
+                    ]
+                  }
+                },
+                "seed": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "number"
+                    },
+                    "sequence": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "sequence",
+                    "state"
+                  ]
+                }
+              },
+              "required": [
+                "items",
+                "seed"
+              ]
+            }
+          },
+          "required": [
+            "rand_tones"
+          ]
+        },
+        "modifier": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      "required": [
+        "modifier",
+        "root",
+        "tone"
+      ]
+    },
+    "note": {
+      "type": "object",
+      "properties": {
+        "rhythm": {
+          "type": "object",
+          "properties": {
+            "seed": {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "number"
+                },
+                "sequence": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "sequence",
+                "state"
+              ]
+            },
+            "pBranch": {
+              "type": "object",
+              "properties": {
+                "edge0": {
+                  "type": "number"
+                },
+                "edge1": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "edge0",
+                "edge1"
+              ]
+            },
+            "pNoteOn": {
+              "type": "object",
+              "properties": {
+                "edge0": {
+                  "type": "number"
+                },
+                "edge1": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "edge0",
+                "edge1"
+              ]
+            }
+          },
+          "required": [
+            "pBranch",
+            "pNoteOn",
+            "seed"
+          ]
+        },
+        "seed": {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "number"
+            },
+            "sequence": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "sequence",
+            "state"
+          ]
+        },
+        "absPitchFactor": {
+          "type": "object",
+          "properties": {
+            "edge0": {
+              "type": "number"
+            },
+            "edge1": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "edge0",
+            "edge1"
+          ]
+        },
+        "relPitchFactor": {
+          "type": "object",
+          "properties": {
+            "edge0": {
+              "type": "number"
+            },
+            "edge1": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "edge0",
+            "edge1"
+          ]
+        },
+        "factorInScale": {
+          "type": "number"
+        },
+        "factorInChord": {
+          "type": "number"
+        },
+        "rhythmExponentFactor": {
+          "type": "number"
+        },
+        "regularity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "absPitchFactor",
+        "factorInChord",
+        "factorInScale",
+        "regularity",
+        "relPitchFactor",
+        "rhythm",
+        "rhythmExponentFactor",
+        "seed"
+      ]
+    }
+  },
+  "required": [
+    "cadence",
+    "chord",
+    "max_beat_division_depth",
+    "note",
+    "scale",
+    "time_measure"
+  ],
+  "definitions": {
+    "T": {
+      "enum": [
+        "Dominant",
+        "Subdominant",
+        "Tonic"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

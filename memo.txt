@@ -15,6 +15,13 @@ Tone.js
   テクニックを網羅する
 
 
+WeightedRandom系の入力をどうする?
+  inputで作るのはだるい
+  inputで操作できる範囲を制限する
+  JSONをFileAPIで読み込んでね方式
+Generator.setParameters
+
+
 TODO:
   SolidJS: Hello World
   ピアノロールの表示
@@ -32,21 +39,40 @@ TODO:
   Rhythmの生成
   Noteの生成, 表示
   Note音の再生
-  //
   設定画面の表示
+  デザイン整える
+    detail/summary
+  //
   既存データからの展開
   Cadence生成の改善
+    Cadenceの元になる楽節役割(終止形)の設定
   Chord生成の改善
+    転回
 
-
-リファクタリング
-  (new Generator()).generate() じゃなくて generate() だけでよくないか
-  Cadence以前に終止形Class/Generatorがあった方がよいか
 
 
 画面構成
   パラメータ設定
-    ...
+    Cadence
+      seed
+      Duration
+    Chord
+      Root
+        seed
+      Tones
+        seed
+    Rhythm
+      seed
+      pLeaf
+      pNoteOn
+    Note
+      seed
+      absPitchFactor
+      relPitchFactor
+      factorInScale
+      factorInChord
+      rhythmExponentFactor
+      regularity
   出力結果
     ピアノロール
       縦に時間軸、横に音高を取る方が見やすい?

@@ -1,56 +1,55 @@
+import type { Component } from 'solid-js';
 import * as tunes from './tune';
 import {rangeIterator} from './util';
 
 import './PianoRoll.scss';
 
 
+export const PianoRoll: Component<{tune: tunes.Tune, note_bottom: number, note_top: number,}> = (props) => {
+  const tune = () => props.tune;
 
-
-function Cadence(tune: tunes.Tune, t: number) {
-  return <td>
-    {tune.cadence.get(t).value.charAt(0)}
-  </td>;
-}
-function CadenceCol(tune: tunes.Tune, times: number[]) {
-  return <tr>
-    <td></td>
-    {times.map((t)=>Cadence(tune, t))}
-  </tr>;
-}
-
-function Notenum(pitch: number) {
-  return <td>{pitch}</td>;
-}
-function Note(tune: tunes.Tune, pitch: number, t: number) {
-  return <td classList={{
-    "chord": tune.chord.get(t).value.includes(pitch),
-    "chordroot": tune.chord.get(t).value.isRoot(pitch),
-    "note": tune.notes.get(t).value.pitch == pitch,
-  }}></td>;
-}
-function NoteRow(tune: tunes.Tune, pitch: number, times: number[]) {
-  return <>
-    <tr classList={{
-      "key": pitch==tune.scale.root,
-      "scale": tune.scale.includes(pitch),
-      "scaleroot": tune.scale.isRoot(pitch),
-    }}>
-      {Notenum(pitch)}
-      {times.map((t)=>Note(tune, pitch, t))}
-    </tr>
-  </>;
-}
-
-export function PianoRoll(
-    tune: tunes.Tune,
-    note_bottom: number, note_top: number,
-  ) {
-  let time_length = tune.time_measure[0] * tune.time_measure[1];
-  let timetick = 1 / (1 << tune.max_beat_division_depth);
+  let time_length = props.tune.time_measure[0] * props.tune.time_measure[1];
+  let timetick = 1 / (1 << props.tune.max_beat_division_depth);
   let times = [...rangeIterator(0, time_length, timetick)];
-  let notes = [...rangeIterator(note_bottom, note_top, 1)].reverse();
+  let notes = [...rangeIterator(props.note_bottom, props.note_top, 1)].reverse();
+
+  const Cadence: Component<{t:number}> = (props) => {
+    return <td>
+      {tune().cadence.get(props.t).value.charAt(0)}
+    </td>;
+  }
+  const CadenceCol: Component = () => {
+    return <tr>
+      <td></td>
+      {times.map((t) => <Cadence t={t} />)}
+    </tr>;
+  }
+
+  const Notenum: Component<{pitch: number}> = (props) => {
+    return <td>{props.pitch}</td>;
+  }
+  const Note: Component<{pitch: number, t: number}> = (props) => {
+    return <td classList={{
+      "chord": tune().chord.get(props.t).value.includes(props.pitch),
+      "chordroot": tune().chord.get(props.t).value.isRoot(props.pitch),
+      "note": tune().notes.get(props.t).value.pitch == props.pitch,
+    }}></td>;
+  }
+  const NoteRow: Component<{pitch: number}> = (props) => {
+    return <>
+      <tr classList={{
+        "key": props.pitch==tune().scale.root,
+        "scale": tune().scale.includes(props.pitch),
+        "scaleroot": tune().scale.isRoot(props.pitch),
+      }}>
+        <Notenum pitch={props.pitch} />
+        {times.map((t) => <Note pitch={props.pitch} t={t} />)}
+      </tr>
+    </>;
+  }
+
   return <table class="pianoroll">
-    {CadenceCol(tune, times)}
-    {notes.map((n)=>NoteRow(tune, n,times))}
+    <CadenceCol />
+    {notes.map((n) => <NoteRow pitch={n} />)}
   </table>;
 }

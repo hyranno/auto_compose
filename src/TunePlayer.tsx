@@ -1,3 +1,4 @@
+import type { Component } from 'solid-js';
 import * as Tone from "tone";
 
 import * as tunes from './tune';
@@ -30,12 +31,10 @@ function playNotes(tune: tunes.Tune) {
   });
 }
 
-export function TunePlayer(
-    tune: tunes.Tune,
-  ) {
+export const TunePlayer: Component<{tune: tunes.Tune}> = (props) => {
   return <>
-    <button onClick={() => playChord(tune)}>play chord</button>
-    <button onClick={() => playNotes(tune)}>play notes</button>
-    <button onClick={() => {playNotes(tune); playChord(tune);}}>play notes & chord</button>
+    <button onClick={() => playChord(props.tune)}>play chord</button>
+    <button onClick={() => playNotes(props.tune)}>play notes</button>
+    <button onClick={() => {playNotes(props.tune); playChord(props.tune);}}>play notes & chord</button>
   </>;
 }

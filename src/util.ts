@@ -1,5 +1,12 @@
 import {Random} from 'reliable-random';
 
+export function assertIsDefined<T>(val: T): asserts val is NonNullable<T> {
+  if (val === undefined || val === null) {
+    throw new Error(
+      `Expected 'val' to be defined, but received ${val}`
+    );
+  }
+}
 
 export function* rangeIterator(start: number, end: number, tick: number){
   for (let t=start; t<end; t+=tick) {
@@ -15,10 +22,22 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   xn = Math.min(Math.max(xn, 0), 1);
   return xn*xn*(3-2*xn);
 }
+export type SmoothstepParameters = {
+  edge0: number;
+  edge1: number;
+};
 
+export type RandomSeed = {
+  state: number;
+  sequence: number;
+};
 export type WeightedItem<T> = {
   weight: number;
   value: T;
+}
+export type WeightedRandomParameters<T> = {
+  items: WeightedItem<T>[];
+  seed : RandomSeed;
 }
 export class WeightedRandom<T> {
   randGenerator: Random;
@@ -55,7 +74,9 @@ export class Timeline<T> {
     this.items.sort((a, b) => a.t - b.t);
   }
   get(t: number): TimelineItem<T> {
-    return this.items.slice().reverse().find((item) => item.t <= t); //.slice().reverse().find() == .findLast()
+    let res = this.items.slice().reverse().find((item) => item.t <= t); //.slice().reverse().find() == .findLast()
+    assertIsDefined(res);
+    return res;
   }
   list(): TimelineItem<T>[] {
     return this.items.slice();

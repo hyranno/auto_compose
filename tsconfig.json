@@ -3,12 +3,15 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "node",
+    "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
-    "types": ["vite/client", "jest"],
+    "types": ["vite/client", "jest", "node"],
     "noEmit": true,
-    "isolatedModules": true
-  },
+    "isolatedModules": true,
+    "strictNullChecks": true,
+    "baseUrl": "./"
+  }
 }
