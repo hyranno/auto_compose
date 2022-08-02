@@ -12,7 +12,7 @@ const App: Component = () => {
   const [counter, setCounter] = createSignal(0);
   setInterval(setCounter, 1000, (c: number) => c + 1);
 
-  const tuneSignal = createSignal<Tune>();
+  const tuneSignal = createSignal(new Tune());
   const [tune, _setTune] = tuneSignal;
   const generator = new TuneGenerator(tuneSignal);
   generator.generate();

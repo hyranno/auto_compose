@@ -23,15 +23,7 @@ export class CadenceGenerator {
   generate(tune: Tune): util.Timeline<Cadence> {
     let times = [...util.rangeIterator(0, tune.time_measure[0] * tune.time_measure[1], this.duration.get())];
     let cadences: Cadence[] = [Cadence.T, Cadence.D, ]; // how it end  //TODO: can change
-    let chain = new util.MarkovChain<Cadence>(
-      this.seed.createRandom(),
-      cadences[cadences.length-1],
-      s => {
-        let res = this.probabilities.get(s);
-        util.assertIsDefined(res);
-        return res;
-      }
-    );
+    let chain = new util.MarkovChain_TimeHomo_FiniteState(this.seed.createRandom(), cadences[cadences.length-1], this.probabilities);
     while (cadences.length < times.length) {
       cadences.push(chain.next());
     }

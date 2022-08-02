@@ -1,0 +1,30 @@
+4小節を入力として、それに続くアレンジされた4小節を返す
+
+minimal music の手法?
+
+
+VariantGenerator
+  orgGenerator: TuneGenerator
+
+Cadence
+  前後のCadenceを考慮した条件付き確率
+
+Chord
+  別のseedで再生成
+
+Note
+  Pitch
+    前後のPitchを考慮した条件付き確率
+  Rhythm
+    分割, 統合, noteOn/Off
+    分割した箇所はPitchも生成
+
+
+
+
+変更するレイヤーを決める
+  (Cadence  | Chord | Pitch | Rhythm)+
+変更する箇所を決める
+  [start, end]: [time, time]
+変更する
+  timelineからremoveしてaddする(shallow copy なので)

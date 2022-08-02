@@ -1,4 +1,3 @@
-import {Random} from 'reliable-random';
 import * as util from './util';
 
 export class Tune {

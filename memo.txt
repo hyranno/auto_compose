@@ -15,13 +15,6 @@ Tone.js
   テクニックを網羅する
 
 
-WeightedRandom系の入力をどうする?
-  inputで作るのはだるい
-  inputで操作できる範囲を制限する
-  JSONをFileAPIで読み込んでね方式
-Generator.setParameters
-
-
 TODO:
   SolidJS: Hello World
   ピアノロールの表示
@@ -44,10 +37,24 @@ TODO:
     detail/summary
   //
   既存データからの展開
+    Timeline.merge
+    Timeline.getIndex
+    線形代数パッケージ
+      vectorious
+    斉時的有限状態マルコフ連鎖
+      定常確率ベクトル
+      後退遷移行列
+      マルコフ連鎖の補間
+      test
+    VariantGenerator
   Cadence生成の改善
     Cadenceの元になる楽節役割(終止形)の設定
+    開始と終止形の両方を設定
   Chord生成の改善
-    転回
+    借用, 転回
+  MIDIファイル出力
+    ToneJS/Midi
+  ドキュメント(HTML)作成
 
 
 

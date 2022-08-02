@@ -1,3 +1,5 @@
+import * as vectorious from 'vectorious';
+
 import * as util from './util';
 import {Random} from 'reliable-random';
 
@@ -78,6 +80,64 @@ describe('MarkovChain', () => {
     );
     let got = [chain.next(), chain.next(), chain.next(), chain.next()];
     let expected = [{t:1, val:2}, {t:2, val:0}, {t:3, val:0}, {t:4, val:2}];
+    expect(got).toEqual(expected);
+  });
+});
+
+describe('MarkovChain_TimeHomo_FiniteState', () => {
+  type MarkovState = 0|1|2;
+  let pMap = new Map<MarkovState, util.WeightedItem<MarkovState>[]>([
+    [0, [{value: 0, weight: 0}, {value: 1, weight: 0.5}, {value: 2, weight: 0.5}] ],
+    [1, [{value: 0, weight: 0.001}, {value: 1, weight: 0.999}, {value: 2, weight: 0.0}] ],
+    [2, [{value: 0, weight: 0.001}, {value: 1, weight: 0.0}, {value: 2, weight: 0.999}] ],
+  ]);
+  test('transition', () => {
+    let chain = new util.MarkovChain_TimeHomo_FiniteState(
+      new Random(seed0[0], seed0[1]),
+      0,
+      pMap
+    );
+    let got = [chain.next(), chain.next(), chain.next(), chain.next()];
+    let expected = [2,2,2,2];
+    expect(got).toEqual(expected);
+  });
+  test('conditional transition', () => {
+    let chain = new util.MarkovChain_TimeHomo_FiniteState(
+      new Random(seed0[0], seed0[1]),
+      0,
+      pMap
+    );
+    let got = [
+      chain.next_conditional({offset: 4, state:1}),
+      chain.next_conditional({offset: 3, state:1}),
+      chain.next_conditional({offset: 2, state:1}),
+      chain.next_conditional({offset: 1, state:1})
+    ];
+    let expected = [1,1,1,1];
+    expect(got).toEqual(expected);
+  });
+  test('conditional transition 2', () => {
+    let chain = new util.MarkovChain_TimeHomo_FiniteState(
+      new Random(seed0[0], seed0[1]),
+      0,
+      pMap
+    );
+    let got = [
+      chain.next(),
+      chain.next_conditional({offset: 2, state:1}),
+      chain.next_conditional({offset: 1, state:1}),
+      chain.next_conditional({offset: 2, state:2}),
+    ];
+    let expected = [2,0,1,0];
+    expect(got).toEqual(expected);
+  });
+});
+
+describe("vectorious", ()=>{
+  test("get() after transpose()", ()=>{
+    let mat0 = (new vectorious.NDArray([[1,1], [0,0]])).transpose().copy(); /* need to copy to avoid bug? */
+    let got = [[mat0.get(0,0), mat0.get(0,1)], [mat0.get(1,0), mat0.get(1,1)]];
+    let expected = [[1,0], [1,0]];
     expect(got).toEqual(expected);
   });
 });

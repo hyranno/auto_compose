@@ -1,0 +1,63 @@
+条件付き確率
+  P(A where B)
+    = P(A and B) / P(B)
+    = P(B where A) * P(A)/P(B)
+  P(A and B)
+    = P(A where B) * P(B)
+
+
+行列での表現
+  tにおいて各状態にある確率を列ベクトルv(t)とする
+  遷移確率を表す行列(遷移行列)をAとする
+  v(t+1) = v(t) * A
+  v(t+m) = v(t) * A^m
+
+定常分布はマルコフ連鎖の設定に使う条件付き確率から求められる
+  線形方程式 {vP=v, sum(v)=1} における vの解
+    {(I-P)T * vT = 0, (1,...,1)*vT = 1}
+  固有ベクトルとして
+    Pの左固有値1に対応する固有ベクトルを正規化したものと等しい
+    P.transpose の右固有値1に対応する固有ベクトルを正規化したものと等しい
+
+マルコフ連鎖における遷移行列の時間逆転
+  P(S(t) | S(t-1)) <-> P(S(t-1) | S(t))
+    P(S(t)=0|S(t-1)=0), P(S(t)=1|S(t-1)=0)  <->  P(S(t-1)=0|S(t)=0), P(S(t-1)=1|S(t)=0)
+    P(S(t)=0|S(t-1)=1), P(S(t)=1|S(t-1)=1)       P(S(t-1)=0|S(t)=1), P(S(t-1)=1|S(t)=1)
+  単純に逆行列というわけでもない
+  定常確率P(S(t))を用いて
+    P(S(t)=i | S(t-1)=j) = P(S(t)=i and S(t-1)=j) / P(S(t-1)=j)
+    P(S(t-1)=j | S(t)=i) = P(S(t)=i and S(t-1)=j) / P(S(t)=i)
+    定義よりP(S(t)) = P(S(t-1))
+    P(S(t-1)=j | S(t)=i) = P(S(t)=i | S(t-1)=j) * P(S(t)=j) / P(S(t)=i)
+
+
+マルコフ連鎖の補間
+  求めるもの
+    v(t) where (v(t-n) and v(t+m)))
+    v(t-n), v(t+m) が与えられる
+    定常確率を vc とおく(計算可能)
+  P(S(t) where (S(t-n) and S(t+m)))
+    = P((S(t-n) and S(t+m)) where S(t)) * P(S(t)) / P(S(t-n) and S(t+m))   ...(1)
+  P((S(t-n) and S(t+m)) where S(t))
+    = P(S(t-n) where S(t)) * P(S(t+m) where S(t))   ... マルコフ連鎖は直前の状態にのみ依存するため
+    = P(S(t) where S(t-n)) *P(S(t-n))/P(S(t)) * P(S(t) where S(t+m)) *P(S(t+m))/P(S(t))
+    = P(S(t) where S(t-n)) * P(S(t) where S(t+m))
+  P(S(t-n) and S(t+m))
+    = P(S(t+m) where S(t-n)) * P(S(t-n))   ...(3)
+  それぞれ(1)に代入して
+  P(S(t) where (S(t-n) and S(t+m)))
+    = P(S(t) where S(t-n)) * P(S(t) where S(t+m)) / P(S(t+m) where S(t-n))
+  (A+)^n*v(t-n), (A-)^m*v(t+m), (A+)^(m-n)*v(t-n) の要素ごと計算
+
+
+P(S(t) and S(t-n)) = P(S(t) when S(t-n)) * P(S(t-n))
+P(S(t) and S(t+m)) = P(S(t) when S(t+m)) * P(S(t+m))
+P(S(t-n) and S(t+m)) = P(S(t-n) when S(t+m)) * P(S(t+m))
+
+
+tにおける確率v(t)
+  p(T,t), p(D,t), p(S,t)
+遷移確率の行列(遷移行列)A
+  P(T|T), P(D|T), P(S|T)
+  P(T|D), P(D|D), P(S|D)
+  P(T|S), P(D|S), P(S|S)

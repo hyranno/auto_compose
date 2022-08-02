@@ -11,20 +11,43 @@
     "gen_schema": "npx ts-node --esm src/generate_parameters_schema.ts"
   },
   "devDependencies": {
-    "sass": "^1.52.1",
-    "typescript": "^4.6.4",
-    "vite": "^2.9.9",
-    "vite-plugin-solid": "^2.2.6",
     "@types/jest": "^27.4.1",
-    "ts-jest": "^27.1.4",
     "@types/node": "^17.0.45",
+    "sass": "^1.52.1",
+    "ts-jest": "^27.1.4",
     "ts-node": "^10.8.1",
-    "typescript-json-schema": "^0.54"
+    "typescript": "^4.6.4",
+    "typescript-json-schema": "^0.54",
+    "vite": "^2.9.9",
+    "vite-plugin-solid": "^2.2.6"
   },
   "dependencies": {
-    "solid-js": "^1.4.2",
+    "ajv": "^8",
     "reliable-random": "^0",
+    "solid-js": "^1.4.2",
     "tone": "^14",
-    "ajv": "^8"
+    "vectorious": "^6.1.4"
+  },
+  "jest": {
+    "roots": [
+     "<rootDir>/src"
+    ],
+    "preset": "ts-jest/presets/js-with-ts-esm",
+    "extensionsToTreatAsEsm": [".ts"],
+    "globals": {
+      "ts-jest": {
+        "useESM": true
+      }
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "testMatch": [
+      "**/__tests__/**/*.[jt]s?(x)",
+      "**/?(*.)+(spec|test).[tj]s?(x)"
+    ],
+    "transform": {
+      "^.+\\.(ts|tsx)$": "ts-jest"
+    }
   }
 }

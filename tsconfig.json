@@ -12,6 +12,7 @@
     "noEmit": true,
     "isolatedModules": true,
     "strictNullChecks": true,
+    "allowJs": true,
     "baseUrl": "./"
   }
 }
