@@ -1,6 +1,7 @@
 import * as vectorious from 'vectorious';
 
 import * as util from './util';
+import * as markov from './markov';
 import {Random} from 'reliable-random';
 
 
@@ -65,24 +66,6 @@ describe('Timeline', () => {
   });
 });
 
-describe('MarkovChain', () => {
-  test('', () => {
-    type MarkovItem = {t:number, val:0|1|2};
-    let pFunc = (s: MarkovItem) => [
-      {weight: 1, value:{t:s.t+1, val:0}},
-      {weight: 1, value:{t:s.t+1, val:1}},
-      {weight: 1, value:{t:s.t+1, val:2}},
-    ];
-    let chain = new util.MarkovChain(
-      new Random(seed0[0], seed0[1]),
-      {t:0, val:0},
-      pFunc
-    );
-    let got = [chain.next(), chain.next(), chain.next(), chain.next()];
-    let expected = [{t:1, val:2}, {t:2, val:0}, {t:3, val:0}, {t:4, val:2}];
-    expect(got).toEqual(expected);
-  });
-});
 
 describe('MarkovChain_TimeHomo_FiniteState', () => {
   type MarkovState = 0|1|2;
@@ -92,7 +75,7 @@ describe('MarkovChain_TimeHomo_FiniteState', () => {
     [2, [{value: 0, weight: 0.001}, {value: 1, weight: 0.0}, {value: 2, weight: 0.999}] ],
   ]);
   test('transition', () => {
-    let chain = new util.MarkovChain_TimeHomo_FiniteState(
+    let chain = new markov.MarkovChain_TimeHomo_FiniteState(
       new Random(seed0[0], seed0[1]),
       0,
       pMap
@@ -102,7 +85,7 @@ describe('MarkovChain_TimeHomo_FiniteState', () => {
     expect(got).toEqual(expected);
   });
   test('conditional transition', () => {
-    let chain = new util.MarkovChain_TimeHomo_FiniteState(
+    let chain = new markov.MarkovChain_TimeHomo_FiniteState(
       new Random(seed0[0], seed0[1]),
       0,
       pMap
@@ -117,7 +100,7 @@ describe('MarkovChain_TimeHomo_FiniteState', () => {
     expect(got).toEqual(expected);
   });
   test('conditional transition 2', () => {
-    let chain = new util.MarkovChain_TimeHomo_FiniteState(
+    let chain = new markov.MarkovChain_TimeHomo_FiniteState(
       new Random(seed0[0], seed0[1]),
       0,
       pMap

@@ -35,7 +35,6 @@ TODO:
   設定画面の表示
   デザイン整える
     detail/summary
-  //
   既存データからの展開
     Timeline.merge
     Timeline.getIndex
@@ -45,17 +44,40 @@ TODO:
       定常確率ベクトル
       後退遷移行列
       マルコフ連鎖の補間
-      test
+  //
+    MarkovChain-PitchGenerator @ NoteGenerator
+      Chordを考慮すると斉時的でなくなる
+      Chordを考慮しない確率を計算後、factorInChordを掛ける
     VariantGenerator
+      Cadence
+      Chord
+      Pitch
+      Rhythm
   Cadence生成の改善
     Cadenceの元になる楽節役割(終止形)の設定
     開始と終止形の両方を設定
   Chord生成の改善
     借用, 転回
+  Note生成の改善
+    isNoteOnの設定と反映
   MIDIファイル出力
     ToneJS/Midi
   ドキュメント(HTML)作成
 
+
+Pitchの補間
+  必要  ... tune: Tune, rhythms: Rhythm[]
+  T ... {index: number, pitch: notenum}
+  forward_distribution_sub(state: T): WeightedItem<T>[]
+  forward_distribution(state_distribution: WeightedItem<T>[]): WeightedItem<T>[]
+
+リファクタリング
+  Generator
+    static default: Parameters
+  Markov
+    forward_distribution(state_distribution: NDArray): NDArray
+  MarkovChain_TimeHomo_FiniteState
+    vpb は要素ごとじゃなくて
 
 
 画面構成

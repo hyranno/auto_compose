@@ -36,18 +36,19 @@
     v(t) where (v(t-n) and v(t+m)))
     v(t-n), v(t+m) が与えられる
     定常確率を vc とおく(計算可能)
-  P(S(t) where (S(t-n) and S(t+m)))
-    = P((S(t-n) and S(t+m)) where S(t)) * P(S(t)) / P(S(t-n) and S(t+m))   ...(1)
-  P((S(t-n) and S(t+m)) where S(t))
+  P(S(t)=i where (S(t-n)=j and S(t+m)=k))
+    = P((S(t-n)=j and S(t+m)=k) where S(t)=i) * P(S(t)=i) / P(S(t-n)=j and S(t+m)=k)   ...(1)
+  P((S(t-n)=j and S(t+m)=k) where S(t)=i)
     = P(S(t-n) where S(t)) * P(S(t+m) where S(t))   ... マルコフ連鎖は直前の状態にのみ依存するため
     = P(S(t) where S(t-n)) *P(S(t-n))/P(S(t)) * P(S(t) where S(t+m)) *P(S(t+m))/P(S(t))
-    = P(S(t) where S(t-n)) * P(S(t) where S(t+m))
-  P(S(t-n) and S(t+m))
-    = P(S(t+m) where S(t-n)) * P(S(t-n))   ...(3)
+    = P(S(t)=i where S(t-n)=j) * P(S(t)=i where S(t+m)=k) *P(S(t)=j)*P(S(t)=k) /P(S(t)=i)^2
+  P(S(t-n)=j and S(t+m)=k)
+    = P(S(t+m)=k where S(t-n)=j) * P(S(t-n)=j)
+    = P(S(t+m)=k where S(t-n)=j) * P(S(t)=j)   ...(3)
   それぞれ(1)に代入して
-  P(S(t) where (S(t-n) and S(t+m)))
-    = P(S(t) where S(t-n)) * P(S(t) where S(t+m)) / P(S(t+m) where S(t-n))
-  (A+)^n*v(t-n), (A-)^m*v(t+m), (A+)^(m-n)*v(t-n) の要素ごと計算
+  P(S(t)=i where (S(t-n)=j and S(t+m)=k))
+    = P(S(t)=i where S(t-n)=j) * P(S(t)=i where S(t+m)=k) /P(S(t)=i) *P(S(t)=k) /P(S(t+m)=k where S(t-n)=j)
+  (A+)^n*v(t-n), (A-)^m*v(t+m), 1/s[i] のアダマール積 *s[k] /((A+)^(m-n)*v(t-n))[k]
 
 
 P(S(t) and S(t-n)) = P(S(t) when S(t-n)) * P(S(t-n))

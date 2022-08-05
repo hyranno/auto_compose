@@ -27,4 +27,4 @@ Note
 変更する箇所を決める
   [start, end]: [time, time]
 変更する
-  timelineからremoveしてaddする(shallow copy なので)
+  timeline.list() から編集して Timeline.fromItems

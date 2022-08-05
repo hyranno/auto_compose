@@ -172,3 +172,64 @@ export class NoteGenerator {
     this.regularity.set(params.regularity);
   }
 }
+
+
+
+
+type PitchState = {
+  index: number,
+  pitch: notenum
+}
+export class PitchChain {
+  private tune: Tune;
+  private rhythms: Rhythm[];
+  private random: Random;
+  private state: PitchState;
+  private seed = new helper.RandomSeed(4649,459);
+  private absPitchFactorEdges = new helper.Smoothstep(4,12);
+  private relPitchFactorEdges = new helper.Smoothstep(6,12);
+  private factorInScale = new helper.InputBoundNumber(8);
+  private factorInChord = new helper.InputBoundNumber(4);
+  private rhythmExponentFactor = new helper.InputBoundNumber(1/2);
+  private regularity = new helper.InputBoundNumber(1);
+  private calcAbsolutePitchFactor(centor: notenum, candidate: Note): number {
+    let distance = Math.abs(candidate.pitch - centor);
+    return 1 - this.absPitchFactorEdges.calc(distance);
+  }
+  private calcRelativePitchFactor(prev: Note, candidate: Note): number {
+    let distance = Math.abs(candidate.pitch - prev.pitch);
+    return 1 - this.relPitchFactorEdges.calc(distance);
+  }
+  private calcFactorInScale(scale: Scale, candidate: Note): number {
+    return scale.includes(candidate.pitch)? this.factorInScale.get() : 1;
+  }
+  private calcFactorInChord(chord: Chord, candidate: Note): number {
+    return chord.includes(candidate.pitch)? this.factorInChord.get() : 1;
+  }
+  private calcRhythmExponent(duration: number): number {
+    return duration * this.rhythmExponentFactor.get();
+  }
+  private calcWeight(tune: Tune, index: number, prev: Note, candidate: Note): number {
+    let absPitchFactor = this.calcAbsolutePitchFactor(tune.scale.root, candidate);
+    let relPitchFactor = this.calcRelativePitchFactor(prev, candidate);
+    let factorInScale = this.calcFactorInScale(tune.scale, candidate);
+    let factorInChord = this.calcFactorInChord(tune.chord.get(this.rhythms[index].t).value, candidate);
+    let rhythmExponent = this.calcRhythmExponent(candidate.duration);
+    return Math.pow(
+      absPitchFactor * relPitchFactor * factorInScale * factorInChord,
+      rhythmExponent + this.regularity.get()
+    );
+  }
+  calc_distribution_sub(state: PitchState, isBackward: boolean = false): util.WeightedItem<PitchState>[] {
+    let index = state.index + (isBackward? -1: 1);
+    let prev: Note = {pitch: state.pitch, duration: this.rhythms[state.index].duration};
+    let candidates: Note[] = [...util.rangeIterator(state.pitch-12, state.pitch+12, 1)].map(p => {return {
+      pitch: p,
+      duration: this.rhythms[index].duration
+    }});
+    return candidates.map((c) => {return {
+      weight: this.calcWeight(this.tune, index, prev, c),
+      value: {index: index, pitch: c.pitch}
+    }});
+  }
+}
