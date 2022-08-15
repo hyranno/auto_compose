@@ -94,7 +94,7 @@ export class Timeline<T> {
     return res;
   }
   getIndex(t: number): number {
-    return this.items.slice().reverse().findIndex((item) => item.t <= t);
+    return this.items.length-1 - this.items.slice().reverse().findIndex((item) => item.t <= t);
   }
   remove(t: number) {
     this.items.splice(this.getIndex(t), 1);

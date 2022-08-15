@@ -73,31 +73,31 @@ export class MarkovChain_TimeHomo_FiniteState<T> extends MarkovChain<T> {
     this._backward_matrix = new vectorious.NDArray(matrix_data);
   }
 
-  protected stateToIndex(state: T): number {
+  stateToIndex(state: T): number {
     return this.states.findIndex((s) => s == state);
   }
-  protected stateToVector(state: T): vectorious.NDArray {
+  stateToVector(state: T): vectorious.NDArray {
     return new vectorious.NDArray( this.states.map(s => (s==state)? 1 : 0), {shape: [1, this.states.length]});
   }
-  protected vectorToWeightedItems(stateVec: vectorious.NDArray): WeightedItem<T>[] {
+  vectorToWeightedItems(stateVec: vectorious.NDArray): WeightedItem<T>[] {
     return this.states.map( (s, si) => {
       let weight = stateVec.get(0, si);   assertIsDefined(weight);
       return {weight: weight, value: s};
     } );
   }
 
-  protected calc_distribution(stateVec: vectorious.NDArray, isBackward: boolean =false): vectorious.NDArray {
+  calc_distribution(stateVec: vectorious.NDArray, isBackward: boolean =false): vectorious.NDArray {
     const mat = (isBackward? this.backward_matrix: this.transition_matrix);
     return stateVec.copy().multiply(mat);
   }
-  protected calc_distribution_far(offset: number, stateVec: vectorious.NDArray, isBackward: boolean =false): vectorious.NDArray {
+  calc_distribution_far(offset: number, stateVec: vectorious.NDArray, isBackward: boolean =false): vectorious.NDArray {
     let res = stateVec.copy();
     for (let i=0; i<offset; i++) {
       res = this.calc_distribution(res, isBackward);
     }
     return res;
   }
-  protected calc_distribution_conditional(cond_past: Condition<T>, cond_forward: Condition<T>): vectorious.NDArray {
+  calc_distribution_conditional(cond_past: Condition<T>, cond_forward: Condition<T>): vectorious.NDArray {
     const index_forward = this.stateToIndex(cond_forward.state);
     const v_past = this.stateToVector(cond_past.state);
     const v_forward = this.stateToVector(cond_forward.state);

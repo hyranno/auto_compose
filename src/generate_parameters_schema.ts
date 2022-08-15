@@ -13,6 +13,24 @@ const compilerOptions: TJS.CompilerOptions = {
 };
 const basePath = "./src";
 
+function generateSchemaFile(sourcePath: string, typename: string) {
+  const program = TJS.getProgramFromFiles(
+    [path.resolve(sourcePath)],
+    compilerOptions,
+    basePath
+  );
+  const schema = TJS.generateSchema(program, typename, settings);
+  const schemaString = JSON.stringify(schema, null, 2);
+
+  const saveName = typename + ".json";
+  const dest = path.resolve('schemas', saveName);
+  writeFileSync(dest, schemaString);
+}
+
+generateSchemaFile("./src/TuneGenerator.tsx", "TuneGeneratorParameters");
+generateSchemaFile("./src/VariantGenerator.tsx", "VariantGeneratorParameters");
+
+/*
 const program = TJS.getProgramFromFiles(
   [path.resolve("./src/TuneGenerator.tsx")],
   compilerOptions,
@@ -25,5 +43,6 @@ const schemaString = JSON.stringify(schema, null, 2);
 const saveName = typename + ".json";
 const dest = path.resolve('schemas', saveName);
 writeFileSync(dest, schemaString);
+*/
 
 //console.log(schemaString);

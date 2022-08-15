@@ -1,12 +1,27 @@
 import * as util from './util';
 
 export class Tune {
-  time_measure: [number, number];
-  max_beat_division_depth: number;
-  scale: Scale;
-  cadence: util.Timeline<Cadence>;
-  chord: util.Timeline<Chord>;
-  notes: util.Timeline<Note>;
+  length: number = 0;
+  time_measure: [number, number] = [4,4];
+  max_beat_division_depth: number = 2;
+  scale: Scale = Scale.major(64);
+  cadence = new util.Timeline<Cadence>();
+  chord = new util.Timeline<Chord>();
+  notes = new util.Timeline<Note>();
+  merge(src: Tune): Tune {
+    let dest = new Tune();
+    dest.length = this.length + src.length;
+    dest.time_measure = this.time_measure;
+    dest.max_beat_division_depth = this.max_beat_division_depth;
+    dest.scale = new Scale(this.scale.root, this.scale.tones);
+    dest.cadence.merge(0, this.cadence);
+    dest.cadence.merge(this.length, src.cadence);
+    dest.chord.merge(0, this.chord);
+    dest.chord.merge(this.length, src.chord);
+    dest.notes.merge(0, this.notes);
+    dest.notes.merge(this.length, src.notes);
+    return dest;
+  }
 }
 
 export type notenum = number; //MIDI note number on 12 equal temperament

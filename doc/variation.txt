@@ -7,6 +7,7 @@ VariantGenerator
   orgGenerator: TuneGenerator
 
 Cadence
+  終止形の変更
   前後のCadenceを考慮した条件付き確率
 
 Chord
@@ -15,6 +16,8 @@ Chord
 Note
   Pitch
     前後のPitchを考慮した条件付き確率
+    Rhythm, Chordを考慮すると斉時的でなくなる
+    Rhythm, Chordを考慮しない確率を計算後、編集
   Rhythm
     分割, 統合, noteOn/Off
     分割した箇所はPitchも生成

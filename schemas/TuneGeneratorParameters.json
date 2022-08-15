@@ -279,6 +279,61 @@
             "seed"
           ]
         },
+        "pitchWeight": {
+          "type": "object",
+          "properties": {
+            "absPitchFactor": {
+              "type": "object",
+              "properties": {
+                "edge0": {
+                  "type": "number"
+                },
+                "edge1": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "edge0",
+                "edge1"
+              ]
+            },
+            "relPitchFactor": {
+              "type": "object",
+              "properties": {
+                "edge0": {
+                  "type": "number"
+                },
+                "edge1": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "edge0",
+                "edge1"
+              ]
+            },
+            "factorInScale": {
+              "type": "number"
+            },
+            "factorInChord": {
+              "type": "number"
+            },
+            "rhythmExponentFactor": {
+              "type": "number"
+            },
+            "regularity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "absPitchFactor",
+            "factorInChord",
+            "factorInScale",
+            "regularity",
+            "relPitchFactor",
+            "rhythmExponentFactor"
+          ]
+        },
         "seed": {
           "type": "object",
           "properties": {
@@ -293,58 +348,11 @@
             "sequence",
             "state"
           ]
-        },
-        "absPitchFactor": {
-          "type": "object",
-          "properties": {
-            "edge0": {
-              "type": "number"
-            },
-            "edge1": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "edge0",
-            "edge1"
-          ]
-        },
-        "relPitchFactor": {
-          "type": "object",
-          "properties": {
-            "edge0": {
-              "type": "number"
-            },
-            "edge1": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "edge0",
-            "edge1"
-          ]
-        },
-        "factorInScale": {
-          "type": "number"
-        },
-        "factorInChord": {
-          "type": "number"
-        },
-        "rhythmExponentFactor": {
-          "type": "number"
-        },
-        "regularity": {
-          "type": "number"
         }
       },
       "required": [
-        "absPitchFactor",
-        "factorInChord",
-        "factorInScale",
-        "regularity",
-        "relPitchFactor",
+        "pitchWeight",
         "rhythm",
-        "rhythmExponentFactor",
         "seed"
       ]
     }

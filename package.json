@@ -30,10 +30,12 @@
   },
   "jest": {
     "roots": [
-     "<rootDir>/src"
+      "<rootDir>/src"
     ],
     "preset": "ts-jest/presets/js-with-ts-esm",
-    "extensionsToTreatAsEsm": [".ts"],
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
     "globals": {
       "ts-jest": {
         "useESM": true

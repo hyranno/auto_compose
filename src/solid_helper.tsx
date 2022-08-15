@@ -10,6 +10,12 @@ export function ClassUI<T extends ClassWithUI> (props: ClassUIProps<T>) {
   return props.instance.ui(props);
 }
 
+export abstract class UiAdapter<T> {
+  abstract get(): T;
+  abstract set(v:T): T;
+  abstract ui: Component;
+}
+
 export class InputBoundNumber {
   get: ()=>number;
   set: (v: number)=>number;

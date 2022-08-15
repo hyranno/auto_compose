@@ -1,15 +1,16 @@
-import Ajv, {JSONSchemaType} from "ajv"
+import Ajv from "ajv"
 import type { Component } from 'solid-js';
 import {createSignal} from 'solid-js';
 import './TuneGenerator.scss';
 
 import {ClassUI} from './solid_helper';
 import * as util from './util';
+import * as helper from './solid_helper';
 
 import schema from '../schemas/TuneGeneratorParameters.json';
-import {CadenceGenerator, CadenceGeneratorParameters} from './CadenceGenerator';
-import {ChordGenerator, ChordGeneratorParameters} from './ChordGenerator';
-import {NoteGenerator, NoteGeneratorParameters} from './NoteGenerator';
+import {CadenceGenerator, CadenceGeneratorParameters, CadenceGeneratorParametersUiAdapter} from './CadenceGenerator';
+import {ChordGenerator, ChordGeneratorParameters, ChordGeneratorParametersUiAdapter} from './ChordGenerator';
+import {NoteGenerator, NoteGeneratorParameters, NoteGeneratorParametersUiAdapter} from './NoteGenerator';
 
 import {Tune, Scale} from './tune';
 
@@ -22,17 +23,41 @@ export type TuneGeneratorParameters = {
   chord: ChordGeneratorParameters;
   note: NoteGeneratorParameters;
 };
-export class TuneGenerator {
+export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGeneratorParameters> {
   private scale = Scale.major(69);
   private time_measure: [number, number] = [4,4];
   private max_beat_division_depth = 2;
-  private cadenceGen = new CadenceGenerator();
-  private chordGen = new ChordGenerator();
-  private noteGen = new NoteGenerator();
-  get: ()=>Tune;
-  private set: (v: Tune)=>Tune;
-  constructor(signal: [()=>Tune, (v:Tune)=>Tune]) {
-    [this.get, this.set] = signal;
+  private cadence = new CadenceGeneratorParametersUiAdapter();
+  private chord = new ChordGeneratorParametersUiAdapter();
+  private note = new NoteGeneratorParametersUiAdapter();
+  static fromJSON(data: any): TuneGeneratorParameters {
+    //const data = JSON.parse(jsonstr);
+    const ajv = new Ajv();
+    const validate = ajv.compile<TuneGeneratorParameters>(schema);
+    if (!validate(data)) {
+      alert("Parameters JSON is not valid");
+      console.log(validate.errors);
+    }
+    return data;
+  }
+  get(): TuneGeneratorParameters {
+    return {
+      scale: {key: this.scale.root, tones: this.scale.tones},
+      time_measure: this.time_measure,
+      max_beat_division_depth: this.max_beat_division_depth,
+      cadence: this.cadence.get(),
+      chord: this.chord.get(),
+      note: this.note.get(),
+    };
+  }
+  set(params: TuneGeneratorParameters): TuneGeneratorParameters {
+    this.scale = new Scale(params.scale.key, params.scale.tones);
+    this.time_measure = params.time_measure;
+    this.max_beat_division_depth = params.max_beat_division_depth;
+    this.cadence.set(params.cadence);
+    this.chord.set(params.chord);
+    this.note.set(params.note);
+    return params;
   }
   ui: Component = () => {
     return <>
@@ -43,43 +68,38 @@ export class TuneGenerator {
           <input type="file" onInput={(e) => {
             let fileElem = (e.target as HTMLInputElement).files;
             util.assertIsDefined(fileElem);
-            fileElem[0].text().then( (str) => this.setParametersFromJSON(str) );
+            fileElem[0].text().then( (str) => {
+              this.set( TuneGeneratorParametersUiAdapter.fromJSON( JSON.parse(str)) )
+            } );
           }} />
         </label>
-        <ClassUI instance={this.cadenceGen} />
-        <ClassUI instance={this.chordGen} />
-        <ClassUI instance={this.noteGen} />
+        <ClassUI instance={this.cadence} />
+        <ClassUI instance={this.chord} />
+        <ClassUI instance={this.note} />
       </details>
-      <button onClick={() => this.generate()}>generate</button>
     </>
   };
-  generate(): Tune {
+}
+
+export class TuneGenerator {
+  private cadenceGen = new CadenceGenerator();
+  private chordGen = new ChordGenerator();
+  private noteGen = new NoteGenerator();
+  get: ()=>Tune;
+  private set: (v: Tune)=>Tune;
+  constructor(signal: [()=>Tune, (v:Tune)=>Tune]) {
+    [this.get, this.set] = signal;
+  }
+  generate(params: TuneGeneratorParameters): Tune {
+    util.assertIsDefined(params);
     let tune = new Tune();
-    tune.scale = this.scale;
-    tune.time_measure = this.time_measure;
-    tune.max_beat_division_depth = this.max_beat_division_depth;
-    tune.cadence = this.cadenceGen.generate(tune);
-    tune.chord = this.chordGen.generate(tune);
-    tune.notes = this.noteGen.generate(tune);
+    tune.length = params.time_measure[0] * params.time_measure[1];
+    tune.scale = new Scale(params.scale.key, params.scale.tones);
+    tune.time_measure = params.time_measure;
+    tune.max_beat_division_depth = params.max_beat_division_depth;
+    tune.cadence = this.cadenceGen.generate(tune, params.cadence);
+    tune.chord = this.chordGen.generate(tune, params.chord);
+    tune.notes = this.noteGen.generate(tune, params.note);
     return this.set(tune);
-  }
-  setParameters(params: TuneGeneratorParameters) {
-    this.scale = new Scale(params.scale.key, params.scale.tones);
-    this.time_measure = params.time_measure;
-    this.max_beat_division_depth = params.max_beat_division_depth;
-    this.cadenceGen.setParameters(params.cadence);
-    this.chordGen.setParameters(params.chord);
-    this.noteGen.setParameters(params.note);
-  }
-  setParametersFromJSON(jsonstr: string) {
-    const ajv = new Ajv();
-    const data = JSON.parse(jsonstr);
-    const validate = ajv.compile<TuneGeneratorParameters>(schema);
-    if (validate(data)) {
-      this.setParameters(data);
-    } else {
-      alert("Parameters JSON is not valid");
-      console.log(validate.errors);
-    };
   }
 }

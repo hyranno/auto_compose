@@ -52,17 +52,31 @@ describe('WeightedRandom', () => {
 });
 
 describe('Timeline', () => {
-  test('', () => {
-    let events = [
-      {t: 0, value: 0},
-      {t: 1, value: 1},
-      {t: 2, value: 2},
-      {t: 3, value: 3},
-    ];
-    let timeline = util.Timeline.fromItems(events);
+  let events = [
+    {t: 0, value: 0},
+    {t: 1, value: 1},
+    {t: 2, value: 2},
+    {t: 3, value: 3},
+  ];
+  test('get', () => {
+    let timeline = util.Timeline.fromItems(events.slice());
     expect([timeline.get(0.6),timeline.get(1.6),timeline.get(2.6),timeline.get(3.6)].map(v=>v.value)).toEqual([0,1,2,3]);
     timeline.add({t:1.5, value:1.5});
     expect([timeline.get(0.6),timeline.get(1.6),timeline.get(2.6),timeline.get(3.6)].map(v=>v.value)).toEqual([0,1.5,2,3]);
+  });
+  test('getIndex', () => {
+    let timeline = util.Timeline.fromItems(events.slice());
+    expect(
+      [timeline.getIndex(0.6), timeline.getIndex(1.6), timeline.getIndex(2.6), timeline.getIndex(3.6)]
+    ).toEqual(
+      [0,1,2,3]
+    );
+    timeline.add({t:1.5, value:1.5});
+    expect(
+      [timeline.getIndex(0.6), timeline.getIndex(1.6), timeline.getIndex(2.6), timeline.getIndex(3.6)]
+    ).toEqual(
+      [0,2,3,4]
+    );
   });
 });
 

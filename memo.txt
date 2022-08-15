@@ -45,14 +45,12 @@ TODO:
       後退遷移行列
       マルコフ連鎖の補間
   //
-    MarkovChain-PitchGenerator @ NoteGenerator
-      Chordを考慮すると斉時的でなくなる
-      Chordを考慮しない確率を計算後、factorInChordを掛ける
     VariantGenerator
-      Cadence
-      Chord
-      Pitch
-      Rhythm
+      Cadence, Chord, Pitch, Rhythm
+    default ParametersのJSONからの読み込み
+    CadenceVariantGeneratorの出力がおかしいっぽい
+      生成方向が逆では
+
   Cadence生成の改善
     Cadenceの元になる楽節役割(終止形)の設定
     開始と終止形の両方を設定
@@ -60,24 +58,17 @@ TODO:
     借用, 転回
   Note生成の改善
     isNoteOnの設定と反映
+  Variation生成の改善
+    終止形変更
   MIDIファイル出力
     ToneJS/Midi
+    Cadence表記トラック(メタイベント)を作ってもよい?
   ドキュメント(HTML)作成
 
 
-Pitchの補間
-  必要  ... tune: Tune, rhythms: Rhythm[]
-  T ... {index: number, pitch: notenum}
-  forward_distribution_sub(state: T): WeightedItem<T>[]
-  forward_distribution(state_distribution: WeightedItem<T>[]): WeightedItem<T>[]
 
 リファクタリング
-  Generator
-    static default: Parameters
-  Markov
-    forward_distribution(state_distribution: NDArray): NDArray
-  MarkovChain_TimeHomo_FiniteState
-    vpb は要素ごとじゃなくて
+
 
 
 画面構成

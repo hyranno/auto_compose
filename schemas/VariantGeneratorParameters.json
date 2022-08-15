@@ -1,0 +1,78 @@
+{
+  "type": "object",
+  "properties": {
+    "seed": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "number"
+        },
+        "sequence": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "sequence",
+        "state"
+      ]
+    },
+    "timespan": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "weight": {
+            "type": "number"
+          },
+          "value": {
+            "type": "array",
+            "items": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "required": [
+          "value",
+          "weight"
+        ]
+      }
+    },
+    "layer": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "weight": {
+            "type": "number"
+          },
+          "value": {
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "weight"
+        ]
+      }
+    }
+  },
+  "required": [
+    "layer",
+    "seed",
+    "timespan"
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

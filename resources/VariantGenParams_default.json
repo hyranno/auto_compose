@@ -1,0 +1,5 @@
+{
+  "seed": {"state": 4649, "sequence": 459},
+  "timespan": [{"value":[4,9], "weight":1}],
+  "layer": [{"value":2, "weight":1}]
+}
