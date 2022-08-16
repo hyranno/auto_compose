@@ -167,14 +167,21 @@ class PitchVariantGenerator {
       let items = items_timehomo.map(item => {return {
         value: item.value,
         weight: weightCalculator.calcWithTimeHomoWeight(
-          tune, item.weight, {pitch: item.value, duration:li[i].value.duration}, li[i].t, params
+          tune, item.weight, {
+            pitch: item.value,
+            isNoteOn: li[i].value.isNoteOn,
+            duration: li[i].value.duration
+          }, li[i].t, params
         ),
       }});
       let rand_pitch = new util.WeightedRandom(rand, items);
       return {
         t: v.t,
-        value: {duration: v.value.duration, pitch: rand_pitch.get()}
-        //value: {duration: v.value.duration, pitch: 64}
+        value: {
+          pitch: rand_pitch.get(),
+          isNoteOn: v.value.isNoteOn,
+          duration: v.value.duration,
+        }
       }
     });
     return util.Timeline.fromItems(vli);

@@ -14,6 +14,10 @@ export function* rangeIterator(start: number, end: number, tick: number = 1){
   }
 }
 
+export function modulo(x:number, y:number): number {
+  return ((x % y) + y) % y;
+}
+
 export function step(edge:number, x:number): number {
   return (x<edge)? 0 : 1;
 }

@@ -55,8 +55,7 @@ class RhythmGenerator {
     let isLeaf = (rand.random() < pLeaf) || (depthcount <= 0);
     if (isLeaf) {
       let pNoteOn = util.smoothstep(params.pNoteOn.edge0, params.pNoteOn.edge1, candidate.duration);
-      let isNoteOn = rand.random() < pNoteOn;
-      candidate.isNoteOn = isNoteOn;
+      candidate.isNoteOn = rand.random() < pNoteOn;
       dest.push(candidate);
     } else {
       let c0 = {isNoteOn: true, t: candidate.t, duration: candidate.duration/2};
@@ -116,6 +115,7 @@ export class NoteGenerator {
   generateNote(tune: Tune, rand: Random, prev: Note, rhythm: Rhythm, params: NoteGeneratorParameters): Note{
     let candidates: Note[] = [...util.rangeIterator(prev.pitch-12, prev.pitch+12, 1)].map(p => {return {
       pitch: p,
+      isNoteOn: rhythm.isNoteOn,
       duration: rhythm.duration
     }});
     let rand_notes = new util.WeightedRandom(
@@ -125,10 +125,10 @@ export class NoteGenerator {
     return rand_notes.get();
   }
   generate(tune: Tune, params: NoteGeneratorParameters): util.Timeline<Note> {
-    let rhythms = this.rhythmGen.generate(tune, params.rhythm);
+    const rhythms = this.rhythmGen.generate(tune, params.rhythm);
     let rand = new Random(params.seed.state, params.seed.sequence);
-    let prev = {pitch: tune.scale.root, duration: 0}; //dummy
-    let events = rhythms.map(r => {
+    let prev = {pitch: tune.scale.root, isNoteOn: false, duration: 0}; //dummy
+    const events = rhythms.map(r => {
       prev = this.generateNote(tune, rand, prev, r, params);
       return {t:r.t, value:prev};
     });

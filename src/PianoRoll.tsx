@@ -29,10 +29,12 @@ export const PianoRoll: Component<{tune: tunes.Tune, note_bottom: number, note_t
     return <td>{props.pitch}</td>;
   }
   const Note: Component<{pitch: number, t: number}> = (props) => {
+    const chord = ()=> tune().chord.get(props.t).value;
+    const note = ()=> tune().notes.get(props.t).value;
     return <td classList={{
-      "chord": tune().chord.get(props.t).value.includes(props.pitch),
-      "chordroot": tune().chord.get(props.t).value.isRoot(props.pitch),
-      "note": tune().notes.get(props.t).value.pitch == props.pitch,
+      "chord": chord().includes(props.pitch),
+      "chordroot": chord().isRoot(props.pitch),
+      "note": note().isNoteOn && note().pitch == props.pitch,
     }}></td>;
   }
   const NoteRow: Component<{pitch: number}> = (props) => {

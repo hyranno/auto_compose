@@ -44,27 +44,27 @@ TODO:
       定常確率ベクトル
       後退遷移行列
       マルコフ連鎖の補間
-  //
     VariantGenerator
       Cadence, Chord, Pitch, Rhythm
     default ParametersのJSONからの読み込み
-    CadenceVariantGeneratorの出力がおかしいっぽい
-      生成方向が逆では
-
-  Cadence生成の改善
-    Cadenceの元になる楽節役割(終止形)の設定
-    開始と終止形の両方を設定
-  Chord生成の改善
-    借用, 転回
   Note生成の改善
     isNoteOnの設定と反映
+  //
+  Cadence生成の改善
+    Cadenceの元になる楽節役割(終止/Resolution)の設定
+    開始と終止の両方を設定
   Variation生成の改善
-    終止形変更
+    終止変更
+    RhythmVariantGenerator
   MIDIファイル出力
     ToneJS/Midi
     Cadence表記トラック(メタイベント)を作ってもよい?
   ドキュメント(HTML)作成
 
+
+やらないでいいかも
+  Chord生成の改善
+    借用, 転回
 
 
 リファクタリング

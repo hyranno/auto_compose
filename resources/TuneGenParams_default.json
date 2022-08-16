@@ -28,13 +28,19 @@
       "seed": {"state": 4649, "sequence": 459},
       "probabilities": [
         ["Tonic", [
-          {"value":0, "weight":1}
+          {"value":0, "weight":0.70},
+          {"value":5, "weight":0.15},
+          {"value":2, "weight":0.15}
         ]],
         ["Dominant", [
-          {"value":4, "weight":1}
+          {"value":4, "weight":0.70},
+          {"value":6, "weight":0.25},
+          {"value":2, "weight":0.05}
         ]],
         ["Subdominant", [
-          {"value":3, "weight":1}
+          {"value":3, "weight":0.60},
+          {"value":1, "weight":0.35},
+          {"value":5, "weight":0.05}
         ]]
       ]
     },
@@ -42,7 +48,9 @@
       "rand_tones": {
         "seed": {"state": 4649, "sequence": 459},
         "items": [
-          {"value":[0,2,4], "weight": 1}
+          {"value":[0,2,4], "weight": 0.70},
+          {"value":[0,2,4,6], "weight": 0.25},
+          {"value":[0,4], "weight": 0.05}
         ]
       }
     },
@@ -52,7 +60,7 @@
     "rhythm": {
       "seed": {"state": 4649, "sequence": 459},
       "pBranch": {"edge0": 0.5, "edge1": 3},
-      "pNoteOn": {"edge0": 0, "edge1": 1.2}
+      "pNoteOn": {"edge0": -1.4, "edge1": 1.2}
     },
     "pitchWeight": {
       "absPitchFactor": {"edge0": 4, "edge1": 12},

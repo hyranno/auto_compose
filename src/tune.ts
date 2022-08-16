@@ -49,7 +49,11 @@ abstract class RootedTones {
   }
   get(pitch: degree): notenum {
     let notenums = this.getNotenums();
-    return notenums[pitch % notenums.length] + 12*Math.floor(pitch / notenums.length);
+    return notenums[util.modulo(pitch, notenums.length)] + 12*Math.floor(pitch / notenums.length);
+  }
+  center(): number {
+    let notenums = this.getNotenums();
+    return notenums.reduce((prev, curr) => prev+curr) / notenums.length;
   }
 }
 
@@ -65,12 +69,28 @@ export class Scale extends RootedTones {
   }
 }
 
+export const Resolution = {
+  Perfect: "Perfect authentic",
+  Imperfect: "Imperfect authentic",
+  Deceptive: "Deceptive",
+  Plagal: "Plagal",
+  Half: "Half",
+} as const;
+export type Resolution = (typeof Resolution)[keyof (typeof Resolution)];
+
 export const Cadence = {
   T: "Tonic",
   D: "Dominant",
   S: "Subdominant",
 } as const;
 export type Cadence = (typeof Cadence)[keyof (typeof Cadence)];
+export const CadencePostfix: Map<Resolution, Cadence[]> = new Map([
+  [Resolution.Perfect, [Cadence.D, Cadence.T]],
+  [Resolution.Imperfect, [Cadence.D, Cadence.T]],
+  [Resolution.Deceptive, [Cadence.D, Cadence.T]],
+  [Resolution.Plagal, [Cadence.S, Cadence.T]],
+  [Resolution.Half, [Cadence.D]],
+]);
 
 export class Chord extends RootedTones {
   scale: Scale;
@@ -78,12 +98,22 @@ export class Chord extends RootedTones {
     super(root, tones);
     this.scale = scale;
   }
-  override getNotenums(): number[] {
+  override getNotenums(): notenum[] {
     return this.tones.map(h => this.scale.get(this.root+h));
+  }
+  rot(scale: Scale, times: number): Chord {
+    const octave = Math.floor(times / this.tones.length);
+    const rest = util.modulo(times, this.tones.length);
+    let rot_tones: degree[] = this.tones.map((h,i) => {
+      const p = (i < rest)? 1 : 0;
+      return h + (octave+p)*scale.tones.length;
+    });
+    return new Chord(scale, this.root, rot_tones);
   }
 }
 
 export type Note = {
   pitch: notenum;
   duration: number;
+  isNoteOn: boolean;
 }
