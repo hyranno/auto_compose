@@ -29,19 +29,13 @@
       "seed": {"state": 4649, "sequence": 459},
       "probabilities": [
         ["Tonic", [
-          {"value":0, "weight":0.70},
-          {"value":5, "weight":0.15},
-          {"value":2, "weight":0.15}
+          {"value":0, "weight":1}
         ]],
         ["Dominant", [
-          {"value":4, "weight":0.70},
-          {"value":6, "weight":0.25},
-          {"value":2, "weight":0.05}
+          {"value":4, "weight":1}
         ]],
         ["Subdominant", [
-          {"value":3, "weight":0.60},
-          {"value":1, "weight":0.35},
-          {"value":5, "weight":0.05}
+          {"value":3, "weight":1}
         ]]
       ]
     },
@@ -49,9 +43,7 @@
       "rand_tones": {
         "seed": {"state": 4649, "sequence": 459},
         "items": [
-          {"value":[0,2,4], "weight": 0.80},
-          {"value":[0,2,4,6], "weight": 0.15},
-          {"value":[0,4], "weight": 0.05}
+          {"value":[0,2,4], "weight": 1}
         ]
       }
     },

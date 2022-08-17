@@ -5,6 +5,7 @@ export class Tune {
   time_measure: [number, number] = [4,4];
   max_beat_division_depth: number = 2;
   scale: Scale = Scale.major(64);
+  resolution = new util.Timeline<Resolution>();
   cadence = new util.Timeline<Cadence>();
   chord = new util.Timeline<Chord>();
   notes = new util.Timeline<Note>();

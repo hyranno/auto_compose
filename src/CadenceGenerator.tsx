@@ -5,7 +5,7 @@ import * as util from './util';
 import * as helper from './solid_helper';
 import * as markov from './markov';
 
-import {Tune, Cadence} from './tune';
+import {Tune, Cadence, CadencePostfix} from './tune';
 
 
 export type CadenceGeneratorParameters = {
@@ -49,9 +49,10 @@ export class CadenceGeneratorParametersUiAdapter extends helper.UiAdapter<Cadenc
 
 export class CadenceGenerator {
   generate(tune: Tune, params: CadenceGeneratorParameters): util.Timeline<Cadence> {
-    let times = [...util.rangeIterator(0, tune.time_measure[0] * tune.time_measure[1], params.duration)];
-    let prefix: Cadence[] = [Cadence.T];  //TODO parametrize
-    let postfix: Cadence[] = [Cadence.D, Cadence.T]; //TODO parametrize
+    const times = [...util.rangeIterator(0, tune.time_measure[0] * tune.time_measure[1], params.duration)];
+    const prefix: Cadence[] = [Cadence.T];  //TODO parametrize
+    const postfix = CadencePostfix.get(tune.resolution.get(0).value);
+    util.assertIsDefined(postfix);
     let chain = new markov.MarkovChain_TimeHomo_FiniteState(
       new Random(params.seed.state, params.seed.sequence), prefix[prefix.length-1], new Map(params.probabilities)
     );

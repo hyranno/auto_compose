@@ -12,13 +12,14 @@ import {CadenceGenerator, CadenceGeneratorParameters, CadenceGeneratorParameters
 import {ChordGenerator, ChordGeneratorParameters, ChordGeneratorParametersUiAdapter} from './ChordGenerator';
 import {NoteGenerator, NoteGeneratorParameters, NoteGeneratorParametersUiAdapter} from './NoteGenerator';
 
-import {Tune, Scale} from './tune';
+import {Tune, Scale, Resolution} from './tune';
 
 
 export type TuneGeneratorParameters = {
   scale: {key: number, tones: number[]};
   time_measure: [number, number];
   max_beat_division_depth: number;
+  resolution: Resolution;
   cadence: CadenceGeneratorParameters;
   chord: ChordGeneratorParameters;
   note: NoteGeneratorParameters;
@@ -27,6 +28,7 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
   private scale = Scale.major(69);
   private time_measure: [number, number] = [4,4];
   private max_beat_division_depth = 2;
+  private resolution: Resolution = Resolution.Perfect;
   private cadence = new CadenceGeneratorParametersUiAdapter();
   private chord = new ChordGeneratorParametersUiAdapter();
   private note = new NoteGeneratorParametersUiAdapter();
@@ -45,6 +47,7 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
       scale: {key: this.scale.root, tones: this.scale.tones},
       time_measure: this.time_measure,
       max_beat_division_depth: this.max_beat_division_depth,
+      resolution: this.resolution,
       cadence: this.cadence.get(),
       chord: this.chord.get(),
       note: this.note.get(),
@@ -54,6 +57,7 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
     this.scale = new Scale(params.scale.key, params.scale.tones);
     this.time_measure = params.time_measure;
     this.max_beat_division_depth = params.max_beat_division_depth;
+    this.resolution = params.resolution;
     this.cadence.set(params.cadence);
     this.chord.set(params.chord);
     this.note.set(params.note);
@@ -97,6 +101,7 @@ export class TuneGenerator {
     tune.scale = new Scale(params.scale.key, params.scale.tones);
     tune.time_measure = params.time_measure;
     tune.max_beat_division_depth = params.max_beat_division_depth;
+    tune.resolution = util.Timeline.fromItems([{t:0, value:params.resolution}]);
     tune.cadence = this.cadenceGen.generate(tune, params.cadence);
     tune.chord = this.chordGen.generate(tune, params.chord);
     tune.notes = this.noteGen.generate(tune, params.note);

@@ -49,22 +49,33 @@ TODO:
     default ParametersのJSONからの読み込み
   Note生成の改善
     isNoteOnの設定と反映
+  Resolution(終止)の導入
+    Cadence 開始と終止を設定
   //
-  Cadence生成の改善
-    Cadenceの元になる楽節役割(終止/Resolution)の設定
-    開始と終止の両方を設定
   Variation生成の改善
     終止変更
     RhythmVariantGenerator
+  UI追加
+    time_measure
+    max_beat_division_depth: number
+    scale
+      key:number, tones:enum
+    resolution:enum
+  設定ファイル例を追加
+    シンプル
+    短調
   MIDIファイル出力
     ToneJS/Midi
     Cadence表記トラック(メタイベント)を作ってもよい?
+  Parameters.JSON出力
   ドキュメント(HTML)作成
 
 
 やらないでいいかも
   Chord生成の改善
     借用, 転回
+  Resolutionの影響
+    Chord, Note
 
 
 リファクタリング
@@ -95,12 +106,10 @@ TODO:
       regularity
   出力結果
     ピアノロール
-      縦に時間軸、横に音高を取る方が見やすい?
-      一般的には横に時間軸
+      横に時間軸、縦に音高
     Key, Scale, Chord, Note ... 音高に色
-    Rhythm ... 罫線
-    Cadence ... 左端に表記
-    音高 ... 上端に表記
+    Cadence ... 上端に表記
+    音高 ... 左端に表記
 
 
 

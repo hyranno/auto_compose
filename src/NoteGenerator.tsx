@@ -129,8 +129,11 @@ export class NoteGenerator {
     let rand = new Random(params.seed.state, params.seed.sequence);
     let prev = {pitch: tune.scale.root, isNoteOn: false, duration: 0}; //dummy
     const events = rhythms.map(r => {
-      prev = this.generateNote(tune, rand, prev, r, params);
-      return {t:r.t, value:prev};
+      const note = this.generateNote(tune, rand, prev, r, params);
+      if (note.isNoteOn) {
+        prev = note;
+      }
+      return {t:r.t, value:note};
     });
     return util.Timeline.fromItems(events);
   }

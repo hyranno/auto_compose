@@ -35,6 +35,9 @@
     "max_beat_division_depth": {
       "type": "number"
     },
+    "resolution": {
+      "$ref": "#/definitions/Resolution"
+    },
     "cadence": {
       "type": "object",
       "properties": {
@@ -362,10 +365,21 @@
     "chord",
     "max_beat_division_depth",
     "note",
+    "resolution",
     "scale",
     "time_measure"
   ],
   "definitions": {
+    "Resolution": {
+      "enum": [
+        "Deceptive",
+        "Half",
+        "Imperfect authentic",
+        "Perfect authentic",
+        "Plagal"
+      ],
+      "type": "string"
+    },
     "T": {
       "enum": [
         "Dominant",
