@@ -15,6 +15,34 @@ import {NoteGenerator, NoteGeneratorParameters, NoteGeneratorParametersUiAdapter
 import {Tune, Scale, Resolution} from './tune';
 
 
+class ScaleUiAdapter extends helper.UiAdapter<Scale> {
+  private key = new helper.InputBoundNumber(69);
+  private tones: ()=>number[];
+  private setTones: (v:number[])=>number[];
+  constructor() {
+    super();
+    [this.tones, this.setTones] = createSignal([0,2,4,5,7,9,11]);
+  }
+  get(): Scale { return new Scale(this.key.get(), this.tones()); }
+  set(v:Scale): Scale {
+    this.key.set(v.root);
+    this.setTones(v.tones);
+    return this.get();
+  }
+  ui: Component = () => {
+    return <>
+      <label>key
+        <helper.ClassUI instance={this.key} />
+      </label>
+      <label>tones
+        [{this.tones().join(",")}]
+        <input type="button" value="Major" onClick={() => this.set(Scale.major(this.key.get()))} />
+        <input type="button" value="minor" onClick={() => this.set(Scale.minor(this.key.get()))} />
+      </label>
+    </>;
+  }
+}
+
 export type TuneGeneratorParameters = {
   scale: {key: number, tones: number[]};
   time_measure: [number, number];
@@ -25,10 +53,10 @@ export type TuneGeneratorParameters = {
   note: NoteGeneratorParameters;
 };
 export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGeneratorParameters> {
-  private scale = Scale.major(69);
+  private scale = new ScaleUiAdapter();
   private time_measure = [new helper.InputBoundNumber(4), new helper.InputBoundNumber(4)];
   private max_beat_division_depth = new helper.InputBoundNumber(3);
-  private resolution: Resolution = Resolution.Perfect;
+  private resolution = new helper.Enum<Resolution>(Resolution, Resolution.Deceptive);
   private cadence = new CadenceGeneratorParametersUiAdapter();
   private chord = new ChordGeneratorParametersUiAdapter();
   private note = new NoteGeneratorParametersUiAdapter();
@@ -43,21 +71,22 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
     return data;
   }
   get(): TuneGeneratorParameters {
+    const scale = this.scale.get();
     return {
-      scale: {key: this.scale.root, tones: this.scale.tones},
+      scale: {key: scale.root, tones: scale.tones},
       time_measure: [this.time_measure[0].get(), this.time_measure[1].get()],
       max_beat_division_depth: this.max_beat_division_depth.get(),
-      resolution: this.resolution,
+      resolution: this.resolution.get(),
       cadence: this.cadence.get(),
       chord: this.chord.get(),
       note: this.note.get(),
     };
   }
   set(params: TuneGeneratorParameters): TuneGeneratorParameters {
-    this.scale = new Scale(params.scale.key, params.scale.tones);
+    this.scale.set( new Scale(params.scale.key, params.scale.tones) );
     this.time_measure.forEach((t,i) => t.set(params.time_measure[i]));
     this.max_beat_division_depth.set(params.max_beat_division_depth);
-    this.resolution = params.resolution;
+    this.resolution.set(params.resolution);
     this.cadence.set(params.cadence);
     this.chord.set(params.chord);
     this.note.set(params.note);
@@ -76,6 +105,13 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
               this.set( TuneGeneratorParametersUiAdapter.fromJSON( JSON.parse(str)) )
             } );
           }} />
+        </label>
+        <details>
+          <summary>scale</summary>
+          <helper.ClassUI instance={this.scale} />
+        </details>
+        <label>resolution
+          <helper.ClassUI instance={this.resolution} />
         </label>
         <label>time measure
           <helper.ClassUI instance={this.time_measure[0]} />

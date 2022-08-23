@@ -8,6 +8,15 @@ export function assertIsDefined<T>(val: T): asserts val is NonNullable<T> {
   }
 }
 
+type anyKey = string | number | symbol;
+export function assertEnum<E>(enumObject: {[key: anyKey]: E}, val: any): asserts val is E {
+  if (Object.values(typeof enumObject).includes(val)) {
+    throw new Error(
+      `Expected 'val' to be defined, but received ${val}`
+    );
+  }
+}
+
 export function* rangeIterator(start: number, end: number, tick: number = 1){
   for (let t=start; t<end; t+=tick) {
     yield t;

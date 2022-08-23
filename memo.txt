@@ -61,11 +61,11 @@ TODO:
     PianoRoll
   設定ファイル例を追加
     シンプル, 短調, 3/4拍子
-  //
   UI追加
     scale
       key:number, tones:text+button
     resolution:enum
+  //
   MIDIファイル出力
     ToneJS/Midi
   Parameters.JSON出力
@@ -73,9 +73,12 @@ TODO:
 
 
 リファクタリング
-  Generatorをクラスでなく関数にする
-    名前も単に Parameters, ParametersUiAdapter, generate にする
-  regularity=1でいいのでは?
+RhythmGenerator を NoteGenerator から分離
+  RhythmGenerator, PitchGenerator にする
+  RhythmGeneratorParameters に time_measure, max_beat_division_depth も含む
+Generatorをクラスでなく関数にする
+  名前も単に Parameters, ParametersUiAdapter, generate にする
+regularity=1でいいのでは?
   rhythmExponentFactor は relPitchFactor にはかけない方がいい?
 
 
