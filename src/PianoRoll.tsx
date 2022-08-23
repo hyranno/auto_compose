@@ -8,10 +8,9 @@ import './PianoRoll.scss';
 export const PianoRoll: Component<{tune: tunes.Tune, note_bottom: number, note_top: number,}> = (props) => {
   const tune = () => props.tune;
 
-  let time_length = props.tune.length;
-  let timetick = 1 / (1 << props.tune.max_beat_division_depth);
-  let times = [...rangeIterator(0, time_length, timetick)];
-  let notes = [...rangeIterator(props.note_bottom, props.note_top, 1)].reverse();
+  let timetick = () => 1 / (1 << props.tune.max_beat_division_depth);
+  let times = () => [...rangeIterator(0, props.tune.length, timetick())];
+  let notes = () => [...rangeIterator(props.note_bottom, props.note_top, 1)].reverse();
 
   const Cadence: Component<{t:number}> = (props) => {
     return <td class={tune().cadence.get(props.t).value}></td>;
@@ -19,7 +18,7 @@ export const PianoRoll: Component<{tune: tunes.Tune, note_bottom: number, note_t
   const CadenceCol: Component = () => {
     return <tr>
       <td></td>
-      {times.map((t) => <Cadence t={t} />)}
+      {times().map((t) => <Cadence t={t} />)}
     </tr>;
   }
 
@@ -48,13 +47,13 @@ export const PianoRoll: Component<{tune: tunes.Tune, note_bottom: number, note_t
         "scaleroot": tune().scale.isRoot(props.pitch),
       }}>
         <Notenum pitch={props.pitch} />
-        {times.map((t) => <Note pitch={props.pitch} t={t} />)}
+        {times().map((t) => <Note pitch={props.pitch} t={t} />)}
       </tr>
     </>;
   }
 
   return <table class="pianoroll">
     <CadenceCol />
-    {notes.map((n) => <NoteRow pitch={n} />)}
+    {notes().map((n) => <NoteRow pitch={n} />)}
   </table>;
 }

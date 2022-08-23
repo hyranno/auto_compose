@@ -1,6 +1,6 @@
 {
   "seed": {"state": 4649, "sequence": 459},
   "resolution": "Perfect authentic",
-  "timespan": [{"value":[6,14], "weight":1}],
+  "timespan": [{"value":[6,11], "weight":1}],
   "layer": [{"value":3, "weight":1}]
 }

@@ -51,7 +51,6 @@ TODO:
     isNoteOnの設定と反映
   Resolution(終止)の導入
     Cadence 開始と終止を設定
-  //
   Variation生成の改善
     終止変更
     RhythmVariantGenerator
@@ -60,25 +59,17 @@ TODO:
   time_measure(4,4)以外への対応
     Cadence
     PianoRoll
+  設定ファイル例を追加
+    シンプル, 短調, 3/4拍子
+  //
   UI追加
     scale
-      key:number, tones:enum
+      key:number, tones:text+button
     resolution:enum
-  設定ファイル例を追加
-    シンプル
-    短調
   MIDIファイル出力
     ToneJS/Midi
-    Cadence表記トラック(メタイベント)を作ってもよい?
   Parameters.JSON出力
   ドキュメント(HTML)作成
-
-
-やらないでいいかも
-  Chord生成の改善
-    借用, 転回
-  Resolutionの影響
-    Chord, Note
 
 
 リファクタリング
@@ -88,64 +79,10 @@ TODO:
   rhythmExponentFactor は relPitchFactor にはかけない方がいい?
 
 
-画面構成
-  パラメータ設定
-    Cadence
-      seed
-      Duration
-    Chord
-      Root
-        seed
-      Tones
-        seed
-    Rhythm
-      seed
-      pLeaf
-      pNoteOn
-    Note
-      seed
-      absPitchFactor
-      relPitchFactor
-      factorInScale
-      factorInChord
-      rhythmExponentFactor
-      regularity
-  出力結果
-    ピアノロール
-      横に時間軸、縦に音高
-    Key, Scale, Chord, Note ... 音高に色
-    Cadence ... 上端に表記
-    音高 ... 左端に表記
-
-
-
-Key
-  絶対音高
-  12平均律, MIDIノートナンバー(69 = A4 = 440Hz)
-Scale
-  Keyからの相対音高ベクタ
-  static でプリセットを取り揃える
-Cadence
-  Enum
-CadenceGenerator
-  オートマトン?
-  パラメータ
-    seed
-    T/D/SD -> T/D/SD 重み
-    小説位置ごとの T/D/SD 重み
-  gen() -> Timeline<Cadence>
-Chord
-  Scale上でのKeyからの相対index
-ChordGenerator
-  無記憶情報源
-  パラメータ
-    seed
-    T/D/SD ごとの WeightedRandom<Chord>
-  gen(Timeline<Cadence>) -> Timeline<Chord>
-Rhythm
-  木
-  パラメータ
-    seed
-NoteGenerator
-  パラメータ
-    seed
+やらないでいいかも
+  Chord生成の改善
+    借用, 転回
+  Resolutionの影響
+    Chord, Note
+  MIDIファイル出力
+    Cadence表記トラック(メタイベント)を作る

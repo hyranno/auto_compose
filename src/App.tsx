@@ -46,7 +46,7 @@ const App: Component = () => {
       <ClassUI instance={tuneParamsUi} />
       <ClassUI instance={variantParamsUi} />
       <button onClick={() => generate()}>generate</button>
-      <PianoRoll tune={tune()} note_bottom={57} note_top={81} />
+      <PianoRoll tune={tune()} note_bottom={tune().scale.root-16} note_top={tune().scale.root+16} />
       <TunePlayer tune={tune()} />
     </>
   );

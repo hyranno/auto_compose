@@ -39,7 +39,7 @@ function playAll(tune: tunes.Tune, timerate: number) {
 }
 
 export const TunePlayer: Component<{tune: tunes.Tune}> = (props) => {
-  const bpm = new helper.InputBoundNumber(80);
+  const bpm = new helper.InputBoundNumber(100);
   const timerate = ()=> 60/bpm.get();
   return <>
     BPM<helper.ClassUI instance={bpm} />
