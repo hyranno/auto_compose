@@ -8,12 +8,12 @@ import {Tune, Scale, Chord, Note} from './tune';
 import type {notenum} from './tune';
 
 
-type Rhythm = {
+export type Rhythm = {
   isNoteOn: boolean,
   t: number,
   duration: number,
 }
-type RhythmGeneratorParameters = {
+export type RhythmGeneratorParameters = {
   seed: util.RandomSeed;
   pBranch: util.SmoothstepParameters;
   pNoteOn: util.SmoothstepParameters;
@@ -49,31 +49,83 @@ class RhythmGeneratorParametersUiAdapter extends helper.UiAdapter<RhythmGenerato
     </details>;
   };
 }
-class RhythmGenerator {
-  generateNode(rand: Random, depthcount: number, dest: Rhythm[], candidate: Rhythm, params: RhythmGeneratorParameters) {
-    let pLeaf = 1 - util.smoothstep(params.pBranch.edge0, params.pBranch.edge1, candidate.duration);
-    let isLeaf = (rand.random() < pLeaf) || (depthcount <= 0);
-    if (isLeaf) {
-      let pNoteOn = util.smoothstep(params.pNoteOn.edge0, params.pNoteOn.edge1, candidate.duration);
-      candidate.isNoteOn = rand.random() < pNoteOn;
-      dest.push(candidate);
+
+export class NoteTreeNode extends util.TreeNode {
+  rhythm: Rhythm;
+  pitch: notenum | undefined;
+  get t(): number {return this.rhythm.t;}
+  get duration(): number {return this.rhythm.duration};
+  get isNoteOn(): boolean {return this.rhythm.isNoteOn};
+  constructor(rhythm: Rhythm) {
+    super();
+    this.rhythm = rhythm;
+  }
+  getRhythms(): Rhythm[] {
+    if (this.isLeaf()) {
+      return [this.rhythm];
+    }
+    return this.children.map(n => n.getRhythms()).flat();
+  }
+  toTimelineItem(): util.TimelineItem<Note> {
+    const pitch = this.pitch;
+    util.assertIsDefined(pitch);
+    return {t: this.t, value: {pitch: pitch, duration: this.duration, isNoteOn: this.isNoteOn}};
+  }
+}
+
+export class RhythmGenerator {
+  generateSubTree(
+    node: NoteTreeNode, rand: Random, depthcount: number, params: RhythmGeneratorParameters
+  ) {
+    node.children = [];
+    let pBranch = util.smoothstep(params.pBranch.edge0, params.pBranch.edge1, node.duration);
+    let isBranch =  (0 < depthcount) && (rand.random() < pBranch);
+    if (isBranch) {
+      const numChildren = 2;
+      const subDuration = node.duration / numChildren;
+      node.children.push(
+        ...[...util.rangeIterator(0,numChildren)].map(i => new NoteTreeNode(
+          {t: node.t+i*subDuration, duration: subDuration, isNoteOn: true}
+        ))
+      );
+      node.children.forEach(n => this.generateSubTree(n, rand, depthcount-1, params));
     } else {
-      let c0 = {isNoteOn: true, t: candidate.t, duration: candidate.duration/2};
-      let c1 = {isNoteOn: true, t: c0.t + c0.duration, duration: c0.duration};
-      this.generateNode(rand, depthcount-1, dest, c0, params);
-      this.generateNode(rand, depthcount-1, dest, c1, params);
+      const pNoteOn = util.smoothstep(params.pNoteOn.edge0, params.pNoteOn.edge1, node.duration);
+      node.rhythm.isNoteOn = rand.random() < pNoteOn;
     }
   }
-  generate(tune: Tune, params: RhythmGeneratorParameters): Rhythm[] {
+  mergeTopBranches(root: NoteTreeNode, rand: Random, params: RhythmGeneratorParameters) {
+    for (let i=0; i < root.children.length-1; i++) {
+      const duration = root.children[i].duration + root.children[i+1].duration;
+      const pMerge = 1 - util.smoothstep(params.pBranch.edge0, params.pBranch.edge1, duration);
+      if (rand.random() < pMerge) {
+        root.children[i].rhythm.duration = duration;
+        root.children[i].children = [];
+        root.children[i+1].rhythm.duration = 0;
+        root.children[i+1].children = [];
+        i++;
+      }
+    }
+    root.children = root.children.filter(n => n.duration > 0);
+  }
+  generate(tune: Tune, params: RhythmGeneratorParameters): NoteTreeNode {
+    const numBeats = tune.time_measure[0];
+    const numBars = tune.time_measure[1];
     let rand = new Random(params.seed.state, params.seed.sequence);
-    let res = [];
-    [...util.rangeIterator(0,tune.time_measure[1],1)].forEach( i =>
-      this.generateNode(rand, 3, res,
-        {isNoteOn:true, t:i*tune.time_measure[0], duration: tune.time_measure[0]},
-        params
-      )
-    );
-    return res;
+    let phrase = new NoteTreeNode({t:0, duration: numBeats*numBars, isNoteOn: true});
+    let bars = [...util.rangeIterator(0, numBars)].map(i => new NoteTreeNode({
+      t: i*numBeats, duration: numBeats, isNoteOn: true,
+    }));
+    bars.forEach(bar => {
+      let beats = [...util.rangeIterator(0, numBeats)].map(i => new NoteTreeNode({
+        t: bar.t+i*1, duration: 1, isNoteOn: true,
+      }));
+      beats.forEach(beat => this.generateSubTree(beat, rand, tune.max_beat_division_depth, params));
+      bar.push(...beats);
+      this.mergeTopBranches(bar, rand, params);
+    });
+    phrase.push(...bars);
+    return phrase;
   }
 }
 
@@ -112,28 +164,35 @@ export class NoteGeneratorParametersUiAdapter extends helper.UiAdapter<NoteGener
 export class NoteGenerator {
   private rhythmGen = new RhythmGenerator();
   private pitchWeightCalc = new PitchWeightCalculator();
-  generateNote(tune: Tune, rand: Random, prev: Note, rhythm: Rhythm, params: NoteGeneratorParameters): Note{
-    let candidates: Note[] = [...util.rangeIterator(prev.pitch-12, prev.pitch+12, 1)].map(p => {return {
-      pitch: p,
-      isNoteOn: rhythm.isNoteOn,
-      duration: rhythm.duration
-    }});
-    let rand_notes = new util.WeightedRandom(
+  generatePitch(tune: Tune, rand: Random, prev: notenum, note: NoteTreeNode, params: PitchWeightParameters){
+    const pitches = [...util.rangeIterator(prev-12, prev+12)];
+    let rand_pitch: util.WeightedRandom<notenum> = new util.WeightedRandom(
       rand,
-      candidates.map((c) => {return {weight: this.pitchWeightCalc.calc(tune, prev, c, rhythm.t, params.pitchWeight), value: c}})
+      pitches.map(pitch => {
+        const candidate = {pitch: pitch, isNoteOn: note.isNoteOn, duration: note.duration};
+        return {
+        value: pitch,
+        weight: this.pitchWeightCalc.calc(tune, prev, candidate, note.t, params)}
+      })
     );
-    return rand_notes.get();
+    note.pitch = rand_pitch.get();
+  }
+  generateTree(tune: Tune, params: NoteGeneratorParameters): NoteTreeNode {
+    const notes = this.rhythmGen.generate(tune, params.rhythm);
+    let rand = new Random(params.seed.state, params.seed.sequence);
+    let prev = tune.scale.root; //dummy
+    notes.leaves().forEach(note => {
+      this.generatePitch(tune, rand, prev, note, params.pitchWeight);
+      const pitch = note.pitch;   util.assertIsDefined(pitch);
+      prev = pitch;
+    });
+    return notes;
   }
   generate(tune: Tune, params: NoteGeneratorParameters): util.Timeline<Note> {
-    const rhythms = this.rhythmGen.generate(tune, params.rhythm);
-    let rand = new Random(params.seed.state, params.seed.sequence);
-    let prev = {pitch: tune.scale.root, isNoteOn: false, duration: 0}; //dummy
-    const events = rhythms.map(r => {
-      const note = this.generateNote(tune, rand, prev, r, params);
-      if (note.isNoteOn) {
-        prev = note;
-      }
-      return {t:r.t, value:note};
+    const noteTree = this.generateTree(tune, params);
+    const events: util.TimelineItem<Note>[] = noteTree.leaves().map(note => {
+      const pitch = note.pitch;   util.assertIsDefined(pitch);
+      return { t: note.t, value: {duration: note.duration, pitch: pitch, isNoteOn: note.isNoteOn} };
     });
     return util.Timeline.fromItems(events);
   }
@@ -149,8 +208,8 @@ export type PitchWeightParameters = {
   regularity: number;
 };
 export class PitchWeightParametersUiAdapter {
-  private absPitchFactorEdges = new helper.Smoothstep(4,12);
-  private relPitchFactorEdges = new helper.Smoothstep(6,12);
+  private absPitchFactorEdges = new helper.Smoothstep(6,12);
+  private relPitchFactorEdges = new helper.Smoothstep(4,8);
   private factorInScale = new helper.InputBoundNumber(8);
   private factorInChord = new helper.InputBoundNumber(4);
   private rhythmExponentFactor = new helper.InputBoundNumber(1/2);
@@ -231,106 +290,12 @@ export class PitchWeightCalculator {
       params.regularity + rhythmExponent
     );
   }
-  calc(tune: Tune, prev: Note, candidate: Note, t: number, params: PitchWeightParameters): number {
-    let timehomoWeight = this.calcTimeHomoWeight(tune, prev.pitch, candidate.pitch, params);
+  calc(tune: Tune, prev: notenum, candidate: Note, t: number, params: PitchWeightParameters): number {
+    let timehomoWeight = this.calcTimeHomoWeight(tune, prev, candidate.pitch, params);
     return this.calcWithTimeHomoWeight(tune, timehomoWeight, candidate, t, params);
     /* return Math.pow(
       absPitchFactor * relPitchFactor * factorInScale * factorInChord,
       params.regularity + rhythmExponent
-    ); */
-  }
-}
-
-
-export class PitchWeightCalculator_bak {
-  private absPitchFactorEdges = new helper.Smoothstep(4,12);
-  private relPitchFactorEdges = new helper.Smoothstep(6,12);
-  private factorInScale = new helper.InputBoundNumber(8);
-  private factorInChord = new helper.InputBoundNumber(4);
-  private rhythmExponentFactor = new helper.InputBoundNumber(1/2);
-  private regularity = new helper.InputBoundNumber(1);
-  private getAbsolutePitchFactor(centor: notenum, candidate: notenum): number {
-    let distance = Math.abs(candidate - centor);
-    return 1 - this.absPitchFactorEdges.calc(distance);
-  }
-  private getRelativePitchFactor(prev: notenum, candidate: notenum): number {
-    let distance = Math.abs(candidate - prev);
-    return 1 - this.relPitchFactorEdges.calc(distance);
-  }
-  private getFactorInScale(scale: Scale, candidate: notenum): number {
-    return scale.includes(candidate)? this.factorInScale.get() : 1;
-  }
-  private getFactorInChord(chord: Chord, candidate: notenum): number {
-    return chord.includes(candidate)? this.factorInChord.get() : 1;
-  }
-  private getRhythmExponent(duration: number): number {
-    return duration * this.rhythmExponentFactor.get();
-  }
-
-  ui: Component = () => {
-    return <details><summary>PitchWeight</summary>
-      <label>absPitchFactorEdges
-        <helper.ClassUI instance={this.absPitchFactorEdges} />
-      </label>
-      <label>relPitchFactorEdges
-        <helper.ClassUI instance={this.relPitchFactorEdges} />
-      </label>
-      <label>factorInScale
-        <helper.ClassUI instance={this.factorInScale} />
-      </label>
-      <label>factorInChord
-        <helper.ClassUI instance={this.factorInChord} />
-      </label>
-      <label>rhythmExponentFactor
-        <helper.ClassUI instance={this.rhythmExponentFactor} />
-      </label>
-      <label>regularity
-        <helper.ClassUI instance={this.regularity} />
-      </label>
-    </details>;
-  };
-  getParameters(): PitchWeightParameters {
-    return {
-      absPitchFactor: this.absPitchFactorEdges.get(),
-      relPitchFactor: this.relPitchFactorEdges.get(),
-      factorInScale: this.factorInScale.get(),
-      factorInChord: this.factorInChord.get(),
-      rhythmExponentFactor: this.rhythmExponentFactor.get(),
-      regularity: this.regularity.get()
-    };
-  }
-  setParameters(params: PitchWeightParameters) {
-    this.absPitchFactorEdges.set(params.absPitchFactor);
-    this.relPitchFactorEdges.set(params.relPitchFactor);
-    this.factorInScale.set(params.factorInScale);
-    this.factorInChord.set(params.factorInChord);
-    this.rhythmExponentFactor.set(params.rhythmExponentFactor);
-    this.regularity.set(params.regularity);
-  }
-
-  calcTimeHomoWeight(tune: Tune, prev: notenum, candidate: notenum): number {
-    let absPitchFactor = this.getAbsolutePitchFactor(tune.scale.root, candidate);
-    let relPitchFactor = this.getRelativePitchFactor(prev, candidate);
-    let factorInScale = this.getFactorInScale(tune.scale, candidate);
-    return Math.pow(
-      absPitchFactor * relPitchFactor * factorInScale,
-      this.regularity.get()
-    );
-  }
-  calcWeightFromTimeHomoWeight(tune: Tune, timehomoWeight: number, candidate: Note, t: number): number {
-    let factorInChord = this.getFactorInChord(tune.chord.get(t).value, candidate.pitch);
-    let rhythmExponent = this.getRhythmExponent(candidate.duration);
-    return Math.pow(
-      Math.pow(timehomoWeight, 1/this.regularity.get()) * factorInChord,
-      this.regularity.get() + rhythmExponent
-    );
-  }
-  calcWeight(tune: Tune, prev: Note, candidate: Note, t: number): number {
-    let timehomoWeight = this.calcTimeHomoWeight(tune, prev.pitch, candidate.pitch);
-    return this.calcWeightFromTimeHomoWeight(tune, timehomoWeight, candidate, t);
-    /* return Math.pow(
-      absPitchFactor * relPitchFactor * factorInScale * factorInChord,
-      this.regularity.get() + rhythmExponent
     ); */
   }
 }

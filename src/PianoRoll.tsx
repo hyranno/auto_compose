@@ -14,9 +14,7 @@ export const PianoRoll: Component<{tune: tunes.Tune, note_bottom: number, note_t
   let notes = [...rangeIterator(props.note_bottom, props.note_top, 1)].reverse();
 
   const Cadence: Component<{t:number}> = (props) => {
-    return <td>
-      {tune().cadence.get(props.t).value.charAt(0)}
-    </td>;
+    return <td class={tune().cadence.get(props.t).value}></td>;
   }
   const CadenceCol: Component = () => {
     return <tr>
@@ -31,10 +29,15 @@ export const PianoRoll: Component<{tune: tunes.Tune, note_bottom: number, note_t
   const Note: Component<{pitch: number, t: number}> = (props) => {
     const chord = ()=> tune().chord.get(props.t).value;
     const note = ()=> tune().notes.get(props.t).value;
+    const bar_length = ()=> tune().time_measure[0];
+    const phrase_length = ()=> bar_length() * tune().time_measure[1];
     return <td classList={{
       "chord": chord().includes(props.pitch),
       "chordroot": chord().isRoot(props.pitch),
       "note": note().isNoteOn && note().pitch == props.pitch,
+      "beat": props.t % 1 == 0,
+      "bar": props.t % bar_length() == 0,
+      "phrase": props.t % phrase_length() == 0,
     }}></td>;
   }
   const NoteRow: Component<{pitch: number}> = (props) => {

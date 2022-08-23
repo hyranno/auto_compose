@@ -19,8 +19,12 @@ Note
     Rhythm, Chordを考慮すると斉時的でなくなる
     Rhythm, Chordを考慮しない確率を計算後、編集
   Rhythm
-    分割, 統合, noteOn/Off
-    分割した箇所はPitchも生成
+    分割
+      分割したらpitchも再生成する
+    統合
+      統合したらpitchも再生成する
+    noteOn/Off
+      再計算
 
 
 

@@ -31,6 +31,25 @@ export type SmoothstepParameters = {
   edge1: number;
 };
 
+export class TreeNode {
+  children: this[] = [];
+  flat(): this[] {
+    let res: this[] = [];
+    res.push(this);
+    res.push(...(this.children.map(n => n.flat())).flat());
+    return res;
+  }
+  isLeaf(): boolean {
+    return this.children.length == 0;
+  }
+  leaves(): this[] {
+    return this.flat().filter(n => n.isLeaf());
+  }
+  push(...children: this[]): number {
+    return this.children.push(...children);
+  }
+}
+
 export type RandomSeed = {
   state: number;
   sequence: number;

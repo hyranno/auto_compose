@@ -3,7 +3,7 @@ import * as util from './util';
 export class Tune {
   length: number = 0;
   time_measure: [number, number] = [4,4];
-  max_beat_division_depth: number = 2;
+  max_beat_division_depth: number = 3;
   scale: Scale = Scale.major(64);
   resolution = new util.Timeline<Resolution>();
   cadence = new util.Timeline<Cadence>();

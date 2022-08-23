@@ -69,12 +69,13 @@ rhythm
   概要:
     体系化された理論が見当たらない
   実装:
-    時間を再帰的+確率的に2分割して作る
-      分割する確率 = a * b^depth * (depth<d? 1:0)
+    barをrootとした木構造を取る
+    barをnum_beats(=time_measure[0])に分割
+      確率で結合
+    beatを再帰的+確率的に2分割
+    確率で休符になる
     時刻によっても増減?
       表拍/裏拍, フィルイン
-    確率で休符になる
-      休符になる確率 = 1 - c^depth
 
 note(scale, chord, rhythm)
   依存: scale, chord, rhythm

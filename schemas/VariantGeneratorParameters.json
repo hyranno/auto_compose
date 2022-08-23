@@ -16,6 +16,9 @@
         "state"
       ]
     },
+    "resolution": {
+      "$ref": "#/definitions/Resolution"
+    },
     "timespan": {
       "type": "array",
       "items": {
@@ -71,8 +74,21 @@
   },
   "required": [
     "layer",
+    "resolution",
     "seed",
     "timespan"
   ],
+  "definitions": {
+    "Resolution": {
+      "enum": [
+        "Deceptive",
+        "Half",
+        "Imperfect authentic",
+        "Perfect authentic",
+        "Plagal"
+      ],
+      "type": "string"
+    }
+  },
   "$schema": "http://json-schema.org/draft-07/schema#"
 }

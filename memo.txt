@@ -55,9 +55,12 @@ TODO:
   Variation生成の改善
     終止変更
     RhythmVariantGenerator
+      RhythmGeneratorも再構築
+      time_measure(4,4)以外へも対応
+  time_measure(4,4)以外への対応
+    Cadence
+    PianoRoll
   UI追加
-    time_measure
-    max_beat_division_depth: number
     scale
       key:number, tones:enum
     resolution:enum
@@ -79,7 +82,10 @@ TODO:
 
 
 リファクタリング
-
+  Generatorをクラスでなく関数にする
+    名前も単に Parameters, ParametersUiAdapter, generate にする
+  regularity=1でいいのでは?
+  rhythmExponentFactor は relPitchFactor にはかけない方がいい?
 
 
 画面構成

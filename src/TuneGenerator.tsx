@@ -26,8 +26,8 @@ export type TuneGeneratorParameters = {
 };
 export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGeneratorParameters> {
   private scale = Scale.major(69);
-  private time_measure: [number, number] = [4,4];
-  private max_beat_division_depth = 2;
+  private time_measure = [new helper.InputBoundNumber(4), new helper.InputBoundNumber(4)];
+  private max_beat_division_depth = new helper.InputBoundNumber(3);
   private resolution: Resolution = Resolution.Perfect;
   private cadence = new CadenceGeneratorParametersUiAdapter();
   private chord = new ChordGeneratorParametersUiAdapter();
@@ -45,8 +45,8 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
   get(): TuneGeneratorParameters {
     return {
       scale: {key: this.scale.root, tones: this.scale.tones},
-      time_measure: this.time_measure,
-      max_beat_division_depth: this.max_beat_division_depth,
+      time_measure: [this.time_measure[0].get(), this.time_measure[1].get()],
+      max_beat_division_depth: this.max_beat_division_depth.get(),
       resolution: this.resolution,
       cadence: this.cadence.get(),
       chord: this.chord.get(),
@@ -55,8 +55,8 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
   }
   set(params: TuneGeneratorParameters): TuneGeneratorParameters {
     this.scale = new Scale(params.scale.key, params.scale.tones);
-    this.time_measure = params.time_measure;
-    this.max_beat_division_depth = params.max_beat_division_depth;
+    this.time_measure.forEach((t,i) => t.set(params.time_measure[i]));
+    this.max_beat_division_depth.set(params.max_beat_division_depth);
     this.resolution = params.resolution;
     this.cadence.set(params.cadence);
     this.chord.set(params.chord);
@@ -77,6 +77,13 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
             } );
           }} />
         </label>
+        <label>time measure
+          <helper.ClassUI instance={this.time_measure[0]} />
+          <helper.ClassUI instance={this.time_measure[1]} />
+        </label>
+        <label>max beat division depth
+          <helper.ClassUI instance={this.max_beat_division_depth} />
+        </label>
         <ClassUI instance={this.cadence} />
         <ClassUI instance={this.chord} />
         <ClassUI instance={this.note} />
@@ -86,9 +93,6 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
 }
 
 export class TuneGenerator {
-  private cadenceGen = new CadenceGenerator();
-  private chordGen = new ChordGenerator();
-  private noteGen = new NoteGenerator();
   get: ()=>Tune;
   private set: (v: Tune)=>Tune;
   constructor(signal: [()=>Tune, (v:Tune)=>Tune]) {
@@ -102,9 +106,9 @@ export class TuneGenerator {
     tune.time_measure = params.time_measure;
     tune.max_beat_division_depth = params.max_beat_division_depth;
     tune.resolution = util.Timeline.fromItems([{t:0, value:params.resolution}]);
-    tune.cadence = this.cadenceGen.generate(tune, params.cadence);
-    tune.chord = this.chordGen.generate(tune, params.chord);
-    tune.notes = this.noteGen.generate(tune, params.note);
+    tune.cadence = (new CadenceGenerator()).generate(tune, params.cadence);
+    tune.chord = (new ChordGenerator()).generate(tune, params.chord);
+    tune.notes = (new NoteGenerator()).generate(tune, params.note);
     return this.set(tune);
   }
 }
