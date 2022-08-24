@@ -93,9 +93,18 @@ export class TuneGeneratorParametersUiAdapter extends helper.UiAdapter<TuneGener
     return params;
   }
   ui: Component = () => {
+    let anchor = document.createElement("a");
+    anchor.href = URL.createObjectURL(new Blob([]));
+    anchor.download = "TuneGenParams.json";
+    anchor.style.display = "none";
     return <>
       <details>
         <summary>Settings</summary>
+        <input type="button" value="save as file" onClick={() => {
+          URL.revokeObjectURL(anchor.href);
+          anchor.href = URL.createObjectURL(new Blob([JSON.stringify(this.get())]));
+          anchor.click();
+        }} />
         <label>
           load from file
           <input type="file" onInput={(e) => {

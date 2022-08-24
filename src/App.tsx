@@ -14,8 +14,6 @@ import {TunePlayer} from './TunePlayer';
 import {TuneMidiExporter} from './TuneMidiExporter';
 
 const App: Component = () => {
-  const [counter, setCounter] = createSignal(0);
-  setInterval(setCounter, 1000, (c: number) => c + 1);
 
   const baseTuneSignal = createSignal(new Tune());
   const [baseTune, _setBaseTune] = baseTuneSignal;
@@ -41,9 +39,6 @@ const App: Component = () => {
 
   return (
     <>
-      <div>
-        <h1 class="header">{counter()}</h1>
-      </div>
       <ClassUI instance={tuneParamsUi} />
       <ClassUI instance={variantParamsUi} />
       <button onClick={() => generate()}>generate</button>

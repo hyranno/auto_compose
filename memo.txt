@@ -79,7 +79,6 @@ RhythmGenerator を NoteGenerator から分離
 Generatorをクラスでなく関数にする
   名前も単に Parameters, ParametersUiAdapter, generate にする
 regularity=1でいいのでは?
-  rhythmExponentFactor は relPitchFactor にはかけない方がいい?
 
 
 やらないでいいかも
