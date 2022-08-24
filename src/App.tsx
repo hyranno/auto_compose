@@ -11,6 +11,7 @@ import {TuneGenerator, TuneGeneratorParametersUiAdapter} from './TuneGenerator';
 import {VariantGenerator, VariantGeneratorParametersUiAdapter} from './VariantGenerator';
 import {PianoRoll} from './PianoRoll';
 import {TunePlayer} from './TunePlayer';
+import {TuneMidiExporter} from './TuneMidiExporter';
 
 const App: Component = () => {
   const [counter, setCounter] = createSignal(0);
@@ -48,6 +49,7 @@ const App: Component = () => {
       <button onClick={() => generate()}>generate</button>
       <PianoRoll tune={tune()} note_bottom={tune().scale.root-14} note_top={tune().scale.root+14} />
       <TunePlayer tune={tune()} />
+      <TuneMidiExporter tune={tune()} />
     </>
   );
 };

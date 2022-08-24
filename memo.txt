@@ -65,9 +65,9 @@ TODO:
     scale
       key:number, tones:text+button
     resolution:enum
-  //
   MIDIファイル出力
     ToneJS/Midi
+  //
   Parameters.JSON出力
   ドキュメント(HTML)作成
 
@@ -87,5 +87,5 @@ regularity=1でいいのでは?
     借用, 転回
   Resolutionの影響
     Chord, Note
-  MIDIファイル出力
+  MIDIファイル出力のメタイベント
     Cadence表記トラック(メタイベント)を作る

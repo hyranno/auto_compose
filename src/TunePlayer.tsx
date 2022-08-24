@@ -41,10 +41,10 @@ function playAll(tune: tunes.Tune, timerate: number) {
 export const TunePlayer: Component<{tune: tunes.Tune}> = (props) => {
   const bpm = new helper.InputBoundNumber(100);
   const timerate = ()=> 60/bpm.get();
-  return <>
+  return <div>
     BPM<helper.ClassUI instance={bpm} />
     <button onClick={() => playChord(props.tune, timerate())}>play chord</button>
     <button onClick={() => playNotes(props.tune, timerate())}>play notes</button>
     <button onClick={() => playAll(props.tune, timerate())}>play notes & chord</button>
-  </>;
+  </div>;
 }

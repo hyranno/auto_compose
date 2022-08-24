@@ -22,6 +22,7 @@
     "vite-plugin-solid": "^2.2.6"
   },
   "dependencies": {
+    "@tonejs/midi": "^2.0.28",
     "ajv": "^8",
     "reliable-random": "^0",
     "solid-js": "^1.4.2",
