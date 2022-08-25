@@ -1,42 +1,42 @@
 import Ajv from "ajv"
-import { Component, createSignal } from 'solid-js';
+import { Component } from 'solid-js';
 import {Random} from 'reliable-random';
 
 import schema from '../schemas/VariantGeneratorParameters.json';
 
-import {Tune, Scale, Resolution, Cadence, Chord, Note} from './tune';
-import {TuneGenerator, TuneGeneratorParameters} from './TuneGenerator';
-import {CadenceGenerator, CadenceGeneratorParameters} from './CadenceGenerator';
-import {ChordGenerator, ChordGeneratorParameters} from './ChordGenerator';
-import {NoteGenerator, NoteGeneratorParameters, NoteTreeNode} from './NoteGenerator';
-import {RhythmGenerator, RhythmGeneratorParameters} from './NoteGenerator';
-import {PitchWeightCalculator, PitchWeightParameters} from './NoteGenerator';
+import {Tune, Scale, Resolution, Cadence, Chord, Note, NoteTreeNode} from './tune';
+import * as TuneGenerator from './TuneGenerator';
+import * as CadenceGenerator from './CadenceGenerator';
+import * as ChordGenerator from './ChordGenerator';
+import * as NoteGenerator from './NoteGenerator';
+import * as RhythmGenerator from './RhytmGenerator';
+import * as PitchWeight from './PitchWeightCalculator';
 import * as util from './util';
 import * as helper from './solid_helper';
 import * as markov from './markov';
 
 
-export const VariantGeneratorLayer = {
+export const Layer = {
   "Cadence": 0,
   "Chord": 1,
   "Pitch": 2,
   "Rhythm": 3,
 } as const;
-export type VariantGeneratorLayer = (typeof VariantGeneratorLayer)[keyof (typeof VariantGeneratorLayer)];
+export type Layer = (typeof Layer)[keyof (typeof Layer)];
 
 
-export type VariantGeneratorParameters = {
+export type Parameters = {
   seed: util.RandomSeed;
   resolution: Resolution;
   timespan: util.WeightedItem<[number,number]>[];
-  layer: util.WeightedItem<VariantGeneratorLayer>[];
+  layer: util.WeightedItem<Layer>[];
 };
-export class VariantGeneratorParametersUiAdapter extends helper.UiAdapter<VariantGeneratorParameters> {
+export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
   private seed = new helper.RandomSeed(4649,459);
   private resolution: Resolution = Resolution.Perfect;
   private timespan: util.WeightedItem<[number,number]>[];
-  private layer: util.WeightedItem<VariantGeneratorLayer>[];
-  get(): VariantGeneratorParameters {
+  private layer: util.WeightedItem<Layer>[];
+  get(): Parameters {
     return {
       seed: this.seed.get(),
       resolution: this.resolution,
@@ -44,7 +44,7 @@ export class VariantGeneratorParametersUiAdapter extends helper.UiAdapter<Varian
       layer: this.layer,
     };
   }
-  set(v: VariantGeneratorParameters): VariantGeneratorParameters {
+  set(v: Parameters): Parameters {
     this.seed.set(v.seed);
     this.resolution = v.resolution;
     this.timespan = v.timespan;
@@ -52,16 +52,16 @@ export class VariantGeneratorParametersUiAdapter extends helper.UiAdapter<Varian
     return v;
   }
   ui: Component = ()=>{
-    return <details><summary>VariantGenerator</summary>
+    return <details><summary>Setting(Variant)</summary>
       <label>seeds
         <helper.ClassUI instance={this.seed} />
       </label>
     </details>;
   }
-  static getParametersFromJSON(data: any): VariantGeneratorParameters {
+  static getParametersFromJSON(data: any): Parameters {
     //const data = JSON.parse(jsonstr);
     const ajv = new Ajv();
-    const validate = ajv.compile<VariantGeneratorParameters>(schema);
+    const validate = ajv.compile<Parameters>(schema);
     if (!validate(data)) {
       alert("Parameters JSON is not valid");
       console.log(validate.errors);
@@ -70,11 +70,10 @@ export class VariantGeneratorParametersUiAdapter extends helper.UiAdapter<Varian
   }
 }
 
-function overrideTuneGeneratorParameters(params: TuneGeneratorParameters, override: Partial<TuneGeneratorParameters>): TuneGeneratorParameters {
+function overrideTuneGeneratorParameters(params: TuneGenerator.Parameters, override: Partial<TuneGenerator.Parameters>): TuneGenerator.Parameters {
   return {
     scale: params.scale,
     time_measure: params.time_measure,
-    max_beat_division_depth: params.max_beat_division_depth,
     resolution: override.resolution ?? params.resolution,
     cadence: override.cadence ?? params.cadence,
     chord: override.chord ?? params.chord,
@@ -82,47 +81,38 @@ function overrideTuneGeneratorParameters(params: TuneGeneratorParameters, overri
   };
 }
 
-export class VariantGenerator {
-  get: ()=>Tune;
-  private set: (v: Tune)=>Tune;
-  constructor(signals: [()=>Tune, (v:Tune)=>Tune]) {
-    this.get = signals[0];
-    this.set = signals[1];
+export function generate(params: Parameters, baseParams: TuneGenerator.Parameters): Tune {
+  let rand = new Random(params.seed.state, params.seed.sequence);
+  const timespan = (new util.WeightedRandom(rand, params.timespan)).get();
+  const layer = (new util.WeightedRandom(rand, params.layer)).get();
+  const tuneParams = overrideTuneGeneratorParameters(baseParams, {resolution: params.resolution});
+  let tune = new Tune();
+  tune.length = tuneParams.time_measure[0] * tuneParams.time_measure[1];
+  tune.scale = new Scale(tuneParams.scale.key, tuneParams.scale.tones);
+  tune.time_measure = tuneParams.time_measure;
+  tune.max_beat_division_depth = tuneParams.note.rhythm.max_beat_division_depth;
+  tune.resolution = util.Timeline.fromItems([{t:0, value:tuneParams.resolution}]);
+  tune.cadence = CadenceGenerator.generate(tune, tuneParams.cadence);
+  if (layer == Layer.Cadence) {
+    tune.cadence = CadenceVariantGenerator.generate(tune, timespan, rand, tuneParams.cadence);
   }
-  generate(params: VariantGeneratorParameters, baseParams: TuneGeneratorParameters): Tune {
-    let rand = new Random(params.seed.state, params.seed.sequence);
-    const timespan = (new util.WeightedRandom(rand, params.timespan)).get();
-    const layer = (new util.WeightedRandom(rand, params.layer)).get();
-    const tuneParams = overrideTuneGeneratorParameters(baseParams, {resolution: params.resolution});
-    let tune = new Tune();
-    tune.length = tuneParams.time_measure[0] * tuneParams.time_measure[1];
-    tune.scale = new Scale(tuneParams.scale.key, tuneParams.scale.tones);
-    tune.time_measure = tuneParams.time_measure;
-    tune.max_beat_division_depth = tuneParams.max_beat_division_depth;
-
-    tune.resolution = util.Timeline.fromItems([{t:0, value:tuneParams.resolution}]);
-    tune.cadence = (new CadenceGenerator()).generate(tune, tuneParams.cadence);
-    if (layer == VariantGeneratorLayer.Cadence) {
-      tune.cadence = (new CadenceVariantGenerator()).generate(tune, timespan, rand, tuneParams.cadence);
-    }
-    tune.chord = (new ChordGenerator()).generate(tune, tuneParams.chord);
-    if (layer == VariantGeneratorLayer.Chord) {
-      tune.chord = (new ChordVariantGenerator()).generate(tune, timespan, rand, tuneParams.chord);
-    }
-    tune.notes = (new NoteGenerator()).generate(tune, tuneParams.note);
-    if (layer == VariantGeneratorLayer.Pitch) {
-      tune.notes = (new PitchVariantGenerator()).generate(tune, timespan, rand, tuneParams.note);
-    }
-    if (layer == VariantGeneratorLayer.Rhythm) {
-      tune.notes = (new RhythmVariantGenerator()).generate(tune, timespan, rand, tuneParams.note);
-    }
-    return this.set(tune);
+  tune.chord = ChordGenerator.generate(tune, tuneParams.chord);
+  if (layer == Layer.Chord) {
+    tune.chord = ChordVariantGenerator.generate(tune, timespan, rand, tuneParams.chord);
   }
-}
+  tune.notes = NoteGenerator.generate(tune, tuneParams.note);
+  if (layer == Layer.Pitch) {
+    tune.notes = PitchVariantGenerator.generate(tune, timespan, rand, tuneParams.note);
+  }
+  if (layer == Layer.Rhythm) {
+    tune.notes = RhythmVariantGenerator.generate(tune, timespan, rand, tuneParams.note);
+  }
+  return tune;
+  }
 
 
-class CadenceVariantGenerator {
-  generate(tune: Tune, timespan: [number, number], rand: Random, params: CadenceGeneratorParameters): util.Timeline<Cadence> {
+namespace CadenceVariantGenerator {
+  export function generate(tune: Tune, timespan: [number, number], rand: Random, params: CadenceGenerator.Parameters): util.Timeline<Cadence> {
     let [startIndex, endIndex] = timespan.map((t) => tune.cadence.getIndex(t))
     let li = tune.cadence.list();
     let cadenceMarkov = new markov.MarkovChain_TimeHomo_FiniteState(
@@ -142,8 +132,8 @@ class CadenceVariantGenerator {
   }
 }
 
-class ChordVariantGenerator {
-  generate(tune: Tune, timespan: [number, number], rand: Random, params: ChordGeneratorParameters): util.Timeline<Chord> {
+namespace ChordVariantGenerator {
+  export function generate(tune: Tune, timespan: [number, number], rand: Random, params: ChordGenerator.Parameters): util.Timeline<Chord> {
     let [startIndex, endIndex] = timespan.map((t) => tune.cadence.getIndex(t))
     let li = tune.chord.list();
     let rand_tones = new util.WeightedRandom(rand, params.tone.rand_tones.items);
@@ -164,14 +154,13 @@ class ChordVariantGenerator {
   }
 }
 
-class PitchVariantGenerator {
-  interpolate(tune: Tune, start: number, end: number, rand: Random, dest: NoteTreeNode[], params: PitchWeightParameters) {
-    const weightCalculator = new PitchWeightCalculator();
+namespace PitchVariantGenerator {
+  export function interpolate(tune: Tune, start: number, end: number, rand: Random, dest: NoteTreeNode[], params: PitchWeight.Parameters) {
     const maxLengthToKey = Math.ceil(params.absPitchFactor.edge1);
     const candidates = [...util.rangeIterator(tune.scale.root-maxLengthToKey+1, tune.scale.root+maxLengthToKey)];
     let transition = new Map<number, util.WeightedItem<number>[]>();
     candidates.forEach(p => {
-      transition.set(p, candidates.map(c => {return {value: c, weight: weightCalculator.calcTimeHomoWeight(tune, p, c, params)}}));
+      transition.set(p, candidates.map(c => {return {value: c, weight: PitchWeight.calcTimeHomoWeight(tune, p, c, params)}}));
     });
     let chain = new markov.MarkovChain_TimeHomo_FiniteState(rand, 0, transition);
     let prev = start;
@@ -184,7 +173,7 @@ class PitchVariantGenerator {
       );
       let items = items_timehomo.map(item => {return {
         value: item.value,
-        weight: weightCalculator.calcWithTimeHomoWeight(
+        weight: PitchWeight.calcWithTimeHomoWeight(
           tune, item.weight, {
             pitch: item.value,
             isNoteOn: note.isNoteOn,
@@ -196,9 +185,9 @@ class PitchVariantGenerator {
       note.pitch = rand_pitch.get();
     });
   }
-  generate(tune: Tune, timespan: [number, number], rand: Random, params: NoteGeneratorParameters): util.Timeline<Note> {
+  export function generate(tune: Tune, timespan: [number, number], rand: Random, params: NoteGenerator.Parameters): util.Timeline<Note> {
     const [startIndex, endIndex] = timespan.map((t) => tune.notes.getIndex(t));
-    let notes = (new NoteGenerator()).generateTree(tune, params);
+    let notes = NoteGenerator.generateTree(tune, params);
     let leaves = notes.leaves();
     const [startPitch, endPitch] = [startIndex, endIndex].map(i => leaves[i].pitch);
     util.assertIsDefined(startPitch); util.assertIsDefined(endPitch);
@@ -208,8 +197,8 @@ class PitchVariantGenerator {
   }
 }
 
-class RhythmVariantGenerator {
-  splitRhythm(tune: Tune, root: NoteTreeNode, timespan: [number, number], rand: Random, params: NoteGeneratorParameters) {
+namespace RhythmVariantGenerator {
+  export function splitRhythm(tune: Tune, root: NoteTreeNode, timespan: [number, number], rand: Random, params: NoteGenerator.Parameters) {
     const numChildren = 2;
     let leaves = root.leaves();
     leaves.forEach((leaf,i) => {
@@ -226,11 +215,11 @@ class RhythmVariantGenerator {
         );
         const [start, end] = [leaves[i-1].pitch, leaves[i+1].pitch];
         util.assertIsDefined(start); util.assertIsDefined(end);
-        (new PitchVariantGenerator()).interpolate(tune, start, end, rand, leaf.children, params.pitchWeight);
+        PitchVariantGenerator.interpolate(tune, start, end, rand, leaf.children, params.pitchWeight);
       }
     });
   }
-  mergeRhythm(tune: Tune, root: NoteTreeNode, timespan: [number, number], rand: Random, params: NoteGeneratorParameters) {
+  export function mergeRhythm(tune: Tune, root: NoteTreeNode, timespan: [number, number], rand: Random, params: NoteGenerator.Parameters) {
     const numChildren = 2;
     const leaves = root.leaves();
     let targets = root.flat().filter(n => n.children.length == numChildren);
@@ -244,11 +233,11 @@ class RhythmVariantGenerator {
         const [start, end] = [leaves[i0-1].pitch, leaves[i1+1].pitch];
         util.assertIsDefined(start); util.assertIsDefined(end);
         branch.children = [];
-        (new PitchVariantGenerator()).interpolate(tune, start, end, rand, [branch], params.pitchWeight);
+        PitchVariantGenerator.interpolate(tune, start, end, rand, [branch], params.pitchWeight);
       }
     });
   }
-  toggleNoteOn(root: NoteTreeNode, timespan: [number, number], rand: Random, params: RhythmGeneratorParameters) {
+  export function toggleNoteOn(root: NoteTreeNode, timespan: [number, number], rand: Random, params: RhythmGenerator.Parameters) {
     let leaves = root.leaves();
     leaves.forEach(leaf => {
       if (!(timespan[0] < leaf.t && leaf.t < timespan[1])) {
@@ -258,8 +247,8 @@ class RhythmVariantGenerator {
       leaf.rhythm.isNoteOn = rand.random() < pNoteOn;
     });
   }
-  generate(tune: Tune, timespan: [number, number], rand: Random, params: NoteGeneratorParameters): util.Timeline<Note> {
-    let notes = (new NoteGenerator()).generateTree(tune, params);
+  export function generate(tune: Tune, timespan: [number, number], rand: Random, params: NoteGenerator.Parameters): util.Timeline<Note> {
+    let notes = NoteGenerator.generateTree(tune, params);
     this.splitRhythm(tune, notes, timespan, rand, params);
     this.mergeRhythm(tune, notes, timespan, rand, params);
     this.toggleNoteOn(notes, timespan, rand, params.rhythm);

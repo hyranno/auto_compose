@@ -32,9 +32,6 @@
       "minItems": 2,
       "maxItems": 2
     },
-    "max_beat_division_depth": {
-      "type": "number"
-    },
     "resolution": {
       "$ref": "#/definitions/Resolution"
     },
@@ -245,6 +242,9 @@
                 "state"
               ]
             },
+            "max_beat_division_depth": {
+              "type": "number"
+            },
             "pBranch": {
               "type": "object",
               "properties": {
@@ -277,6 +277,7 @@
             }
           },
           "required": [
+            "max_beat_division_depth",
             "pBranch",
             "pNoteOn",
             "seed"
@@ -323,16 +324,12 @@
             },
             "rhythmExponentFactor": {
               "type": "number"
-            },
-            "regularity": {
-              "type": "number"
             }
           },
           "required": [
             "absPitchFactor",
             "factorInChord",
             "factorInScale",
-            "regularity",
             "relPitchFactor",
             "rhythmExponentFactor"
           ]
@@ -363,7 +360,6 @@
   "required": [
     "cadence",
     "chord",
-    "max_beat_division_depth",
     "note",
     "resolution",
     "scale",

@@ -118,3 +118,32 @@ export type Note = {
   duration: number;
   isNoteOn: boolean;
 }
+
+export type Rhythm = {
+  isNoteOn: boolean,
+  t: number,
+  duration: number,
+}
+
+export class NoteTreeNode extends util.TreeNode {
+  rhythm: Rhythm;
+  pitch: notenum | undefined;
+  get t(): number {return this.rhythm.t;}
+  get duration(): number {return this.rhythm.duration};
+  get isNoteOn(): boolean {return this.rhythm.isNoteOn};
+  constructor(rhythm: Rhythm) {
+    super();
+    this.rhythm = rhythm;
+  }
+  getRhythms(): Rhythm[] {
+    if (this.isLeaf()) {
+      return [this.rhythm];
+    }
+    return this.children.map(n => n.getRhythms()).flat();
+  }
+  toTimelineItem(): util.TimelineItem<Note> {
+    const pitch = this.pitch;
+    util.assertIsDefined(pitch);
+    return {t: this.t, value: {pitch: pitch, duration: this.duration, isNoteOn: this.isNoteOn}};
+  }
+}

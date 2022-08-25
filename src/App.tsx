@@ -7,34 +7,26 @@ import * as DefaultTuneGenParams from '../resources/TuneGenParams_default.json';
 import * as DefaultVariantGenParams from '../resources/VariantGenParams_default.json';
 
 import {Tune} from './tune';
-import {TuneGenerator, TuneGeneratorParametersUiAdapter} from './TuneGenerator';
-import {VariantGenerator, VariantGeneratorParametersUiAdapter} from './VariantGenerator';
+import * as TuneGenerator from './TuneGenerator';
+import * as VariantGenerator from './VariantGenerator';
 import {PianoRoll} from './PianoRoll';
 import {TunePlayer} from './TunePlayer';
 import {TuneMidiExporter} from './TuneMidiExporter';
 
 const App: Component = () => {
+  const tuneParamsUi = new TuneGenerator.ParametersUiAdapter();
+  const variantParamsUi = new VariantGenerator.ParametersUiAdapter();
 
-  const baseTuneSignal = createSignal(new Tune());
-  const [baseTune, _setBaseTune] = baseTuneSignal;
-  const generator = new TuneGenerator(baseTuneSignal);
-  const tuneParamsUi = new TuneGeneratorParametersUiAdapter();
-  const tuneParams = TuneGeneratorParametersUiAdapter.fromJSON( DefaultTuneGenParams );
-  tuneParamsUi.set( tuneParams );
-
-  const variantTuneSignal = createSignal(new Tune());
-  const [variantTune, _setVariantTune] = variantTuneSignal;
-  const variantParamsUi = new VariantGeneratorParametersUiAdapter();
-  const variantParams = VariantGeneratorParametersUiAdapter.getParametersFromJSON( DefaultVariantGenParams );
-  variantParamsUi.set( variantParams );
-  const variantGenerator = new VariantGenerator(variantTuneSignal);
-
+  const [baseTune, setBaseTune] = createSignal(new Tune());
+  const [variantTune, setVariantTune] = createSignal(new Tune());
   const generate = () => {
-    generator.generate( tuneParamsUi.get() );
-    variantGenerator.generate(variantParamsUi.get(), tuneParamsUi.get());
+    setBaseTune( TuneGenerator.generate( tuneParamsUi.get() ) );
+    setVariantTune( VariantGenerator.generate(variantParamsUi.get(), tuneParamsUi.get()) );
   };
   const tune = () => baseTune().merge( variantTune() );
 
+  tuneParamsUi.set( TuneGenerator.ParametersUiAdapter.fromJSON( DefaultTuneGenParams ) );
+  variantParamsUi.set( VariantGenerator.ParametersUiAdapter.getParametersFromJSON( DefaultVariantGenParams ) );
   generate();
 
   return (

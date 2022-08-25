@@ -1,7 +1,6 @@
 {
   "scale": {"key":69, "tones":[0,2,4,5,7,9,11]},
   "time_measure": [4,4],
-  "max_beat_division_depth": 2,
   "resolution": "Perfect authentic",
   "cadence": {
     "seed": {"state": 4649, "sequence": 459},
@@ -52,6 +51,7 @@
   "note": {
     "rhythm": {
       "seed": {"state": 4649, "sequence": 459},
+      "max_beat_division_depth": 2,
       "pBranch": {"edge0": 0.25, "edge1": 3},
       "pNoteOn": {"edge0": -2, "edge1": 1.4}
     },
@@ -60,8 +60,7 @@
       "relPitchFactor": {"edge0": 4, "edge1": 8},
       "factorInScale": 12,
       "factorInChord": 6,
-      "rhythmExponentFactor": 0.5,
-      "regularity": 1
+      "rhythmExponentFactor": 2
     },
     "seed": {"state": 4649, "sequence": 459}
   }
