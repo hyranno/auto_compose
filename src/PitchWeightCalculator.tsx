@@ -20,7 +20,6 @@ export class ParametersUiAdapter {
   private factorInScale = new helper.InputBoundNumber(8);
   private factorInChord = new helper.InputBoundNumber(4);
   private rhythmExponentFactor = new helper.InputBoundNumber(1/2);
-  private regularity = new helper.InputBoundNumber(1);
   get(): Parameters {
     return {
       absPitchFactor: this.absPitchFactorEdges.get(),
@@ -53,9 +52,6 @@ export class ParametersUiAdapter {
       </label>
       <label>rhythmExponentFactor
         <helper.ClassUI instance={this.rhythmExponentFactor} />
-      </label>
-      <label>regularity
-        <helper.ClassUI instance={this.regularity} />
       </label>
     </details>;
   };

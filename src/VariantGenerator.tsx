@@ -52,7 +52,7 @@ export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
     return v;
   }
   ui: Component = ()=>{
-    return <details><summary>Setting(Variant)</summary>
+    return <details><summary>Settings(Variant)</summary>
       <label>seeds
         <helper.ClassUI instance={this.seed} />
       </label>

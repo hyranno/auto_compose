@@ -44,7 +44,7 @@ export const TunePlayer: Component<{tune: tunes.Tune}> = (props) => {
   return <div>
     BPM<helper.ClassUI instance={bpm} />
     <button onClick={() => playChord(props.tune, timerate())}>play chord</button>
-    <button onClick={() => playNotes(props.tune, timerate())}>play notes</button>
-    <button onClick={() => playAll(props.tune, timerate())}>play notes & chord</button>
+    <button onClick={() => playNotes(props.tune, timerate())}>play molody</button>
+    <button onClick={() => playAll(props.tune, timerate())}>play chord & melody</button>
   </div>;
 }
