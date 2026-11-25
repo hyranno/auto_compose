@@ -1,0 +1,32 @@
+{
+	"name": "auto_compose_dev",
+	"dockerComposeFile": "compose.yml",
+	"features": {
+		"ghcr.io/devcontainers/features/git": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers-extra/features/mise:1": {}
+	},
+  "service": "app",
+  "workspaceFolder": "/workspace",
+	"overrideCommand": true,
+	// Run the checks of CI from git hooks (.githooks/, see CONTRIBUTING.md).
+	// "postCreateCommand": "git config core.hooksPath .githooks",
+
+  // Prune target/: drop artifacts built by uninstalled toolchains or unused for 30 days,
+	// then remove the oldest ones until it fits in 10 GB.
+	"postStartCommand": "cargo sweep --installed && cargo sweep --time 30 && cargo sweep --maxsize 10GB",
+
+  "customizations": {
+		"vscode": {
+			"settings": {
+				// The formatting that `cargo xtask fmt` and the pre-commit hook check.
+				"[rust]": { "editor.formatOnSave": true }
+			},
+			"extensions": [
+				"rust-lang.rust-analyzer",
+				"tamasfe.even-better-toml",
+				"eamodio.gitlens"
+			]
+		}
+	}
+}
