@@ -1,25 +1,31 @@
 {
 	"name": "auto_compose_dev",
 	"dockerComposeFile": "compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"overrideCommand": true,
 	"features": {
 		"ghcr.io/devcontainers/features/git": {},
 		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers-extra/features/mise:1": {}
 	},
-  "service": "app",
-  "workspaceFolder": "/workspace",
-	"overrideCommand": true,
-	// Run the checks of CI from git hooks (.githooks/, see CONTRIBUTING.md).
-	// "postCreateCommand": "git config core.hooksPath .githooks",
 
-  // Prune target/: drop artifacts built by uninstalled toolchains or unused for 30 days,
-	// then remove the oldest ones until it fits in 10 GB.
-	"postStartCommand": "cargo sweep --installed && cargo sweep --time 30 && cargo sweep --maxsize 10GB",
+	// mise shims: tools from mise.toml (node, npm, ...) also work in non-interactive shells
+	"remoteEnv": {
+		"PATH": "/root/.local/share/mise/shims:${containerEnv:PATH}"
+	},
 
-  "customizations": {
+	// Node.js etc. from mise.toml
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
+
+	"postStartCommand": "bash .devcontainer/post-start.sh",
+
+	// Vite dev server
+	"forwardPorts": [5173],
+
+	"customizations": {
 		"vscode": {
 			"settings": {
-				// The formatting that `cargo xtask fmt` and the pre-commit hook check.
 				"[rust]": { "editor.formatOnSave": true }
 			},
 			"extensions": [

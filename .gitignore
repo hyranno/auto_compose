@@ -1,2 +1,6 @@
 node_modules
 dist
+
+.devcontainer/local/
+*.local/
+*.local.*
