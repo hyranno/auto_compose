@@ -3,6 +3,10 @@
   "attribution": {
     "pr": ""
   },
+  "env": {
+    "WASM_PACK_CACHE": "/tmp/claude/wasm-pack",
+    "npm_config_cache": "/tmp/claude/npm"
+  },
   "permissions": {
     "allow": [
       "WebSearch",

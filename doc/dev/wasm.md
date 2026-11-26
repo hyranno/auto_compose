@@ -39,8 +39,11 @@ wasm-pack test --node crates/auto-composer-wasm           # golden cases through
 
 `--target web` produces an ES module whose default export `init()` loads the `.wasm`, so a bundler
 plugin is not needed.
-wasm-pack downloads `wasm-bindgen-cli` (matching the version in `Cargo.lock`) and `wasm-opt` into its cache
-on first use.
+wasm-pack takes `wasm-opt` from PATH (the devcontainer installs binaryen) and downloads
+`wasm-bindgen-cli`, which must match the version in `Cargo.lock`, into its cache on first use.
+Inside the Claude Code sandbox the download fails and wasm-pack builds `wasm-bindgen-cli` with `cargo install`
+instead (about 30 seconds, once per cache). `.claude/settings.json` points the caches of wasm-pack and npm
+to `/tmp/claude`, which the sandbox can write.
 
 `cargo clippy --all-targets` on the host also checks the wasm crate; its tests in `tests/web.rs` only run
 on `wasm32`, through `wasm-pack test`.
