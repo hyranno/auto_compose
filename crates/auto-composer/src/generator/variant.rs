@@ -178,13 +178,13 @@ pub fn vary_chord(
 ///
 /// The pitches move by a Markov chain on `key ± (ceil(absPitchFactor.edge1) - 1)` whose
 /// transition weights are [`pitch_weight::calc_time_homo_weight`] (made into probabilities by
-/// [`MarkovChain::new`]). Reproduced bugs:
-/// - When `start` or `end` is outside the candidates, every weight is `NaN` and the lowest
-///   candidate is chosen (bug 2).
+/// [`MarkovChain::new`]).
 ///
 /// Each note is drawn from the distribution of the chain one step after the previous pitch,
 /// conditioned on reaching `end` one step after the last note, and weighted further by the
-/// chord and the duration of the note.
+/// chord and the duration of the note. `start` and `end` outside the candidates are moved to
+/// the nearest candidate for the chain. When `end` cannot be reached in the remaining steps,
+/// the condition on `end` is dropped for that note.
 pub fn interpolate(
     tune: &Tune,
     start: Notenum,
@@ -213,18 +213,19 @@ pub fn interpolate(
         })
         .collect();
     let chain = MarkovChain::new(0, &transition)?;
-    let mut prev = start;
+    let nearest = |p: Notenum| p.clamp(candidates[0], candidates[candidates.len() - 1]);
+    let end = nearest(end);
+    let mut prev = nearest(start);
     let len = dest.len();
     for (i, note) in dest.iter_mut().enumerate() {
         // From the note `i`, `len - 1 - i` notes and then `end` follow.
-        let dist = match chain
-            .calc_distribution_conditional(&Condition::new(1, prev), &Condition::new(len - i, end))
-        {
-            Ok(dist) => dist,
-            // TypeScript indexes the stationary distribution with -1 and gets NaN.
-            Err(Error::UnknownState) => vec![f64::NAN; candidates.len()],
-            Err(e) => return Err(e),
-        };
+        let mut dist = chain.calc_distribution_conditional(
+            &Condition::new(1, prev),
+            &Condition::new(len - i, end),
+        )?;
+        if !is_distribution(&dist) {
+            dist = chain.calc_distribution(&chain.state_to_vector(&prev), false);
+        }
         let items = chain
             .vector_to_weighted_items(&dist)
             .into_iter()
@@ -249,6 +250,11 @@ pub fn interpolate(
         prev = pitch;
     }
     Ok(())
+}
+
+/// Whether the weights can be drawn from: finite, non-negative and not all 0.
+fn is_distribution(v: &[f64]) -> bool {
+    v.iter().all(|w| (0.0..f64::INFINITY).contains(w)) && v.iter().any(|&w| w > 0.0)
 }
 
 /// Regenerates the notes of the base parameters and redraws the pitches of the notes strictly
@@ -755,15 +761,38 @@ mod tests {
     }
 
     #[test]
-    fn interpolate_picks_the_lowest_candidate_when_the_end_is_out_of_range() {
-        // Known bug 2: an end outside key ± 7 makes every weight NaN.
+    fn interpolate_moves_out_of_range_ends_into_the_candidates() {
+        // The candidates are 62..=76 (key 69, absPitchFactor.edge1 = 8): 100 is taken as 76.
         let tune = tune_with_a_chord();
         let params = default_params().note.pitch_weight;
-        let mut a = leaf(0.0, 1.0, 0);
-        let mut b = leaf(1.0, 1.0, 0);
-        let mut rng = ConstantRng::new(0.5);
-        interpolate(&tune, 69, 100, &mut rng, &mut [&mut a, &mut b], &params).unwrap();
-        assert_eq!((a.pitch, b.pitch), (Some(62), Some(62)));
-        assert_eq!(rng.consumed, 2);
+        for (state, sequence) in SEEDS {
+            let run = |start, end| {
+                let mut notes = [leaf(0.0, 1.0, 0), leaf(1.0, 1.0, 0)];
+                let [a, b] = &mut notes;
+                let mut rng = ReliableRandom::new(state, sequence);
+                interpolate(&tune, start, end, &mut rng, &mut [a, b], &params).unwrap();
+                notes
+            };
+            assert_eq!(run(30, 100), run(62, 76));
+        }
+    }
+
+    #[test]
+    fn interpolate_drops_an_unreachable_end() {
+        // One note cannot bridge 62 -> 76 when each step is less than 6 semitones.
+        let tune = tune_with_a_chord();
+        let params = default_params().note.pitch_weight;
+        let pitches: Vec<Notenum> = SEEDS
+            .iter()
+            .map(|&(state, sequence)| {
+                let mut note = leaf(0.0, 1.0, 0);
+                let mut rng = ReliableRandom::new(state, sequence);
+                interpolate(&tune, 62, 76, &mut rng, &mut [&mut note], &params).unwrap();
+                note.pitch.unwrap()
+            })
+            .collect();
+        // Drawn one step from 62, not stuck at the lowest candidate as with NaN weights.
+        assert!(pitches.iter().all(|p| (62..68).contains(p)), "{pitches:?}");
+        assert!(pitches.iter().any(|&p| p != 62), "{pitches:?}");
     }
 }
