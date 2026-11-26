@@ -4,4 +4,9 @@
 //! (`fixtures/golden/`), it reproduces the TypeScript behaviour exactly, including the order in
 //! which random numbers are consumed.
 
+pub mod error;
+pub mod linalg;
+pub mod markov;
 pub mod random;
+pub mod tune;
+pub mod util;

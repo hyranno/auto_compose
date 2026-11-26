@@ -32,7 +32,7 @@ so the expected values are compared exactly.
 - `npm run gen_golden` rewrites all the fixtures from the current implementation (`scripts/gen_golden.ts`,
   which also defines the cases). Regenerate only when a change of output is intended, and review the diff.
 - `cargo test` runs the Rust side: `crates/auto-composer/tests/rng.rs` checks `rng.json`
-  against `auto_composer::random::ReliableRandom`.
+  against `auto_composer::random::ReliableRandom`, and the `#[cfg(test)]` modules hold the ported unit tests.
   Before committing Rust code, run `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
 - `scripts/run_ts.mjs` runs a TypeScript file through Vite's module runner,
   because `src/` uses extensionless imports that plain `node` cannot resolve.
@@ -66,6 +66,12 @@ Their inputs and expectations are written as tables for that reason.
   distributions of the default cadence chain.
 - `generators.test.ts`: properties of each generator and the exact number of random draws, using
   `ScriptedRng` or a constant `Rng`.
+
+The Rust port carries the same tables in the `#[cfg(test)]` module of the corresponding file
+(`util.rs`, `tune.rs`, `markov.rs`, ...). Where TypeScript compares with `toBeCloseTo`, the Rust tests
+compare exactly when the value was printed with full precision from TypeScript.
+The linear algebra (`linalg.rs`) performs the same operations in the same order as the JavaScript
+fallback of vectorious (LU decomposition with partial pivoting), so the Markov chain matches bit for bit.
 
 Tests marked "known bug" record suspicious behaviour (described in a comment next to each test)
 that the port reproduces on purpose until it is compatible with the fixtures. Fixing it is a separate,
