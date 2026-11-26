@@ -2,7 +2,7 @@ import type { Component } from 'solid-js';
 import {createSignal, For} from 'solid-js';
 
 import * as rand from 'reliable-random';
-import * as util from './util';
+import * as util from './core/util';
 
 export type ClassWithUI = {ui: Component};
 export type ClassUIProps<T extends ClassWithUI> = {instance: T};

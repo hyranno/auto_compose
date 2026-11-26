@@ -56,13 +56,7 @@
             "type": "number"
           },
           "value": {
-            "enum": [
-              0,
-              1,
-              2,
-              3
-            ],
-            "type": "number"
+            "$ref": "#/definitions/Layer"
           }
         },
         "required": [
@@ -88,6 +82,15 @@
         "Plagal"
       ],
       "type": "string"
+    },
+    "Layer": {
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "type": "number"
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#"

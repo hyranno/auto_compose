@@ -4,7 +4,7 @@ import {createSignal} from 'solid-js';
 import './TuneGenerator.scss';
 
 import {ClassUI} from './solid_helper';
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
 
 import schema from '../schemas/TuneGeneratorParameters.json';
@@ -12,7 +12,8 @@ import * as CadenceGenerator from './CadenceGenerator';
 import * as ChordGenerator from './ChordGenerator';
 import * as NoteGenerator from './NoteGenerator';
 
-import {Tune, Scale, Resolution} from './tune';
+import {Scale, Resolution} from './core/tune';
+import type {Parameters} from './core/tune_generator';
 
 
 class ScaleUiAdapter extends helper.UiAdapter<Scale> {
@@ -43,14 +44,6 @@ class ScaleUiAdapter extends helper.UiAdapter<Scale> {
   }
 }
 
-export type Parameters = {
-  scale: {key: number, tones: number[]};
-  time_measure: [number, number];
-  resolution: Resolution;
-  cadence: CadenceGenerator.Parameters;
-  chord: ChordGenerator.Parameters;
-  note: NoteGenerator.Parameters;
-};
 export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
   private scale = new ScaleUiAdapter();
   private time_measure = [new helper.InputBoundNumber(4), new helper.InputBoundNumber(4)];
@@ -128,18 +121,4 @@ export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
       </details>
     </>
   };
-}
-
-export function generate(params: Parameters): Tune {
-  util.assertIsDefined(params);
-  let tune = new Tune();
-  tune.length = params.time_measure[0] * params.time_measure[1];
-  tune.scale = new Scale(params.scale.key, params.scale.tones);
-  tune.time_measure = params.time_measure;
-  tune.max_beat_division_depth = params.note.rhythm.max_beat_division_depth;
-  tune.resolution = util.Timeline.fromItems([{t:0, value:params.resolution}]);
-  tune.cadence = CadenceGenerator.generate(tune, params.cadence);
-  tune.chord = ChordGenerator.generate(tune, params.chord);
-  tune.notes = NoteGenerator.generate(tune, params.note);
-  return tune;
 }

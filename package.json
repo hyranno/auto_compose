@@ -7,50 +7,26 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "test": "jest",
-    "gen_schema": "npx ts-node --esm src/generate_parameters_schema.ts"
+    "test": "vitest run",
+    "gen_schema": "npx ts-node --esm src/generate_parameters_schema.ts",
+    "gen_golden": "node scripts/run_ts.mjs scripts/gen_golden.ts"
   },
   "devDependencies": {
-    "@types/jest": "^27.4.1",
-    "@types/node": "^17.0.45",
+    "@types/node": "^26.6.11",
     "sass": "^1.52.1",
-    "ts-jest": "^27.1.4",
     "ts-node": "^10.8.1",
-    "typescript": "^4.6.4",
-    "typescript-json-schema": "^0.54",
-    "vite": "^2.9.9",
-    "vite-plugin-solid": "^2.2.6"
+    "typescript": "~5.9",
+    "typescript-json-schema": "^0.68.0",
+    "vite": "^8.3.8",
+    "vite-plugin-solid": "^2.11.17",
+    "vitest": "^5.1.2"
   },
   "dependencies": {
     "@tonejs/midi": "^2.0.28",
     "ajv": "^8",
     "reliable-random": "^0",
-    "solid-js": "^1.4.2",
+    "solid-js": "^1.9.20",
     "tone": "^14",
     "vectorious": "^6.1.4"
-  },
-  "jest": {
-    "roots": [
-      "<rootDir>/src"
-    ],
-    "preset": "ts-jest/presets/js-with-ts-esm",
-    "extensionsToTreatAsEsm": [
-      ".ts"
-    ],
-    "globals": {
-      "ts-jest": {
-        "useESM": true
-      }
-    },
-    "moduleNameMapper": {
-      "^(\\.{1,2}/.*)\\.js$": "$1"
-    },
-    "testMatch": [
-      "**/__tests__/**/*.[jt]s?(x)",
-      "**/?(*.)+(spec|test).[tj]s?(x)"
-    ],
-    "transform": {
-      "^.+\\.(ts|tsx)$": "ts-jest"
-    }
   }
 }

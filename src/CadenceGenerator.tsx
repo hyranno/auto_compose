@@ -1,18 +1,12 @@
 import type { Component } from 'solid-js';
-import { Random } from 'reliable-random';
 
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
-import * as markov from './markov';
 
-import {Tune, Cadence, CadencePostfix} from './tune';
+import {Cadence} from './core/tune';
+import type {Parameters} from './core/cadence';
 
 
-export type Parameters = {
-  seed: util.RandomSeed;
-  probabilities: [Cadence, util.WeightedItem<Cadence>[]][];
-  duration: number;
-};
 export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
   private seed = new helper.RandomSeed(4649,459);
   private probabilities: [Cadence, util.WeightedItem<Cadence>[]][] = ([
@@ -45,25 +39,4 @@ export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
       </label>
     </details>;
   };
-}
-
-export function generate(tune: Tune, params: Parameters): util.Timeline<Cadence> {
-  const times = [...util.rangeIterator(0, tune.time_measure[0] * tune.time_measure[1], params.duration)];
-  const prefix: Cadence[] = [Cadence.T];  //TODO parametrize
-  const postfix = CadencePostfix.get(tune.resolution.get(0).value);
-  util.assertIsDefined(postfix);
-  let chain = new markov.MarkovChain_TimeHomo_FiniteState(
-    new Random(params.seed.state, params.seed.sequence), prefix[prefix.length-1], new Map(params.probabilities)
-  );
-  let postfixOffset = times.length - postfix.length;
-  let items: util.TimelineItem<Cadence>[] = times.map((t,i) => {
-    if (i < prefix.length) {
-      return {t:t, value: prefix[i]};
-    } else if (i < postfixOffset) {
-      return {t:t, value: chain.next_conditional({offset: postfixOffset-i, state: postfix[0]})};
-    } else {
-      return {t:t, value: postfix[i-postfixOffset]};
-    }
-  });
-  return util.Timeline.fromItems(items);
 }

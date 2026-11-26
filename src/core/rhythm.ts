@@ -1,8 +1,7 @@
-import type { Component } from 'solid-js';
-import {Random} from 'reliable-random';
+import {defaultContext, GenerateContext} from './random';
+import type {Rng} from './random';
 
 import * as util from './util';
-import * as helper from './solid_helper';
 
 import {Tune, NoteTreeNode} from './tune';
 
@@ -13,46 +12,9 @@ export type Parameters = {
   pBranch: util.SmoothstepParameters;
   pNoteOn: util.SmoothstepParameters;
 };
-export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
-  private seed = new helper.RandomSeed(4649,459);
-  private max_beat_division_depth = new helper.InputBoundNumber(3);
-  private pBranch = new helper.Smoothstep(1/2, 3);
-  private pNoteOn = new helper.Smoothstep(0, 1.2);
-  get(): Parameters {
-    return {
-      seed: this.seed.get(),
-      max_beat_division_depth: this.max_beat_division_depth.get(),
-      pBranch: this.pBranch.get(),
-      pNoteOn: this.pNoteOn.get()
-    };
-  }
-  set(params: Parameters): Parameters {
-    this.seed.set(params.seed);
-    this.max_beat_division_depth.set(params.max_beat_division_depth);
-    this.pBranch.set(params.pBranch);
-    this.pNoteOn.set(params.pNoteOn);
-    return params;
-  }
-  ui: Component = () => {
-    return <details><summary>RhythmGenerator</summary>
-      <label>seeds
-        <helper.ClassUI instance={this.seed} />
-      </label>
-      <label>max beat division depth
-        <helper.ClassUI instance={this.max_beat_division_depth} />
-      </label>
-      <label>pBranchEdges
-        <helper.ClassUI instance={this.pBranch} />
-      </label>
-      <label>pNoteOnEdges
-        <helper.ClassUI instance={this.pNoteOn} />
-      </label>
-    </details>;
-  };
-}
 
 export function generateSubTree(
-  node: NoteTreeNode, rand: Random, depthcount: number, params: Parameters
+  node: NoteTreeNode, rand: Rng, depthcount: number, params: Parameters
 ) {
   node.children = [];
   let pBranch = util.smoothstep(params.pBranch.edge0, params.pBranch.edge1, node.duration);
@@ -71,7 +33,7 @@ export function generateSubTree(
     node.rhythm.isNoteOn = rand.random() < pNoteOn;
   }
 }
-export function mergeTopBranches(root: NoteTreeNode, rand: Random, params: Parameters) {
+export function mergeTopBranches(root: NoteTreeNode, rand: Rng, params: Parameters) {
   for (let i=0; i < root.children.length-1; i++) {
     const duration = root.children[i].duration + root.children[i+1].duration;
     const pMerge = 1 - util.smoothstep(params.pBranch.edge0, params.pBranch.edge1, duration);
@@ -85,10 +47,10 @@ export function mergeTopBranches(root: NoteTreeNode, rand: Random, params: Param
   }
   root.children = root.children.filter(n => n.duration > 0);
 }
-export function generate(tune: Tune, params: Parameters): NoteTreeNode {
+export function generate(tune: Tune, params: Parameters, ctx: GenerateContext = defaultContext): NoteTreeNode {
   const numBeats = tune.time_measure[0];
   const numBars = tune.time_measure[1];
-  let rand = new Random(params.seed.state, params.seed.sequence);
+  let rand = ctx.rngFactory(params.seed, 'rhythm');
   let phrase = new NoteTreeNode({t:0, duration: numBeats*numBars, isNoteOn: true});
   let bars = [...util.rangeIterator(0, numBars)].map(i => new NoteTreeNode({
     t: i*numBeats, duration: numBeats, isNoteOn: true,

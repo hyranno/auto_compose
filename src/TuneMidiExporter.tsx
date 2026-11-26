@@ -2,7 +2,7 @@ import type { Component } from 'solid-js';
 import { Midi } from '@tonejs/midi'
 
 import * as helper from './solid_helper';
-import * as tunes from './tune';
+import * as tunes from './core/tune';
 
 
 function addChordTrack(midi: Midi, tune: tunes.Tune, timerate: number) {
@@ -47,7 +47,7 @@ export const TuneMidiExporter: Component<{tune: tunes.Tune}> = (props) => {
       let midi = new Midi();
       addNoteTrack(midi, props.tune, timerate());
       addChordTrack(midi, props.tune, timerate());
-      anchor.href = URL.createObjectURL(new Blob([midi.toArray()]));
+      anchor.href = URL.createObjectURL(new Blob([midi.toArray() as Uint8Array<ArrayBuffer>]));
       anchor.click();
     }} />
   </div>;

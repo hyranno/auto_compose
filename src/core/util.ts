@@ -1,4 +1,4 @@
-import {Random} from 'reliable-random';
+import type {Rng} from './random';
 
 export function assertIsDefined<T>(val: T): asserts val is NonNullable<T> {
   if (val === undefined || val === null) {
@@ -72,9 +72,9 @@ export type WeightedRandomParameters<T> = {
   seed : RandomSeed;
 }
 export class WeightedRandom<T> {
-  randGenerator: Random;
+  randGenerator: Rng;
   items: WeightedItem<T>[];
-  constructor(randGenerator: Random, items: WeightedItem<T>[]) {
+  constructor(randGenerator: Rng, items: WeightedItem<T>[]) {
     this.randGenerator = randGenerator;
     this.items = items;
   }

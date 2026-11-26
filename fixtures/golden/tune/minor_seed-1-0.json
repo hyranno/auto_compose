@@ -1,0 +1,137 @@
+{
+  "params": {
+    "scale": {"key": 64, "tones": [0, 2, 3, 5, 7, 8, 10]},
+    "time_measure": [3, 4],
+    "resolution": "Half",
+    "cadence": {
+      "seed": {"state": 1, "sequence": 0},
+      "duration": 3,
+      "probabilities": [
+        [
+          "Tonic",
+          [
+            {"value": "Tonic", "weight": 0.1},
+            {"value": "Dominant", "weight": 0.3},
+            {"value": "Subdominant", "weight": 0.6}
+          ]
+        ],
+        [
+          "Dominant",
+          [
+            {"value": "Tonic", "weight": 0.9},
+            {"value": "Dominant", "weight": 0.1},
+            {"value": "Subdominant", "weight": 0}
+          ]
+        ],
+        [
+          "Subdominant",
+          [
+            {"value": "Tonic", "weight": 0.4},
+            {"value": "Dominant", "weight": 0.5},
+            {"value": "Subdominant", "weight": 0.1}
+          ]
+        ]
+      ]
+    },
+    "chord": {
+      "root": {
+        "seed": {"state": 1, "sequence": 0},
+        "probabilities": [
+          [
+            "Tonic",
+            [
+              {"value": 0, "weight": 0.8},
+              {"value": 5, "weight": 0.1},
+              {"value": 2, "weight": 0.1}
+            ]
+          ],
+          [
+            "Dominant",
+            [
+              {"value": 4, "weight": 0.7},
+              {"value": 6, "weight": 0.25},
+              {"value": 2, "weight": 0.05}
+            ]
+          ],
+          [
+            "Subdominant",
+            [
+              {"value": 3, "weight": 0.6},
+              {"value": 1, "weight": 0.35},
+              {"value": 5, "weight": 0.05}
+            ]
+          ]
+        ]
+      },
+      "tone": {
+        "rand_tones": {
+          "seed": {"state": 1, "sequence": 0},
+          "items": [
+            {"value": [0, 2, 4], "weight": 0.8},
+            {"value": [0, 2, 4, 6], "weight": 0.15},
+            {"value": [0, 4], "weight": 0.05}
+          ]
+        }
+      },
+      "modifier": {}
+    },
+    "note": {
+      "rhythm": {
+        "seed": {"state": 1, "sequence": 0},
+        "max_beat_division_depth": 3,
+        "pBranch": {"edge0": 0.25, "edge1": 1.5},
+        "pNoteOn": {"edge0": -2, "edge1": 1}
+      },
+      "pitchWeight": {
+        "absPitchFactor": {"edge0": 6, "edge1": 8},
+        "relPitchFactor": {"edge0": 4, "edge1": 6},
+        "factorInScale": 8,
+        "factorInChord": 4,
+        "rhythmExponentFactor": 2
+      },
+      "seed": {"state": 1, "sequence": 0}
+    }
+  },
+  "expected": {
+    "length": 12,
+    "time_measure": [3, 4],
+    "max_beat_division_depth": 3,
+    "scale": {"key": 64, "tones": [0, 2, 3, 5, 7, 8, 10]},
+    "resolution": [
+      {"t": 0, "value": "Half"}
+    ],
+    "cadence": [
+      {"t": 0, "value": "Tonic"},
+      {"t": 3, "value": "Subdominant"},
+      {"t": 6, "value": "Dominant"},
+      {"t": 9, "value": "Dominant"}
+    ],
+    "chord": [
+      {"t": 0, "root": 2, "tones": [0, 2, 4, 6], "notenums": [67, 71, 74, 78]},
+      {"t": 3, "root": 1, "tones": [0, 2, 4], "notenums": [66, 69, 72]},
+      {"t": 6, "root": 6, "tones": [0, 2, 4, 6], "notenums": [74, 78, 81, 84]},
+      {"t": 9, "root": 4, "tones": [0, 2, 4], "notenums": [71, 74, 78]}
+    ],
+    "notes": [
+      {"t": 0, "pitch": 67, "duration": 1, "isNoteOn": true},
+      {"t": 1, "pitch": 67, "duration": 1, "isNoteOn": true},
+      {"t": 2, "pitch": 71, "duration": 0.5, "isNoteOn": true},
+      {"t": 2.5, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 3, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 3.5, "pitch": 69, "duration": 0.25, "isNoteOn": true},
+      {"t": 3.75, "pitch": 69, "duration": 0.25, "isNoteOn": true},
+      {"t": 4, "pitch": 69, "duration": 1, "isNoteOn": true},
+      {"t": 5, "pitch": 69, "duration": 1, "isNoteOn": true},
+      {"t": 6, "pitch": 66, "duration": 1, "isNoteOn": true},
+      {"t": 7, "pitch": 62, "duration": 1, "isNoteOn": true},
+      {"t": 8, "pitch": 60, "duration": 0.5, "isNoteOn": true},
+      {"t": 8.5, "pitch": 60, "duration": 0.5, "isNoteOn": true},
+      {"t": 9, "pitch": 59, "duration": 0.25, "isNoteOn": true},
+      {"t": 9.25, "pitch": 57, "duration": 0.25, "isNoteOn": true},
+      {"t": 9.5, "pitch": 59, "duration": 0.5, "isNoteOn": true},
+      {"t": 10, "pitch": 62, "duration": 0.5, "isNoteOn": true},
+      {"t": 10.5, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 11, "pitch": 66, "duration": 1, "isNoteOn": true}
+    ]
+  }
+}
