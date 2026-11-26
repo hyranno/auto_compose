@@ -136,16 +136,13 @@ pub fn vary_cadence(
 }
 
 /// Redraws the root and the tones of the chords strictly inside the timespan.
-///
-/// The indices are those of the cadences (bug 5 of the notes); it works because the cadences
-/// and the chords have the same times.
 pub fn vary_chord(
     tune: &Tune,
     timespan: [f64; 2],
     rng: &mut impl Rng,
     params: &chord::Parameters,
 ) -> Result<Timeline<Chord>> {
-    let [start, end] = span_indices(&tune.cadence, timespan);
+    let [start, end] = span_indices(&tune.chord, timespan);
     let items = tune
         .chord
         .list()
@@ -691,6 +688,32 @@ mod tests {
             .collect();
         assert_eq!(leaves, [(0.0, 1.0), (1.0, 2.0), (3.0, 1.0)]);
         assert!(root.children[1].pitch.is_some());
+    }
+
+    #[test]
+    fn vary_chord_takes_the_indices_of_the_chords() {
+        // Two chords per cadence: the indices of the cadences would select nothing here.
+        let mut tune = tune_with_a_chord();
+        tune.cadence = Timeline::from_items([
+            TimelineItem::new(0.0, Cadence::T),
+            TimelineItem::new(4.0, Cadence::D),
+        ]);
+        tune.chord = Timeline::from_items(
+            [0.0, 2.0, 4.0, 6.0]
+                .map(|t| TimelineItem::new(t, Chord::new(tune.scale.clone(), 0, vec![0]))),
+        );
+        let mut rng = ConstantRng::new(0.5);
+        let chord = vary_chord(&tune, [1.0, 5.0], &mut rng, &default_params().chord).unwrap();
+        // The chord at t = 2 is strictly between the chords at the ends: a root and tones.
+        assert_eq!(rng.consumed, 2);
+        let changed: Vec<f64> = chord
+            .list()
+            .iter()
+            .zip(tune.chord.list())
+            .filter(|(a, b)| a != b)
+            .map(|(a, _)| a.t)
+            .collect();
+        assert_eq!(changed, [2.0]);
     }
 
     #[test]
