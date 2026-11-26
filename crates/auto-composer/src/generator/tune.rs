@@ -24,23 +24,29 @@ pub struct Parameters {
 
 /// Generates the cadences, the chords and the notes in this order.
 pub fn generate(params: &Parameters, factory: &dyn RngFactory) -> Result<Tune> {
+    let mut tune = empty(params)?;
+    tune.cadence = cadence::generate(&tune, &params.cadence, factory)?;
+    tune.chord = chord::generate(&tune, &params.chord, factory)?;
+    tune.notes = note::generate(&tune, &params.note, factory)?;
+    Ok(tune)
+}
+
+/// A tune with the scale, the measure and the resolution of `params`, and no cadences,
+/// chords or notes yet.
+pub fn empty(params: &Parameters) -> Result<Tune> {
     // The TypeScript version gives NaN pitches for an empty scale; here the degrees of the
     // chords would divide by zero.
     if params.scale.tones.is_empty() {
         return Err(Error::InvalidParameter("scale.tones"));
     }
-    let mut tune = Tune {
+    Ok(Tune {
         length: f64::from(params.time_measure[0] * params.time_measure[1]),
         time_measure: params.time_measure,
         max_beat_division_depth: params.note.rhythm.max_beat_division_depth,
         scale: params.scale.clone(),
         resolution: Timeline::from_items([TimelineItem::new(0.0, params.resolution)]),
         ..Tune::default()
-    };
-    tune.cadence = cadence::generate(&tune, &params.cadence, factory)?;
-    tune.chord = chord::generate(&tune, &params.chord, factory)?;
-    tune.notes = note::generate(&tune, &params.note, factory)?;
-    Ok(tune)
+    })
 }
 
 #[cfg(test)]

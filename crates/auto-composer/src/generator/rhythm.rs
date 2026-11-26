@@ -19,7 +19,8 @@ pub struct Parameters {
     pub p_note_on: SmoothstepParams,
 }
 
-fn new_node(t: f64, duration: f64) -> NoteNode {
+/// A note that is on, without children.
+pub(crate) fn new_node(t: f64, duration: f64) -> NoteNode {
     NoteNode::new(Rhythm {
         is_note_on: true,
         t,

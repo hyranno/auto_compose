@@ -59,6 +59,21 @@ pub fn generate(
     )
 }
 
+/// The weights of the roots for `cadence`. Like `new Map(...).get`, a later entry for the same
+/// cadence wins.
+pub(crate) fn root_items(
+    params: &RootParameters,
+    cadence: Cadence,
+) -> Result<&[WeightedItem<Degree>]> {
+    params
+        .probabilities
+        .iter()
+        .rev()
+        .find(|(k, _)| *k == cadence)
+        .map(|(_, items)| items.as_slice())
+        .ok_or(Error::MissingRootProbabilities(cadence))
+}
+
 /// Draws a root for each cadence of the tune (`RootGenerator.generate`).
 pub fn generate_roots(
     tune: &Tune,
@@ -70,13 +85,7 @@ pub fn generate_roots(
         .list()
         .iter()
         .map(|c| {
-            // Like `new Map(...).get`: a later entry for the same cadence wins.
-            let (_, items) = params
-                .probabilities
-                .iter()
-                .rev()
-                .find(|(k, _)| *k == c.value)
-                .ok_or(Error::MissingRootProbabilities(c.value))?;
+            let items = root_items(params, c.value)?;
             let root = *weighted_pick(items, rng).ok_or(Error::NoItems)?;
             Ok(TimelineItem::new(c.t, root))
         })

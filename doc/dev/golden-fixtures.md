@@ -33,8 +33,8 @@ so the expected values are compared exactly.
   which also defines the cases). Regenerate only when a change of output is intended, and review the diff.
 - `cargo test` runs the Rust side: `crates/auto-composer/tests/rng.rs` checks `rng.json`
   against `auto_composer::random::ReliableRandom`, `crates/auto-composer/tests/golden.rs` regenerates the
-  `tune/` cases with `auto_composer::generator::tune::generate` and compares them as `TuneSnapshot`
-  (`snapshot.rs`; the `variant/` cases follow when the variants are ported),
+  `tune/` cases with `auto_composer::generator::tune::generate` and the `variant/` cases with
+  `auto_composer::generator::variant::generate`, and compares them as `TuneSnapshot` (`snapshot.rs`),
   and the `#[cfg(test)]` modules hold the ported unit tests.
   Before committing Rust code, run `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
 - `scripts/run_ts.mjs` runs a TypeScript file through Vite's module runner,
@@ -62,6 +62,9 @@ The Rust port has the same labels: each `generate` in `auto_composer::generator`
 `ScriptedRng` returns a fixed list of values, for unit tests that need specific draws (e.g. boundary values).
 In Rust, the steps inside a generator (`generate_with`, `generate_roots`, `merge_top_branches`, ...) take a
 `&mut impl Rng` for that purpose, and `SharedRngFactory` makes every generator draw from one `Rng`.
+The variant draws from a single `Rng` (label `variant`) through all its steps
+(`vary_cadence`, `vary_chord`, `interpolate`, `split_rhythm`, `merge_rhythm`, `toggle_note_on`, ...),
+which also take a `&mut impl Rng`.
 
 Seeds in the parameter JSON are read as JavaScript does: the number becomes a `f64` and then
 `BigInt(x) & U64_MASK`, so integers beyond 2^53 are rounded first and a fraction is an error.

@@ -11,6 +11,7 @@ pub mod note;
 pub mod pitch_weight;
 pub mod rhythm;
 pub mod tune;
+pub mod variant;
 
 #[cfg(test)]
 pub(crate) mod test_util {

@@ -3,9 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
-use auto_composer::generator::tune as tune_generator;
+use auto_composer::generator::{tune as tune_generator, variant};
 use auto_composer::random::ReliableRandomFactory;
 use auto_composer::snapshot::TuneSnapshot;
+use auto_composer::tune::Tune;
 use serde::Deserialize;
 
 fn golden_dir(sub: &str) -> PathBuf {
@@ -39,6 +40,31 @@ struct TuneCase {
     expected: TuneSnapshot,
 }
 
+/// Prints which timelines of a mismatching case differ and returns whether it mismatches.
+fn mismatch(name: &str, tune: &Tune, expected: &TuneSnapshot) -> bool {
+    let actual = TuneSnapshot::from(tune);
+    if actual == *expected {
+        return false;
+    }
+    eprintln!("{name}: mismatch");
+    let actual = serde_json::to_value(&actual).unwrap();
+    let expected = serde_json::to_value(expected).unwrap();
+    for key in ["cadence", "chord", "notes"] {
+        if actual[key] != expected[key] {
+            eprintln!("  {key} differs");
+        }
+    }
+    true
+}
+
+fn assert_no_failures(failed: &[&str], total: usize) {
+    assert!(
+        failed.is_empty(),
+        "{} of {total} cases failed: {failed:?}",
+        failed.len(),
+    );
+}
+
 #[test]
 fn golden_tune() {
     let cases: Vec<(String, TuneCase)> = load_cases("tune");
@@ -48,27 +74,32 @@ fn golden_tune() {
         .filter(|(name, c)| {
             let tune = tune_generator::generate(&c.params, &ReliableRandomFactory)
                 .unwrap_or_else(|e| panic!("{name}: {e}"));
-            let actual = TuneSnapshot::from(&tune);
-            if actual != c.expected {
-                eprintln!("{name}: mismatch");
-                for key in ["cadence", "chord", "notes"] {
-                    let a = serde_json::to_value(&actual).unwrap()[key].clone();
-                    let e = serde_json::to_value(&c.expected).unwrap()[key].clone();
-                    if a != e {
-                        eprintln!("  {key} differs");
-                    }
-                }
-                true
-            } else {
-                false
-            }
+            mismatch(name, &tune, &c.expected)
         })
         .map(|(name, _)| name.as_str())
         .collect();
-    assert!(
-        failed.is_empty(),
-        "{} of {} cases failed: {failed:?}",
-        failed.len(),
-        cases.len()
-    );
+    assert_no_failures(&failed, cases.len());
+}
+
+#[derive(Deserialize)]
+struct VariantCase {
+    params: variant::Parameters,
+    base: tune_generator::Parameters,
+    expected: TuneSnapshot,
+}
+
+#[test]
+fn golden_variant() {
+    let cases: Vec<(String, VariantCase)> = load_cases("variant");
+    assert!(!cases.is_empty());
+    let failed: Vec<&str> = cases
+        .iter()
+        .filter(|(name, c)| {
+            let tune = variant::generate(&c.params, &c.base, &ReliableRandomFactory)
+                .unwrap_or_else(|e| panic!("{name}: {e}"));
+            mismatch(name, &tune, &c.expected)
+        })
+        .map(|(name, _)| name.as_str())
+        .collect();
+    assert_no_failures(&failed, cases.len());
 }
