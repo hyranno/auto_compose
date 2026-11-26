@@ -314,19 +314,23 @@ fn inside(timespan: [f64; 2], t: f64) -> bool {
 
 const NUM_CHILDREN: usize = 2;
 
-/// The pitch of `leaves[i]`, where `i` may be out of range.
-fn neighbour_pitch(pitches: &[Option<Notenum>], i: Option<usize>) -> Result<Notenum> {
-    i.and_then(|i| pitches.get(i))
-        .ok_or(Error::NoNeighbour)?
+/// The pitch of the leaf `neighbour`, or of the leaf `own` when there is no such leaf
+/// (`neighbour` is out of range at either end of the tune).
+fn neighbour_pitch(
+    pitches: &[Option<Notenum>],
+    neighbour: Option<usize>,
+    own: usize,
+) -> Result<Notenum> {
+    neighbour
+        .and_then(|i| pitches.get(i))
+        .unwrap_or(&pitches[own])
         .ok_or(Error::MissingPitch)
 }
 
 /// Splits each leaf inside the timespan into halves with the probability `pBranch` of its
 /// duration, drawing once per leaf, and interpolates the pitches of the halves between the
-/// neighbour leaves.
-///
-/// Splitting the first or the last leaf is an error, because it has no neighbour on one side
-/// (bug 3 of the notes; TypeScript throws).
+/// neighbour leaves. The first and the last leaf use their own pitch on the side without a
+/// neighbour.
 pub fn split_rhythm(
     tune: &Tune,
     root: &mut NoteNode,
@@ -349,8 +353,8 @@ pub fn split_rhythm(
                 (0..NUM_CHILDREN)
                     .map(|k| rhythm::new_node(rhythm.t + k as f64 * sub_duration, sub_duration)),
             );
-            let start = neighbour_pitch(&pitches, i.checked_sub(1))?;
-            let end = neighbour_pitch(&pitches, Some(i + 1))?;
+            let start = neighbour_pitch(&pitches, i.checked_sub(1), i)?;
+            let end = neighbour_pitch(&pitches, Some(i + 1), i)?;
             let mut children: Vec<&mut NoteNode> = leaf.children.iter_mut().collect();
             interpolate(tune, start, end, rng, &mut children, &params.pitch_weight)?;
         }
@@ -421,10 +425,14 @@ pub fn merge_rhythm(
         if rng.random() < p_merge {
             let [i0, i1] = [0, 1].map(|k| {
                 let t = branch.children[k].rhythm.t;
-                leaves.iter().position(|l| l.0 == t)
+                leaves
+                    .iter()
+                    .position(|l| l.0 == t)
+                    .ok_or(Error::NoNeighbour)
             });
-            let start = neighbour_pitch(&pitches, i0.and_then(|i| i.checked_sub(1)))?;
-            let end = neighbour_pitch(&pitches, i1.map(|i| i + 1))?;
+            let (i0, i1) = (i0?, i1?);
+            let start = neighbour_pitch(&pitches, i0.checked_sub(1), i0)?;
+            let end = neighbour_pitch(&pitches, Some(i1 + 1), i1)?;
             let mut merged = NoteNode::new(branch.rhythm);
             merged.pitch = branch.pitch;
             interpolate(
@@ -637,17 +645,13 @@ mod tests {
     }
 
     #[test]
-    fn splitting_the_last_leaf_is_an_error() {
-        // Known bug: the split reads the neighbours of the leaf, and the last leaf has none
-        // after it. TypeScript throws.
+    fn splitting_the_whole_tune_succeeds() {
+        // The last leaf has no neighbour after it; TypeScript threw here.
         let factory = VariantRngFactory {
             rng: RefCell::new(ConstantRng::new(0.0)), // every split happens
         };
         let params = variant_params(Layer::Rhythm, [8.0, 16.0], (0, 0));
-        assert_eq!(
-            generate(&params, &base(), &factory),
-            Err(Error::NoNeighbour)
-        );
+        assert!(generate(&params, &base(), &factory).is_ok());
     }
 
     fn node(t: f64, duration: f64, pitch: Option<Notenum>, children: Vec<NoteNode>) -> NoteNode {
@@ -736,6 +740,36 @@ mod tests {
             .map(|n| (n.rhythm.t, n.rhythm.duration, n.pitch.is_some()))
             .collect();
         assert_eq!(halves, [(1.0, 0.5, true), (1.5, 0.5, true)]);
+    }
+
+    #[test]
+    fn split_uses_the_own_pitch_at_the_end_of_the_tune() {
+        let mut root = node(
+            0.0,
+            3.0,
+            None,
+            vec![leaf(0.0, 1.0, 62), leaf(1.0, 1.0, 62), leaf(2.0, 1.0, 76)],
+        );
+        // Split, then draw the pitches of the halves from the middle of their distributions.
+        let mut rng = ScriptedRng::new(vec![0.0, 0.5, 0.5]);
+        let params = default_params().note;
+        split_rhythm(
+            &tune_with_a_chord(),
+            &mut root,
+            [1.5, 3.0],
+            &mut rng,
+            &params,
+        )
+        .unwrap();
+        // The halves lead from 62 to the own pitch 76 in 3 steps of less than 6 semitones.
+        let halves: Vec<_> = root.children[2]
+            .children
+            .iter()
+            .map(|n| n.pitch.unwrap())
+            .collect();
+        assert_eq!(rng.consumed(), 3);
+        let path = [62, halves[0], halves[1], 76];
+        assert!(path.windows(2).all(|w| (w[1] - w[0]).abs() < 6), "{path:?}");
     }
 
     #[test]
