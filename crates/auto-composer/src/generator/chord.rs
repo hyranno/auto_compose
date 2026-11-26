@@ -146,12 +146,12 @@ mod tests {
                 .map(|(c, i)| TimelineItem::new(f64::from(i * 4), c)),
         );
         let params = default_params().chord;
-        // Root draws (one per cadence): T 0.7 -> 0 (ratio exactly 0.7), S 0.95 -> 1
+        // Root draws (one per cadence): T 0.69 -> 0 (ratio 0.7), S 0.9499 -> 1
         // (0.6 + 0.35 == 0.95), D 0.9 -> 6, T 1-2^-32 -> 2
-        let mut root_rng = ScriptedRng::new([0.7, 0.95, 0.9, 1.0 - 2f64.powi(-32)]);
-        // Tone draws (one per chord): 0.8 -> [0,2,4], 0.81 -> [0,2,4,6],
+        let mut root_rng = ScriptedRng::new([0.69, 0.9499, 0.9, 1.0 - 2f64.powi(-32)]);
+        // Tone draws (one per chord): 0.79 -> [0,2,4] (ratio 0.8), 0.8 -> [0,2,4,6],
         // 0.95 -> [0,2,4,6] (0.8 + 0.15 == 0.9500000000000001), 0.96 -> [0,4]
-        let mut tone_rng = ScriptedRng::new([0.8, 0.81, 0.95, 0.96]);
+        let mut tone_rng = ScriptedRng::new([0.79, 0.8, 0.95, 0.96]);
         let roots = generate_roots(&tune, &params.root, &mut root_rng).unwrap();
         let chords = generate_tones(&tune, &roots, &params.tone, &mut tone_rng).unwrap();
         let actual: Vec<(f64, Degree, Vec<Degree>)> = chords

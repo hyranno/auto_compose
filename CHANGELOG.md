@@ -32,6 +32,7 @@ The same parameters no longer give the same tunes as the TypeScript version
   neighbours.
 - Playing and exporting a tune with a single chord no longer fails, and each chord lasts until
   the next one.
+- An item of weight 0 in a probability table is never chosen.
 - An invalid parameter file is rejected with an error instead of being used.
 - The variant parameters have their defaults before a file is loaded.
 
