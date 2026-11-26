@@ -181,8 +181,10 @@ pub fn vary_chord(
 /// [`MarkovChain::new`]). Reproduced bugs:
 /// - When `start` or `end` is outside the candidates, every weight is `NaN` and the lowest
 ///   candidate is chosen (bug 2).
-/// - Every note is conditioned on following `start` directly: the previous pitch is never
-///   updated.
+///
+/// Each note is drawn from the distribution of the chain one step after the previous pitch,
+/// conditioned on reaching `end` one step after the last note, and weighted further by the
+/// chord and the duration of the note.
 pub fn interpolate(
     tune: &Tune,
     start: Notenum,
@@ -211,13 +213,13 @@ pub fn interpolate(
         })
         .collect();
     let chain = MarkovChain::new(0, &transition)?;
-    let prev = start;
+    let mut prev = start;
     let len = dest.len();
     for (i, note) in dest.iter_mut().enumerate() {
-        let dist = match chain.calc_distribution_conditional(
-            &Condition::new(1, prev),
-            &Condition::new(len + 1 - i, end),
-        ) {
+        // From the note `i`, `len - 1 - i` notes and then `end` follow.
+        let dist = match chain
+            .calc_distribution_conditional(&Condition::new(1, prev), &Condition::new(len - i, end))
+        {
             Ok(dist) => dist,
             // TypeScript indexes the stationary distribution with -1 and gets NaN.
             Err(Error::UnknownState) => vec![f64::NAN; candidates.len()],
@@ -242,7 +244,9 @@ pub fn interpolate(
                 Ok(WeightedItem::new(weight, item.value))
             })
             .collect::<Result<Vec<_>>>()?;
-        note.pitch = Some(*weighted_pick(&items, rng).ok_or(Error::NoItems)?);
+        let pitch = *weighted_pick(&items, rng).ok_or(Error::NoItems)?;
+        note.pitch = Some(pitch);
+        prev = pitch;
     }
     Ok(())
 }
@@ -458,7 +462,7 @@ mod tests {
 
     use super::*;
     use crate::generator::test_util::{ConstantRng, SEEDS, default_params, empty_tune};
-    use crate::random::{ReliableRandomFactory, ScriptedRng};
+    use crate::random::{ReliableRandom, ReliableRandomFactory, ScriptedRng};
     use crate::tune::{Rhythm, Scale};
 
     // Ported from src/core/generators.test.ts.
@@ -726,6 +730,28 @@ mod tests {
             .map(|n| (n.rhythm.t, n.rhythm.duration, n.pitch.is_some()))
             .collect();
         assert_eq!(halves, [(1.0, 0.5, true), (1.5, 0.5, true)]);
+    }
+
+    #[test]
+    fn interpolate_moves_step_by_step_to_the_end() {
+        // relPitchFactor.edge1 = 6: the chain never moves by 6 semitones or more, so each
+        // pitch must follow the previous one and still reach the end.
+        let tune = tune_with_a_chord();
+        let params = default_params().note.pitch_weight;
+        let (start, end) = (63, 75);
+        for (state, sequence) in SEEDS {
+            let mut rng = ReliableRandom::new(state, sequence);
+            let mut notes: Vec<NoteNode> = (0..3).map(|i| leaf(f64::from(i), 1.0, 0)).collect();
+            let mut dest: Vec<&mut NoteNode> = notes.iter_mut().collect();
+            interpolate(&tune, start, end, &mut rng, &mut dest, &params).unwrap();
+            let mut path = vec![start];
+            path.extend(notes.iter().map(|n| n.pitch.unwrap()));
+            path.push(end);
+            assert!(
+                path.windows(2).all(|w| (w[1] - w[0]).abs() < 6),
+                "{state} {sequence}: {path:?}"
+            );
+        }
     }
 
     #[test]

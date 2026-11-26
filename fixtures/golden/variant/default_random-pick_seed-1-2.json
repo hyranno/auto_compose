@@ -147,7 +147,7 @@
       {"t": 7, "pitch": 73, "duration": 0.5, "isNoteOn": true},
       {"t": 7.5, "pitch": 73, "duration": 0.5, "isNoteOn": true},
       {"t": 8, "pitch": 69, "duration": 1, "isNoteOn": true},
-      {"t": 9, "pitch": 74, "duration": 1, "isNoteOn": true},
+      {"t": 9, "pitch": 69, "duration": 1, "isNoteOn": true},
       {"t": 10, "pitch": 69, "duration": 1, "isNoteOn": true},
       {"t": 11, "pitch": 69, "duration": 1, "isNoteOn": true},
       {"t": 12, "pitch": 68, "duration": 2, "isNoteOn": true},
