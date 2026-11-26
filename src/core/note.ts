@@ -1,4 +1,5 @@
-import {Random} from 'reliable-random';
+import {defaultContext, GenerateContext} from './random';
+import type {Rng} from './random';
 
 import * as util from './util';
 
@@ -14,7 +15,7 @@ export type Parameters = {
   seed: util.RandomSeed;
 };
 
-export function generatePitch(tune: Tune, rand: Random, prev: notenum, note: NoteTreeNode, params: PitchWeight.Parameters){
+export function generatePitch(tune: Tune, rand: Rng, prev: notenum, note: NoteTreeNode, params: PitchWeight.Parameters){
   const pitches = [...util.rangeIterator(prev-12, prev+12)];
   let rand_pitch: util.WeightedRandom<notenum> = new util.WeightedRandom(
     rand,
@@ -27,9 +28,9 @@ export function generatePitch(tune: Tune, rand: Random, prev: notenum, note: Not
   );
   note.pitch = rand_pitch.get();
 }
-export function generateTree(tune: Tune, params: Parameters): NoteTreeNode {
-  const notes = RhythmGenerator.generate(tune, params.rhythm);
-  let rand = new Random(params.seed.state, params.seed.sequence);
+export function generateTree(tune: Tune, params: Parameters, ctx: GenerateContext = defaultContext): NoteTreeNode {
+  const notes = RhythmGenerator.generate(tune, params.rhythm, ctx);
+  let rand = ctx.rngFactory(params.seed, 'note.pitch');
   let prev = tune.scale.root; //dummy
   notes.leaves().forEach(note => {
     generatePitch(tune, rand, prev, note, params.pitchWeight);
@@ -38,8 +39,8 @@ export function generateTree(tune: Tune, params: Parameters): NoteTreeNode {
   });
   return notes;
 }
-export function generate(tune: Tune, params: Parameters): util.Timeline<Note> {
-  const noteTree = generateTree(tune, params);
+export function generate(tune: Tune, params: Parameters, ctx: GenerateContext = defaultContext): util.Timeline<Note> {
+  const noteTree = generateTree(tune, params, ctx);
   const events: util.TimelineItem<Note>[] = noteTree.leaves().map(note => {
     const pitch = note.pitch;   util.assertIsDefined(pitch);
     return { t: note.t, value: {duration: note.duration, pitch: pitch, isNoteOn: note.isNoteOn} };

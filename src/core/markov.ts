@@ -1,4 +1,4 @@
-import {Random} from 'reliable-random';
+import type {Rng} from './random';
 import * as vectorious from 'vectorious';
 
 import {assertIsDefined, rangeIterator} from './util';
@@ -6,9 +6,9 @@ import {WeightedItem, WeightedRandom} from './util';
 
 
 export abstract class MarkovChain<T> {
-  protected random: Random;
+  protected random: Rng;
   state: T;
-  constructor(random: Random, initial_state: T) {
+  constructor(random: Rng, initial_state: T) {
     this.random = random;
     this.state = initial_state;
   }
@@ -29,7 +29,7 @@ export class MarkovChain_TimeHomo_FiniteState<T> extends MarkovChain<T> {
   get transition_matrix(): vectorious.NDArray {return this._transition_matrix;}
   get backward_matrix(): vectorious.NDArray {return this._backward_matrix;}
   get stationary(): vectorious.NDArray {return this._stationary;}
-  constructor(random: Random, initial_state: T, transition: Map<T, WeightedItem<T>[]>) {
+  constructor(random: Rng, initial_state: T, transition: Map<T, WeightedItem<T>[]>) {
     super(random, initial_state);
     this._states = [...transition.keys()];
 

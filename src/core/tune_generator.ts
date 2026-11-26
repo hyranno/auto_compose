@@ -1,4 +1,5 @@
 import * as util from './util';
+import {defaultContext, GenerateContext} from './random';
 
 import * as CadenceGenerator from './cadence';
 import * as ChordGenerator from './chord';
@@ -16,7 +17,7 @@ export type Parameters = {
   note: NoteGenerator.Parameters;
 };
 
-export function generate(params: Parameters): Tune {
+export function generate(params: Parameters, ctx: GenerateContext = defaultContext): Tune {
   util.assertIsDefined(params);
   let tune = new Tune();
   tune.length = params.time_measure[0] * params.time_measure[1];
@@ -24,8 +25,8 @@ export function generate(params: Parameters): Tune {
   tune.time_measure = params.time_measure;
   tune.max_beat_division_depth = params.note.rhythm.max_beat_division_depth;
   tune.resolution = util.Timeline.fromItems([{t:0, value:params.resolution}]);
-  tune.cadence = CadenceGenerator.generate(tune, params.cadence);
-  tune.chord = ChordGenerator.generate(tune, params.chord);
-  tune.notes = NoteGenerator.generate(tune, params.note);
+  tune.cadence = CadenceGenerator.generate(tune, params.cadence, ctx);
+  tune.chord = ChordGenerator.generate(tune, params.chord, ctx);
+  tune.notes = NoteGenerator.generate(tune, params.note, ctx);
   return tune;
 }

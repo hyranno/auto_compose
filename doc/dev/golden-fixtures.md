@@ -24,3 +24,21 @@ so the expected values are compared exactly.
   which also defines the cases). Regenerate only when a change of output is intended, and review the diff.
 - `scripts/run_ts.mjs` runs a TypeScript file through Vite's module runner,
   because `src/` uses extensionless imports that plain `node` cannot resolve.
+
+## Tracing random number consumption
+
+The generators take their random numbers from `Rng` (`src/core/random.ts`), created through
+the optional `GenerateContext` argument of `generate` (default: reliable-random's `Random`).
+Each generator asks the factory for its own `Rng` with a label
+(`cadence`, `chord.root`, `chord.tone`, `rhythm`, `note.pitch`, `variant`).
+
+When the Rust port disagrees with a fixture, record the consumption order on the TypeScript side
+and compare it with the Rust side to find where they diverge:
+
+```ts
+const log: RngRecord[] = [];
+TuneGenerator.generate(params, {rngFactory: recordingRngFactory(log)});
+// log: [{label: 'cadence', value: 0.123...}, ...]
+```
+
+`ScriptedRng` returns a fixed list of values, for unit tests that need specific draws (e.g. boundary values).

@@ -1,4 +1,4 @@
-import { Random } from 'reliable-random';
+import {defaultContext, GenerateContext} from './random';
 
 import * as util from './util';
 import * as markov from './markov';
@@ -12,13 +12,13 @@ export type Parameters = {
   duration: number;
 };
 
-export function generate(tune: Tune, params: Parameters): util.Timeline<Cadence> {
+export function generate(tune: Tune, params: Parameters, ctx: GenerateContext = defaultContext): util.Timeline<Cadence> {
   const times = [...util.rangeIterator(0, tune.time_measure[0] * tune.time_measure[1], params.duration)];
   const prefix: Cadence[] = [Cadence.T];  //TODO parametrize
   const postfix = CadencePostfix.get(tune.resolution.get(0).value);
   util.assertIsDefined(postfix);
   let chain = new markov.MarkovChain_TimeHomo_FiniteState(
-    new Random(params.seed.state, params.seed.sequence), prefix[prefix.length-1], new Map(params.probabilities)
+    ctx.rngFactory(params.seed, 'cadence'), prefix[prefix.length-1], new Map(params.probabilities)
   );
   let postfixOffset = times.length - postfix.length;
   let items: util.TimelineItem<Cadence>[] = times.map((t,i) => {

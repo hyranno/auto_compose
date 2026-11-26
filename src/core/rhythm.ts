@@ -1,4 +1,5 @@
-import {Random} from 'reliable-random';
+import {defaultContext, GenerateContext} from './random';
+import type {Rng} from './random';
 
 import * as util from './util';
 
@@ -13,7 +14,7 @@ export type Parameters = {
 };
 
 export function generateSubTree(
-  node: NoteTreeNode, rand: Random, depthcount: number, params: Parameters
+  node: NoteTreeNode, rand: Rng, depthcount: number, params: Parameters
 ) {
   node.children = [];
   let pBranch = util.smoothstep(params.pBranch.edge0, params.pBranch.edge1, node.duration);
@@ -32,7 +33,7 @@ export function generateSubTree(
     node.rhythm.isNoteOn = rand.random() < pNoteOn;
   }
 }
-export function mergeTopBranches(root: NoteTreeNode, rand: Random, params: Parameters) {
+export function mergeTopBranches(root: NoteTreeNode, rand: Rng, params: Parameters) {
   for (let i=0; i < root.children.length-1; i++) {
     const duration = root.children[i].duration + root.children[i+1].duration;
     const pMerge = 1 - util.smoothstep(params.pBranch.edge0, params.pBranch.edge1, duration);
@@ -46,10 +47,10 @@ export function mergeTopBranches(root: NoteTreeNode, rand: Random, params: Param
   }
   root.children = root.children.filter(n => n.duration > 0);
 }
-export function generate(tune: Tune, params: Parameters): NoteTreeNode {
+export function generate(tune: Tune, params: Parameters, ctx: GenerateContext = defaultContext): NoteTreeNode {
   const numBeats = tune.time_measure[0];
   const numBars = tune.time_measure[1];
-  let rand = new Random(params.seed.state, params.seed.sequence);
+  let rand = ctx.rngFactory(params.seed, 'rhythm');
   let phrase = new NoteTreeNode({t:0, duration: numBeats*numBars, isNoteOn: true});
   let bars = [...util.rangeIterator(0, numBars)].map(i => new NoteTreeNode({
     t: i*numBeats, duration: numBeats, isNoteOn: true,
