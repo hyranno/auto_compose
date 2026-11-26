@@ -17,9 +17,13 @@ The same parameters no longer give the same tunes as the TypeScript version
   Both the tune and the variant parameters can be saved and loaded, and the resolution of the
   variant has a form.
 - Golden fixtures (`fixtures/`) that pin the generated output.
+- CI on GitHub Actions (formatting, clippy, tests of the crates and the bindings, and the build of the
+  web page), which also deploys the page to GitHub Pages from `master`.
 
 ### Changed
 
+- The web page is published on GitHub Pages (https://hyranno.github.io/auto_compose/) instead of
+  the former site.
 - The generators of the layers draw independent random numbers even when they are given the
   same seed, as in the default parameters.
 - The JSON Schemas under `schemas/` are generated from the Rust types.

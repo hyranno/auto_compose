@@ -2,7 +2,7 @@
 
 # これは
 作曲補助プログラムです。
-[ここ](http://uncotechhack.net/preview/auto_compose/)からでも使えます(旧 TypeScript 版)。
+[ここ](https://hyranno.github.io/auto_compose/)で試せます。
 各種パラメータに基づき楽節を自動生成します。
 西洋の音楽理論をベースにしていますが、簡略化や誤りを含みます。
 作曲したいがゼロから作るのは厳しい、という時にどうぞ。
