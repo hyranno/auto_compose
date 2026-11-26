@@ -1,10 +1,10 @@
 import type { Component } from 'solid-js';
 import {Random} from 'reliable-random';
 
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
 
-import {Tune, NoteTreeNode} from './tune';
+import {Tune, NoteTreeNode} from './core/tune';
 
 
 export type Parameters = {

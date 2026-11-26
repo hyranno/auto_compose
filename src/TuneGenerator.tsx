@@ -4,7 +4,7 @@ import {createSignal} from 'solid-js';
 import './TuneGenerator.scss';
 
 import {ClassUI} from './solid_helper';
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
 
 import schema from '../schemas/TuneGeneratorParameters.json';
@@ -12,7 +12,7 @@ import * as CadenceGenerator from './CadenceGenerator';
 import * as ChordGenerator from './ChordGenerator';
 import * as NoteGenerator from './NoteGenerator';
 
-import {Tune, Scale, Resolution} from './tune';
+import {Tune, Scale, Resolution} from './core/tune';
 
 
 class ScaleUiAdapter extends helper.UiAdapter<Scale> {

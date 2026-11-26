@@ -1,11 +1,11 @@
 import type { Component } from 'solid-js';
 import { Random } from 'reliable-random';
 
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
-import * as markov from './markov';
+import * as markov from './core/markov';
 
-import {Tune, Cadence, CadencePostfix} from './tune';
+import {Tune, Cadence, CadencePostfix} from './core/tune';
 
 
 export type Parameters = {

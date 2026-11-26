@@ -6,7 +6,7 @@ import {ClassUI} from './solid_helper';
 import * as DefaultTuneGenParams from '../resources/TuneGenParams_default.json';
 import * as DefaultVariantGenParams from '../resources/VariantGenParams_default.json';
 
-import {Tune} from './tune';
+import {Tune} from './core/tune';
 import * as TuneGenerator from './TuneGenerator';
 import * as VariantGenerator from './VariantGenerator';
 import {PianoRoll} from './PianoRoll';

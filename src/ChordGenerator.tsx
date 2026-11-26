@@ -1,10 +1,10 @@
 import type { Component } from 'solid-js';
 import { Random } from 'reliable-random';
 
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
 
-import {Tune, Cadence, Chord} from './tune';
+import {Tune, Cadence, Chord} from './core/tune';
 
 
 namespace RootGenerator {

@@ -2,7 +2,7 @@ import type { Component } from 'solid-js';
 import { Midi } from '@tonejs/midi'
 
 import * as helper from './solid_helper';
-import * as tunes from './tune';
+import * as tunes from './core/tune';
 
 
 function addChordTrack(midi: Midi, tune: tunes.Tune, timerate: number) {

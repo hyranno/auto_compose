@@ -1,11 +1,11 @@
 import type { Component } from 'solid-js';
 import {Random} from 'reliable-random';
 
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
 
-import {Tune, Note, NoteTreeNode} from './tune';
-import type {notenum} from './tune';
+import {Tune, Note, NoteTreeNode} from './core/tune';
+import type {notenum} from './core/tune';
 import * as PitchWeight from './PitchWeightCalculator';
 import * as RhythmGenerator from './RhytmGenerator';
 

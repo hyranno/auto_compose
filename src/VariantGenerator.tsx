@@ -4,16 +4,16 @@ import {Random} from 'reliable-random';
 
 import schema from '../schemas/VariantGeneratorParameters.json';
 
-import {Tune, Scale, Resolution, Cadence, Chord, Note, NoteTreeNode} from './tune';
+import {Tune, Scale, Resolution, Cadence, Chord, Note, NoteTreeNode} from './core/tune';
 import * as TuneGenerator from './TuneGenerator';
 import * as CadenceGenerator from './CadenceGenerator';
 import * as ChordGenerator from './ChordGenerator';
 import * as NoteGenerator from './NoteGenerator';
 import * as RhythmGenerator from './RhytmGenerator';
 import * as PitchWeight from './PitchWeightCalculator';
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
-import * as markov from './markov';
+import * as markov from './core/markov';
 
 
 export const Layer = {

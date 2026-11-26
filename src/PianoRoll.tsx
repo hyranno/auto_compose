@@ -1,6 +1,6 @@
 import type { Component } from 'solid-js';
-import * as tunes from './tune';
-import {rangeIterator} from './util';
+import * as tunes from './core/tune';
+import {rangeIterator} from './core/util';
 
 import './PianoRoll.scss';
 

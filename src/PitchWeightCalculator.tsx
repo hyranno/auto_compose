@@ -1,10 +1,10 @@
 import type { Component } from 'solid-js';
 
-import * as util from './util';
+import * as util from './core/util';
 import * as helper from './solid_helper';
 
-import {Tune, Scale, Chord, Note} from './tune';
-import type {notenum} from './tune';
+import {Tune, Scale, Chord, Note} from './core/tune';
+import type {notenum} from './core/tune';
 
 
 export type Parameters = {
