@@ -37,7 +37,9 @@ so the expected values are compared exactly.
   `auto_composer::generator::variant::generate`, and compares them as `TuneSnapshot`.
   `crates/auto-composer/tests/rng.rs` checks `rng.json` against `auto_composer::random::ReliableRandom`,
   and the `#[cfg(test)]` modules hold the unit tests.
-  Before committing Rust code, run `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
+  Before committing Rust code, run
+  `cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features`
+  (`--all-features` also checks `schemas/`, see `schemas.md`).
 - `cargo run --example gen_golden` rewrites the `expected` of every case from the current implementation
   and lists the cases that changed. The inputs (`params`, `base`) are kept, so the case files themselves
   define the cases: add a case by writing a file with its inputs (any `expected`) and running the command.

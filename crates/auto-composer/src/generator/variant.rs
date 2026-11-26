@@ -48,11 +48,27 @@ impl From<Layer> for u8 {
     }
 }
 
-/// The parameters of a variant, read from the same JSON as the TypeScript version
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for Layer {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        "Layer".into()
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "description": "The layer to vary: 0 cadence, 1 chord, 2 pitch, 3 rhythm.",
+            "enum": [0, 1, 2, 3],
+        })
+    }
+}
+
+/// The parameters of a variant, as in the JSON file
 /// (`resources/VariantGenParams_default.json`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "tsify", tsify(rename = "VariantParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "VariantParameters"))]
 pub struct Parameters {
     pub seed: RandomSeed,
     /// Replaces the resolution of the base parameters.

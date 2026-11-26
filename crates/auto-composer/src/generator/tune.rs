@@ -9,11 +9,13 @@ use crate::util::{Timeline, TimelineItem};
 
 use super::{cadence, chord, note};
 
-/// The parameters of a tune, read from the same JSON as the TypeScript version
+/// The parameters of a tune, as in the JSON files
 /// (`resources/TuneGenParams_*.json`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "tsify", tsify(rename = "TuneParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "TuneParameters"))]
 pub struct Parameters {
     pub scale: Scale,
     /// Beats per bar and bars.

@@ -97,6 +97,7 @@ pub trait RootedTones {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Scale {
     pub key: Notenum,
     /// Offsets from the key in semitones.
@@ -164,6 +165,7 @@ impl RootedTones for Chord {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum Resolution {
     #[serde(rename = "Perfect authentic")]
     Perfect,
@@ -206,6 +208,7 @@ impl Resolution {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum Cadence {
     #[serde(rename = "Tonic")]
     T,

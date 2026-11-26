@@ -23,6 +23,7 @@ pub fn smoothstep(edge0: f64, edge1: f64, x: f64) -> f64 {
 /// The edges of a [`smoothstep`] (`SmoothstepParameters` in TypeScript).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SmoothstepParams {
     pub edge0: f64,
     pub edge1: f64,
@@ -44,6 +45,8 @@ pub fn range_step(start: f64, end: f64, tick: f64) -> impl Iterator<Item = f64> 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
 pub struct WeightedItem<T> {
     pub weight: f64,
     pub value: T,
@@ -99,6 +102,8 @@ pub fn merge_weighted_items<T: PartialEq + Clone>(
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
 pub struct TimelineItem<T> {
     pub t: f64,
     pub value: T,

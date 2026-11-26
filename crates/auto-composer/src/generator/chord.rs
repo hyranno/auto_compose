@@ -10,6 +10,7 @@ use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
 /// `RootGenerator.Parameters` in TypeScript.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RootParameters {
     pub seed: RandomSeed,
     /// The weights of the root degrees for each cadence.
@@ -19,6 +20,8 @@ pub struct RootParameters {
 /// `WeightedRandomParameters` in TypeScript.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
 pub struct WeightedRandomParameters<T> {
     pub items: Vec<WeightedItem<T>>,
     pub seed: RandomSeed,
@@ -27,6 +30,7 @@ pub struct WeightedRandomParameters<T> {
 /// `ToneGenerator.Parameters` in TypeScript.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ToneParameters {
     /// The weights of the tones (degrees from the root).
     pub rand_tones: WeightedRandomParameters<Vec<Degree>>,
@@ -35,11 +39,14 @@ pub struct ToneParameters {
 /// `ToneModifier.Parameters` in TypeScript. It has no fields yet.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ModifierParameters {}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "tsify", tsify(rename = "ChordParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "ChordParameters"))]
 pub struct Parameters {
     pub root: RootParameters,
     pub tone: ToneParameters,

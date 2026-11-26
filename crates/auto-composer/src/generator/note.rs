@@ -11,7 +11,9 @@ use super::{pitch_weight, rhythm};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "tsify", tsify(rename = "NoteParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "NoteParameters"))]
 pub struct Parameters {
     #[cfg_attr(feature = "tsify", tsify(type = "RhythmParameters"))]
     pub rhythm: rhythm::Parameters,

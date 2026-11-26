@@ -27,12 +27,13 @@ impl<R: Rng + ?Sized> Rng for Box<R> {
 
 /// Seed of a [`ReliableRandom`].
 ///
-/// The parts are read from JSON like the TypeScript version reads them: the number is taken
+/// The parts are read from JSON like JavaScript reads them: the number is taken
 /// as a `f64` (as `JSON.parse` does) and then converted like `BigInt(x) & U64_MASK`, i.e. to the
 /// two's complement of the integer modulo 2^64. A number that is not an integer is an error
 /// (`BigInt` throws).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RandomSeed {
     #[serde(deserialize_with = "deserialize_seed_part")]
     pub state: i64,

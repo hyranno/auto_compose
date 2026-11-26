@@ -1,16 +1,58 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TuneParameters",
+  "description": "The parameters of a tune, as in the JSON files\n(`resources/TuneGenParams_*.json`).",
   "type": "object",
   "properties": {
     "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "time_measure": {
+      "description": "Beats per bar and bars.",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "format": "uint32",
+        "minimum": 0
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "resolution": {
+      "$ref": "#/$defs/Resolution"
+    },
+    "cadence": {
+      "$ref": "#/$defs/CadenceParameters"
+    },
+    "chord": {
+      "$ref": "#/$defs/ChordParameters"
+    },
+    "note": {
+      "$ref": "#/$defs/NoteParameters"
+    }
+  },
+  "required": [
+    "scale",
+    "time_measure",
+    "resolution",
+    "cadence",
+    "chord",
+    "note"
+  ],
+  "$defs": {
+    "Scale": {
       "type": "object",
       "properties": {
         "key": {
-          "type": "number"
+          "type": "integer",
+          "format": "int32"
         },
         "tones": {
+          "description": "Offsets from the key in semitones.",
           "type": "array",
           "items": {
-            "type": "number"
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -19,47 +61,30 @@
         "tones"
       ]
     },
-    "time_measure": {
-      "type": "array",
-      "items": [
-        {
-          "type": "number"
-        },
-        {
-          "type": "number"
-        }
-      ],
-      "minItems": 2,
-      "maxItems": 2
+    "Resolution": {
+      "type": "string",
+      "enum": [
+        "Perfect authentic",
+        "Imperfect authentic",
+        "Deceptive",
+        "Plagal",
+        "Half"
+      ]
     },
-    "resolution": {
-      "$ref": "#/definitions/Resolution"
-    },
-    "cadence": {
+    "CadenceParameters": {
       "type": "object",
       "properties": {
         "seed": {
-          "type": "object",
-          "properties": {
-            "state": {
-              "type": "number"
-            },
-            "sequence": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "sequence",
-            "state"
-          ]
+          "$ref": "#/$defs/RandomSeed"
         },
         "probabilities": {
+          "description": "The transition weights from each cadence.",
           "type": "array",
           "items": {
             "type": "array",
-            "items": [
+            "prefixItems": [
               {
-                "$ref": "#/definitions/Cadence"
+                "$ref": "#/$defs/Cadence"
               },
               {
                 "type": "array",
@@ -67,15 +92,16 @@
                   "type": "object",
                   "properties": {
                     "weight": {
-                      "type": "number"
+                      "type": "number",
+                      "format": "double"
                     },
                     "value": {
-                      "$ref": "#/definitions/T"
+                      "$ref": "#/$defs/Cadence"
                     }
                   },
                   "required": [
-                    "value",
-                    "weight"
+                    "weight",
+                    "value"
                   ]
                 }
               }
@@ -85,308 +111,255 @@
           }
         },
         "duration": {
-          "type": "number"
+          "description": "The length of a cadence in beats.",
+          "type": "number",
+          "format": "double"
         }
       },
       "required": [
-        "duration",
+        "seed",
         "probabilities",
-        "seed"
+        "duration"
       ]
     },
-    "chord": {
+    "RandomSeed": {
+      "description": "Seed of a [`ReliableRandom`].\n\nThe parts are read from JSON like JavaScript reads them: the number is taken\nas a `f64` (as `JSON.parse` does) and then converted like `BigInt(x) & U64_MASK`, i.e. to the\ntwo's complement of the integer modulo 2^64. A number that is not an integer is an error\n(`BigInt` throws).",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "sequence": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "state",
+        "sequence"
+      ]
+    },
+    "Cadence": {
+      "type": "string",
+      "enum": [
+        "Tonic",
+        "Dominant",
+        "Subdominant"
+      ]
+    },
+    "ChordParameters": {
       "type": "object",
       "properties": {
         "root": {
-          "type": "object",
-          "properties": {
-            "seed": {
-              "type": "object",
-              "properties": {
-                "state": {
-                  "type": "number"
-                },
-                "sequence": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "sequence",
-                "state"
-              ]
-            },
-            "probabilities": {
-              "type": "array",
-              "items": {
-                "type": "array",
-                "items": [
-                  {
-                    "$ref": "#/definitions/Cadence"
-                  },
-                  {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "weight": {
-                          "type": "number"
-                        },
-                        "value": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "value",
-                        "weight"
-                      ]
-                    }
-                  }
-                ],
-                "minItems": 2,
-                "maxItems": 2
-              }
-            }
-          },
-          "required": [
-            "probabilities",
-            "seed"
-          ]
+          "$ref": "#/$defs/RootParameters"
         },
         "tone": {
-          "type": "object",
-          "properties": {
-            "rand_tones": {
-              "type": "object",
-              "properties": {
-                "items": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "weight": {
-                        "type": "number"
-                      },
-                      "value": {
-                        "type": "array",
-                        "items": {
-                          "type": "number"
-                        }
-                      }
-                    },
-                    "required": [
-                      "value",
-                      "weight"
-                    ]
-                  }
-                },
-                "seed": {
-                  "type": "object",
-                  "properties": {
-                    "state": {
-                      "type": "number"
-                    },
-                    "sequence": {
-                      "type": "number"
-                    }
-                  },
-                  "required": [
-                    "sequence",
-                    "state"
-                  ]
-                }
-              },
-              "required": [
-                "items",
-                "seed"
-              ]
-            }
-          },
-          "required": [
-            "rand_tones"
-          ]
+          "$ref": "#/$defs/ToneParameters"
         },
         "modifier": {
-          "type": "object",
-          "properties": {}
+          "$ref": "#/$defs/ModifierParameters",
+          "default": {}
         }
       },
       "required": [
-        "modifier",
         "root",
         "tone"
       ]
     },
-    "note": {
+    "RootParameters": {
+      "description": "`RootGenerator.Parameters` in TypeScript.",
       "type": "object",
       "properties": {
-        "rhythm": {
-          "type": "object",
-          "properties": {
-            "seed": {
-              "type": "object",
-              "properties": {
-                "state": {
-                  "type": "number"
-                },
-                "sequence": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "sequence",
-                "state"
-              ]
-            },
-            "max_beat_division_depth": {
-              "type": "number"
-            },
-            "pBranch": {
-              "type": "object",
-              "properties": {
-                "edge0": {
-                  "type": "number"
-                },
-                "edge1": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "edge0",
-                "edge1"
-              ]
-            },
-            "pNoteOn": {
-              "type": "object",
-              "properties": {
-                "edge0": {
-                  "type": "number"
-                },
-                "edge1": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "edge0",
-                "edge1"
-              ]
-            }
-          },
-          "required": [
-            "max_beat_division_depth",
-            "pBranch",
-            "pNoteOn",
-            "seed"
-          ]
-        },
-        "pitchWeight": {
-          "type": "object",
-          "properties": {
-            "absPitchFactor": {
-              "type": "object",
-              "properties": {
-                "edge0": {
-                  "type": "number"
-                },
-                "edge1": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "edge0",
-                "edge1"
-              ]
-            },
-            "relPitchFactor": {
-              "type": "object",
-              "properties": {
-                "edge0": {
-                  "type": "number"
-                },
-                "edge1": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "edge0",
-                "edge1"
-              ]
-            },
-            "factorInScale": {
-              "type": "number"
-            },
-            "factorInChord": {
-              "type": "number"
-            },
-            "rhythmExponentFactor": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "absPitchFactor",
-            "factorInChord",
-            "factorInScale",
-            "relPitchFactor",
-            "rhythmExponentFactor"
-          ]
-        },
         "seed": {
+          "$ref": "#/$defs/RandomSeed"
+        },
+        "probabilities": {
+          "description": "The weights of the root degrees for each cadence.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "#/$defs/Cadence"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "weight": {
+                      "type": "number",
+                      "format": "double"
+                    },
+                    "value": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  },
+                  "required": [
+                    "weight",
+                    "value"
+                  ]
+                }
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      },
+      "required": [
+        "seed",
+        "probabilities"
+      ]
+    },
+    "ToneParameters": {
+      "description": "`ToneGenerator.Parameters` in TypeScript.",
+      "type": "object",
+      "properties": {
+        "rand_tones": {
+          "description": "The weights of the tones (degrees from the root).",
           "type": "object",
           "properties": {
-            "state": {
-              "type": "number"
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "weight": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "value": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  }
+                },
+                "required": [
+                  "weight",
+                  "value"
+                ]
+              }
             },
-            "sequence": {
-              "type": "number"
+            "seed": {
+              "$ref": "#/$defs/RandomSeed"
             }
           },
           "required": [
-            "sequence",
-            "state"
+            "items",
+            "seed"
           ]
         }
       },
       "required": [
-        "pitchWeight",
+        "rand_tones"
+      ]
+    },
+    "ModifierParameters": {
+      "description": "`ToneModifier.Parameters` in TypeScript. It has no fields yet.",
+      "type": "object"
+    },
+    "NoteParameters": {
+      "type": "object",
+      "properties": {
+        "rhythm": {
+          "$ref": "#/$defs/RhythmParameters"
+        },
+        "pitchWeight": {
+          "$ref": "#/$defs/PitchWeightParameters"
+        },
+        "seed": {
+          "$ref": "#/$defs/RandomSeed"
+        }
+      },
+      "required": [
         "rhythm",
+        "pitchWeight",
         "seed"
       ]
-    }
-  },
-  "required": [
-    "cadence",
-    "chord",
-    "note",
-    "resolution",
-    "scale",
-    "time_measure"
-  ],
-  "definitions": {
-    "Resolution": {
-      "enum": [
-        "Deceptive",
-        "Half",
-        "Imperfect authentic",
-        "Perfect authentic",
-        "Plagal"
-      ],
-      "type": "string"
     },
-    "Cadence": {
-      "enum": [
-        "Dominant",
-        "Subdominant",
-        "Tonic"
-      ],
-      "type": "string"
+    "RhythmParameters": {
+      "type": "object",
+      "properties": {
+        "seed": {
+          "$ref": "#/$defs/RandomSeed"
+        },
+        "max_beat_division_depth": {
+          "description": "Copied to [`Tune::max_beat_division_depth`], which is what the generator reads.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "pBranch": {
+          "description": "The probability to divide a node, by its duration.",
+          "$ref": "#/$defs/SmoothstepParams"
+        },
+        "pNoteOn": {
+          "description": "The probability that a leaf is a note rather than a rest, by its duration.",
+          "$ref": "#/$defs/SmoothstepParams"
+        }
+      },
+      "required": [
+        "seed",
+        "max_beat_division_depth",
+        "pBranch",
+        "pNoteOn"
+      ]
     },
-    "T": {
-      "enum": [
-        "Dominant",
-        "Subdominant",
-        "Tonic"
-      ],
-      "type": "string"
+    "SmoothstepParams": {
+      "description": "The edges of a [`smoothstep`] (`SmoothstepParameters` in TypeScript).",
+      "type": "object",
+      "properties": {
+        "edge0": {
+          "type": "number",
+          "format": "double"
+        },
+        "edge1": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "edge0",
+        "edge1"
+      ]
+    },
+    "PitchWeightParameters": {
+      "type": "object",
+      "properties": {
+        "absPitchFactor": {
+          "description": "Lowers the weight by the distance from the key of the scale.",
+          "$ref": "#/$defs/SmoothstepParams"
+        },
+        "relPitchFactor": {
+          "description": "Lowers the weight by the distance from the previous pitch.",
+          "$ref": "#/$defs/SmoothstepParams"
+        },
+        "factorInScale": {
+          "type": "number",
+          "format": "double"
+        },
+        "factorInChord": {
+          "type": "number",
+          "format": "double"
+        },
+        "rhythmExponentFactor": {
+          "description": "Longer notes sharpen the distribution: the weight is raised to\n`1 + duration * rhythmExponentFactor`.",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "absPitchFactor",
+        "relPitchFactor",
+        "factorInScale",
+        "factorInChord",
+        "rhythmExponentFactor"
+      ]
     }
-  },
-  "$schema": "http://json-schema.org/draft-07/schema#"
+  }
 }

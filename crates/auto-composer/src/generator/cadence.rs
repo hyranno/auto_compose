@@ -10,7 +10,9 @@ use crate::util::{Timeline, TimelineItem, WeightedItem, range_step};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "tsify", tsify(rename = "CadenceParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "CadenceParameters"))]
 pub struct Parameters {
     pub seed: RandomSeed,
     /// The transition weights from each cadence.
