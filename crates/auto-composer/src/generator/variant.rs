@@ -177,8 +177,8 @@ pub fn vary_chord(
 /// Draws the pitches of `dest` so that they lead from `start` to `end`.
 ///
 /// The pitches move by a Markov chain on `key ± (ceil(absPitchFactor.edge1) - 1)` whose
-/// transition weights are [`pitch_weight::calc_time_homo_weight`]. Reproduced bugs:
-/// - The weights are not normalized into probabilities (bug 1 of the notes).
+/// transition weights are [`pitch_weight::calc_time_homo_weight`] (made into probabilities by
+/// [`MarkovChain::new`]). Reproduced bugs:
 /// - When `start` or `end` is outside the candidates, every weight is `NaN` and the lowest
 ///   candidate is chosen (bug 2).
 /// - Every note is conditioned on following `start` directly: the previous pitch is never
