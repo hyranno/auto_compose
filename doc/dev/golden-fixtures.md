@@ -36,6 +36,7 @@ so the expected values are compared exactly.
   `tune/` cases with `auto_composer::generator::tune::generate` and the `variant/` cases with
   `auto_composer::generator::variant::generate`, and compares them as `TuneSnapshot` (`snapshot.rs`),
   and the `#[cfg(test)]` modules hold the ported unit tests.
+  The Rust port matches every case exactly; there is no allow-list of tolerated mismatches.
   Before committing Rust code, run `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
 - `scripts/run_ts.mjs` runs a TypeScript file through Vite's module runner,
   because `src/` uses extensionless imports that plain `node` cannot resolve.
