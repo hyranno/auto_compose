@@ -4,6 +4,9 @@ import solidPlugin from 'vite-plugin-solid';
 export default defineConfig({
   plugins: [solidPlugin()],
   server: {
+    // Listen on all addresses of the container: the port forwarding of the devcontainer
+    // does not reach a server that listens only on `localhost`.
+    host: true,
     port: 5173,
     strictPort: true,
     fs: {

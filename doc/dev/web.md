@@ -53,3 +53,5 @@ otherwise the page shows the error and keeps the current parameters.
 A server started inside the Claude Code sandbox cannot be reached from the browser.
 Start `npm run dev` outside the sandbox (for example from a terminal of the devcontainer);
 port 5173 is forwarded by the devcontainer.
+The server listens on all addresses (`server.host` in `vite.config.ts`), because the forwarding
+does not reach a server that listens only on `localhost`.
