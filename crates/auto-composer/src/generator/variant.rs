@@ -4,8 +4,6 @@
 //! then the layer, then everything the variant of that layer needs. The original tune is
 //! generated in between with the seeds of the base parameters, and the layers below the chosen
 //! one are generated on top of the variant, as in TypeScript.
-//!
-//! Known bugs of the TypeScript version are reproduced on purpose (see the notes on each step).
 
 use serde::{Deserialize, Serialize};
 
