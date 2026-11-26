@@ -22,6 +22,8 @@ pub fn smoothstep(edge0: f64, edge1: f64, x: f64) -> f64 {
 
 /// The edges of a [`smoothstep`] (`SmoothstepParameters` in TypeScript).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct SmoothstepParams {
     pub edge0: f64,
     pub edge1: f64,
@@ -42,6 +44,9 @@ pub fn range_step(start: f64, end: f64, tick: f64) -> impl Iterator<Item = f64> 
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
 pub struct WeightedItem<T> {
     pub weight: f64,
     pub value: T,
@@ -55,10 +60,11 @@ impl<T> WeightedItem<T> {
 
 /// Picks an item with a probability proportional to its weight, drawing one random number.
 ///
-/// Reproduces `WeightedRandom.get` of the TypeScript version exactly:
-/// the cumulative ratios are left-to-right sums divided by the total, the first ratio that is
-/// not less than the draw is chosen, and the first item is chosen when there is none
-/// (for example when every weight is 0 and the ratios are `NaN`).
+/// The cumulative ratios are left-to-right sums divided by the total, and the first item whose
+/// ratio is greater than the draw (in `[0, 1)`) is chosen, so an item of weight 0 is never chosen.
+/// The first item is chosen when there is none (for example when every weight is 0 and the ratios
+/// are `NaN`). `WeightedRandom.get` of the TypeScript version chose the first ratio not less than
+/// the draw, which also picked a first item of weight 0 for a draw of 0.
 ///
 /// Returns `None` if `items` is empty (the TypeScript version throws). A value is drawn anyway.
 pub fn weighted_pick<'a, T>(items: &'a [WeightedItem<T>], rng: &mut impl Rng) -> Option<&'a T> {
@@ -75,7 +81,7 @@ pub fn weighted_pick<'a, T>(items: &'a [WeightedItem<T>], rng: &mut impl Rng) ->
             if i > 0 {
                 accum += item.weight;
             }
-            randval <= accum / total
+            randval < accum / total
         })
         .unwrap_or(0);
     Some(&items[index].value)
@@ -96,6 +102,9 @@ pub fn merge_weighted_items<T: PartialEq + Clone>(
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
 pub struct TimelineItem<T> {
     pub t: f64,
     pub value: T,
@@ -280,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn weighted_pick_draw_equal_to_a_ratio_picks_the_lower_item() {
+    fn weighted_pick_draw_equal_to_a_ratio_picks_the_upper_item() {
         // cumulative ratios: 0.25, 0.75, 1
         let items = [
             WeightedItem::new(1.0, 'a'),
@@ -290,19 +299,19 @@ mod tests {
         let draws = [0.0, 0.25, 0.2500001, 0.75, 0.7500001, 1.0 - 2f64.powi(-32)];
         assert_eq!(
             pick_scripted(&items, &draws),
-            ['a', 'a', 'b', 'b', 'c', 'c']
+            ['a', 'b', 'b', 'c', 'c', 'c']
         );
     }
 
     #[test]
-    fn weighted_pick_zero_weight_first_item_is_picked_by_zero() {
+    fn weighted_pick_never_picks_zero_weight() {
         let items = [
             WeightedItem::new(0.0, 'a'),
             WeightedItem::new(1.0, 'b'),
             WeightedItem::new(0.0, 'c'),
         ];
         let draws = [0.0, 2f64.powi(-32), 0.5, 1.0 - 2f64.powi(-32)];
-        assert_eq!(pick_scripted(&items, &draws), ['a', 'b', 'b', 'b']);
+        assert_eq!(pick_scripted(&items, &draws), ['b', 'b', 'b', 'b']);
     }
 
     #[test]
@@ -320,7 +329,7 @@ mod tests {
             WeightedItem::new(0.7, 'c'),
         ];
         let draws = [0.3, 0.30000000000000004, 0.3000000000000001];
-        assert_eq!(pick_scripted(&items, &draws), ['b', 'b', 'c']);
+        assert_eq!(pick_scripted(&items, &draws), ['b', 'c', 'c']);
     }
 
     #[test]

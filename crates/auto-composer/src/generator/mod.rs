@@ -22,10 +22,7 @@ pub(crate) mod test_util {
     use super::tune::Parameters;
 
     pub fn default_params() -> Parameters {
-        serde_json::from_str(include_str!(
-            "../../../../resources/TuneGenParams_default.json"
-        ))
-        .unwrap()
+        Parameters::default()
     }
 
     pub fn simple_params() -> Parameters {

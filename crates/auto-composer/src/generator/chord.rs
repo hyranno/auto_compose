@@ -9,6 +9,8 @@ use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
 
 /// `RootGenerator.Parameters` in TypeScript.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct RootParameters {
     pub seed: RandomSeed,
     /// The weights of the root degrees for each cadence.
@@ -17,6 +19,9 @@ pub struct RootParameters {
 
 /// `WeightedRandomParameters` in TypeScript.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
 pub struct WeightedRandomParameters<T> {
     pub items: Vec<WeightedItem<T>>,
     pub seed: RandomSeed,
@@ -24,6 +29,8 @@ pub struct WeightedRandomParameters<T> {
 
 /// `ToneGenerator.Parameters` in TypeScript.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ToneParameters {
     /// The weights of the tones (degrees from the root).
     pub rand_tones: WeightedRandomParameters<Vec<Degree>>,
@@ -31,9 +38,15 @@ pub struct ToneParameters {
 
 /// `ToneModifier.Parameters` in TypeScript. It has no fields yet.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ModifierParameters {}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "tsify", tsify(rename = "ChordParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "ChordParameters"))]
 pub struct Parameters {
     pub root: RootParameters,
     pub tone: ToneParameters,
@@ -133,12 +146,12 @@ mod tests {
                 .map(|(c, i)| TimelineItem::new(f64::from(i * 4), c)),
         );
         let params = default_params().chord;
-        // Root draws (one per cadence): T 0.7 -> 0 (ratio exactly 0.7), S 0.95 -> 1
+        // Root draws (one per cadence): T 0.69 -> 0 (ratio 0.7), S 0.9499 -> 1
         // (0.6 + 0.35 == 0.95), D 0.9 -> 6, T 1-2^-32 -> 2
-        let mut root_rng = ScriptedRng::new([0.7, 0.95, 0.9, 1.0 - 2f64.powi(-32)]);
-        // Tone draws (one per chord): 0.8 -> [0,2,4], 0.81 -> [0,2,4,6],
+        let mut root_rng = ScriptedRng::new([0.69, 0.9499, 0.9, 1.0 - 2f64.powi(-32)]);
+        // Tone draws (one per chord): 0.79 -> [0,2,4] (ratio 0.8), 0.8 -> [0,2,4,6],
         // 0.95 -> [0,2,4,6] (0.8 + 0.15 == 0.9500000000000001), 0.96 -> [0,4]
-        let mut tone_rng = ScriptedRng::new([0.8, 0.81, 0.95, 0.96]);
+        let mut tone_rng = ScriptedRng::new([0.79, 0.8, 0.95, 0.96]);
         let roots = generate_roots(&tune, &params.root, &mut root_rng).unwrap();
         let chords = generate_tones(&tune, &roots, &params.tone, &mut tone_rng).unwrap();
         let actual: Vec<(f64, Degree, Vec<Degree>)> = chords

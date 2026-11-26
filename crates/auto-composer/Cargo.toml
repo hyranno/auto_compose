@@ -5,9 +5,28 @@ description = "Automatic composition of short tunes (core library)"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
+repository.workspace = true
+
+[features]
+# TypeScript declarations of the serialized types, for the wasm wrapper.
+tsify = ["dep:tsify", "dep:wasm-bindgen"]
+# JSON Schemas of the parameters (`cargo run --example gen_schema --features schemars`).
+schemars = ["dep:schemars"]
 
 [dependencies]
+schemars = { workspace = true, optional = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
+tsify = { workspace = true, optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = { workspace = true, features = ["preserve_order"] }
+
+[[example]]
+name = "gen_schema"
+required-features = ["schemars"]
+
+[[test]]
+name = "schema"
+required-features = ["schemars"]

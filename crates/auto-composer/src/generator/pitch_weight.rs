@@ -7,6 +7,10 @@ use crate::tune::{Note, Notenum, RootedTones, Tune};
 use crate::util::SmoothstepParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "tsify", tsify(rename = "PitchWeightParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "PitchWeightParameters"))]
 pub struct Parameters {
     /// Lowers the weight by the distance from the key of the scale.
     #[serde(rename = "absPitchFactor")]

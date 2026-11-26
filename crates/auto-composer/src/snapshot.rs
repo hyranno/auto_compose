@@ -7,6 +7,8 @@ use crate::tune::{Cadence, Degree, Notenum, Resolution, RootedTones, Scale, Tune
 use crate::util::TimelineItem;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct TuneSnapshot {
     pub length: f64,
     pub time_measure: [u32; 2],
@@ -19,6 +21,8 @@ pub struct TuneSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ChordSnapshot {
     pub t: f64,
     pub root: Degree,
@@ -28,6 +32,8 @@ pub struct ChordSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct NoteSnapshot {
     pub t: f64,
     pub pitch: Notenum,
