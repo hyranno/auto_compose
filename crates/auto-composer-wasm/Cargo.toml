@@ -5,6 +5,7 @@ description = "WebAssembly bindings of auto-composer"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
+repository.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

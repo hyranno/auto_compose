@@ -6,6 +6,7 @@ resolver = "3"
 edition = "2024"
 rust-version = "1.85"
 license-file = "LICENSE.txt"
+repository = "https://github.com/hyranno/auto_compose"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

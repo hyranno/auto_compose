@@ -5,6 +5,7 @@ description = "Automatic composition of short tunes (core library)"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
+repository.workspace = true
 
 [features]
 # TypeScript declarations of the serialized types, for the wasm wrapper.
