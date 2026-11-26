@@ -29,6 +29,25 @@ by restarting `npm run dev`.
   relative to `import.meta.url`, and adds its directory to `server.fs.allow`, because the linked package
   lies outside `web/`.
 
+## Source layout
+
+| File | Contents |
+|---|---|
+| `src/params.ts` | The parameter store: all the parameters as one Solid store of the plain JSON the wasm functions take |
+| `src/Settings.tsx` | The forms of the tune and variant parameters, and saving and loading them as JSON |
+| `src/fields.tsx` | Inputs bound to a value of the store (number, seed, smoothstep, select) |
+| `src/PianoRoll.tsx` | The piano roll of a `TuneSnapshot` |
+| `src/Output.tsx` | Playing the tune (Tone.js) and exporting it as MIDI (@tonejs/midi) |
+| `src/tune.ts` | Helpers on `TuneSnapshot`: lookups on the timelines, pitch classes, the melody and chord tracks |
+| `src/file.ts` | Downloading and reading files |
+
+The defaults of the store come from `defaultTuneParameters()` and `defaultVariantParameters()`,
+so the page holds no defaults of its own. The forms cover only part of the parameters
+(seeds, scale, measures, rhythm, pitch weights, ...); the others, such as the probability tables,
+are changed by editing a saved JSON file and loading it.
+A loaded file replaces the parameters only if a tune (or a variant) can be generated from it;
+otherwise the page shows the error and keeps the current parameters.
+
 ## Dev server and the Claude Code sandbox
 
 A server started inside the Claude Code sandbox cannot be reached from the browser.
