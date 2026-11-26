@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import * as vectorious from 'vectorious';
 import {Random} from 'reliable-random';
 

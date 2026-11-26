@@ -59,12 +59,7 @@
             "type": "array",
             "items": [
               {
-                "enum": [
-                  "Dominant",
-                  "Subdominant",
-                  "Tonic"
-                ],
-                "type": "string"
+                "$ref": "#/definitions/Cadence"
               },
               {
                 "type": "array",
@@ -126,7 +121,7 @@
                 "type": "array",
                 "items": [
                   {
-                    "$ref": "#/definitions/T"
+                    "$ref": "#/definitions/Cadence"
                   },
                   {
                     "type": "array",
@@ -373,6 +368,14 @@
         "Imperfect authentic",
         "Perfect authentic",
         "Plagal"
+      ],
+      "type": "string"
+    },
+    "Cadence": {
+      "enum": [
+        "Dominant",
+        "Subdominant",
+        "Tonic"
       ],
       "type": "string"
     },

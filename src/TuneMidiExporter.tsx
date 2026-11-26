@@ -47,7 +47,7 @@ export const TuneMidiExporter: Component<{tune: tunes.Tune}> = (props) => {
       let midi = new Midi();
       addNoteTrack(midi, props.tune, timerate());
       addChordTrack(midi, props.tune, timerate());
-      anchor.href = URL.createObjectURL(new Blob([midi.toArray()]));
+      anchor.href = URL.createObjectURL(new Blob([midi.toArray() as Uint8Array<ArrayBuffer>]));
       anchor.click();
     }} />
   </div>;
