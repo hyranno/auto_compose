@@ -7,6 +7,8 @@ use crate::tune::{NoteNode, Rhythm, Tune};
 use crate::util::SmoothstepParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(rename = "RhythmParameters"))]
 pub struct Parameters {
     pub seed: RandomSeed,
     /// Copied to [`Tune::max_beat_division_depth`], which is what the generator reads.

@@ -1,0 +1,21 @@
+[package]
+name = "auto-composer-wasm"
+version = "0.1.0"
+description = "WebAssembly bindings of auto-composer"
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+auto-composer = { path = "../auto-composer", features = ["tsify"] }
+serde = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+wasm-bindgen = { workspace = true }
+
+[dev-dependencies]
+js-sys = "0.3"
+serde_json = { workspace = true }
+wasm-bindgen-test = "0.3"

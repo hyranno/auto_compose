@@ -12,14 +12,29 @@ use super::{cadence, chord, note};
 /// The parameters of a tune, read from the same JSON as the TypeScript version
 /// (`resources/TuneGenParams_*.json`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(rename = "TuneParameters"))]
 pub struct Parameters {
     pub scale: Scale,
     /// Beats per bar and bars.
     pub time_measure: [u32; 2],
     pub resolution: Resolution,
+    #[cfg_attr(feature = "tsify", tsify(type = "CadenceParameters"))]
     pub cadence: cadence::Parameters,
+    #[cfg_attr(feature = "tsify", tsify(type = "ChordParameters"))]
     pub chord: chord::Parameters,
+    #[cfg_attr(feature = "tsify", tsify(type = "NoteParameters"))]
     pub note: note::Parameters,
+}
+
+/// `resources/TuneGenParams_default.json`, the single source of the default values.
+impl Default for Parameters {
+    fn default() -> Self {
+        serde_json::from_str(include_str!(
+            "../../../../resources/TuneGenParams_default.json"
+        ))
+        .expect("the default tune parameters are valid")
+    }
 }
 
 /// Generates the cadences, the chords and the notes in this order.

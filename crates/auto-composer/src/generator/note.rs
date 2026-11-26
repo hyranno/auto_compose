@@ -10,9 +10,13 @@ use crate::util::{Timeline, WeightedItem, weighted_pick};
 use super::{pitch_weight, rhythm};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(rename = "NoteParameters"))]
 pub struct Parameters {
+    #[cfg_attr(feature = "tsify", tsify(type = "RhythmParameters"))]
     pub rhythm: rhythm::Parameters,
     #[serde(rename = "pitchWeight")]
+    #[cfg_attr(feature = "tsify", tsify(type = "PitchWeightParameters"))]
     pub pitch_weight: pitch_weight::Parameters,
     pub seed: RandomSeed,
 }

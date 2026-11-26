@@ -9,6 +9,8 @@ use crate::tune::{Cadence, Tune};
 use crate::util::{Timeline, TimelineItem, WeightedItem, range_step};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(rename = "CadenceParameters"))]
 pub struct Parameters {
     pub seed: RandomSeed,
     /// The transition weights from each cadence.
@@ -28,7 +30,7 @@ pub fn generate(
     generate_with(tune, params, &mut factory.create(params.seed, "cadence"))
 }
 
-/// Starts with [`PREFIX`], ends with the postfix of the resolution, and draws once for each
+/// Starts with `PREFIX`, ends with the postfix of the resolution, and draws once for each
 /// slot between them, conditioned on reaching the first cadence of the postfix.
 /// When there are fewer slots than the prefix and the postfix, the prefix wins.
 pub fn generate_with(

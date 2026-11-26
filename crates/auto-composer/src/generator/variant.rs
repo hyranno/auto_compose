@@ -17,7 +17,9 @@ use super::{cadence, chord, note, pitch_weight, rhythm, tune as tune_generator};
 
 /// The layer to vary. It is a number (0 to 3) in the JSON, as in TypeScript.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[serde(try_from = "u8", into = "u8")]
+#[cfg_attr(feature = "tsify", tsify(type = "0 | 1 | 2 | 3"))]
 pub enum Layer {
     Cadence = 0,
     Chord = 1,
@@ -49,6 +51,8 @@ impl From<Layer> for u8 {
 /// The parameters of a variant, read from the same JSON as the TypeScript version
 /// (`resources/VariantGenParams_default.json`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "tsify", tsify(rename = "VariantParameters"))]
 pub struct Parameters {
     pub seed: RandomSeed,
     /// Replaces the resolution of the base parameters.
@@ -57,6 +61,16 @@ pub struct Parameters {
     /// changed.
     pub timespan: Vec<WeightedItem<[f64; 2]>>,
     pub layer: Vec<WeightedItem<Layer>>,
+}
+
+/// `resources/VariantGenParams_default.json`, the single source of the default values.
+impl Default for Parameters {
+    fn default() -> Self {
+        serde_json::from_str(include_str!(
+            "../../../../resources/VariantGenParams_default.json"
+        ))
+        .expect("the default variant parameters are valid")
+    }
 }
 
 /// Generates the tune of `base` (with the resolution of `params`) and varies one layer of it.
@@ -523,10 +537,7 @@ mod tests {
 
     #[test]
     fn reads_the_resource_file() {
-        let p: Parameters = serde_json::from_str(include_str!(
-            "../../../../resources/VariantGenParams_default.json"
-        ))
-        .unwrap();
+        let p = Parameters::default();
         assert_eq!(p.resolution, Resolution::Perfect);
         assert_eq!(p.timespan, [WeightedItem::new(1.0, [6.0, 11.0])]);
         assert_eq!(p.layer, [WeightedItem::new(1.0, Layer::Rhythm)]);

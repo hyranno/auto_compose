@@ -32,6 +32,7 @@ impl<R: Rng + ?Sized> Rng for Box<R> {
 /// two's complement of the integer modulo 2^64. A number that is not an integer is an error
 /// (`BigInt` throws).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 pub struct RandomSeed {
     #[serde(deserialize_with = "deserialize_seed_part")]
     pub state: i64,

@@ -5,8 +5,10 @@ use serde::{Deserialize, Serialize};
 use crate::util::{Timeline, TimelineItem};
 
 /// MIDI note number on 12 equal temperament.
+#[cfg_attr(feature = "tsify", tsify::declare)]
 pub type Notenum = i32;
 /// Index on a scale or a chord.
+#[cfg_attr(feature = "tsify", tsify::declare)]
 pub type Degree = i32;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -94,6 +96,7 @@ pub trait RootedTones {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 pub struct Scale {
     pub key: Notenum,
     /// Offsets from the key in semitones.
@@ -160,6 +163,7 @@ impl RootedTones for Chord {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 pub enum Resolution {
     #[serde(rename = "Perfect authentic")]
     Perfect,
@@ -201,6 +205,7 @@ impl Resolution {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 pub enum Cadence {
     #[serde(rename = "Tonic")]
     T,
