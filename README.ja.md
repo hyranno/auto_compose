@@ -1,6 +1,8 @@
+[English](README.md) | 日本語
+
 # これは
 作曲補助プログラムです。
-[ここ](http://uncotechhack.net/preview/auto_compose/)からでも使えます。
+[ここ](http://uncotechhack.net/preview/auto_compose/)からでも使えます(旧 TypeScript 版)。
 各種パラメータに基づき楽節を自動生成します。
 西洋の音楽理論をベースにしていますが、簡略化や誤りを含みます。
 作曲したいがゼロから作るのは厳しい、という時にどうぞ。
@@ -26,8 +28,9 @@ AIによって生み出される創作物の取扱いに準ずるものと考え
 
 入力フォームが用意されているのは一部のパラメータのみです。
 全てのパラメータを設定するにはJSONファイルを読み込んでください。
-ファイルの例はresourcesフォルダにあり、書式はschemasフォルダにあります。
+ファイルの例はresourcesフォルダにあり、書式(JSON Schema)はschemasフォルダにあります。
 変更した設定はsave as fileボタンでファイルに保存できます。
+読み込んだファイルに誤りがある場合は、反映されずにエラーが表示されます。
 
 ## ピアノロール
 縦軸に音高、横軸に時間を取るピアノロールです。
@@ -63,15 +66,33 @@ midiファイルをDAWやDTMソフトで読み込んで編集することを想�
 * Note
     + rhythm
         - max beat division depth ... 最も短い音の長さを設定します。2^x分音符になります。
-        - pBranchEdges ... 音をどれだけ分割するかを設定します。
+        - pBranch edges ... 音をどれだけ分割するかを設定します。
             左の値が小さいと短い音が多く、右の値が大きいと長い音が少なくなります。
-        - pNoteOnEdges ... 音がどれくらい休符になるかを設定します。値が小さいと休符になりやすくなります。
+        - pNoteOn edges ... 音がどれくらい休符になるかを設定します。値が小さいと休符になりやすくなります。
     + pitch weight
-        - absPitchFactorEdges ... 大きいと、キー音から離れた音が出やすくなります。
-        - relPitchFactorEdges ... 大きいと、直前の音から離れた音が出やすくなります。
+        - absPitchFactor edges ... 大きいと、キー音から離れた音が出やすくなります。
+        - relPitchFactor edges ... 大きいと、直前の音から離れた音が出やすくなります。
         - factorInScale ... 大きいと、スケール内の音が出やすくなります。
         - factorInChord ... 大きいと、コード内の音が出やすくなります。
         - rhythmExponentFactor ... 大きいと、音の長さが音高選択に与える影響が大きくなります。
+
+
+# 構成と開発
+* `crates/auto-composer` ... 生成ロジック本体のRustライブラリです。
+* `crates/auto-composer-wasm` ... WebAssemblyのバインディングです(wasm-packでビルドします)。
+* `web` ... バインディングを使うWebページ(Vite + Solid + TypeScript)です。
+* `resources` ... パラメータの既定値と例です。`schemas` はその書式で、Rustの型から生成しています。
+* `fixtures` ... 生成結果を固定するテストデータ(golden fixture)です。
+
+開発環境はdevcontainer(`.devcontainer`)にまとめてあります。主なコマンドは以下の通りです。
+
+```sh
+cargo test --all-features             # Rustのテスト
+cd web && npm run wasm && npm install  # 初回のみ(wasmのパッケージを先に作る)
+npm run dev                           # Webページ(http://localhost:5173)
+```
+
+詳しくは`doc/dev/`以下(英語)を参照してください。変更履歴は`CHANGELOG.md`にあります。
 
 
 # アルゴリズム
@@ -90,7 +111,7 @@ midiファイルをDAWやDTMソフトで読み込んで編集することを想�
 
 ## 前半生成
 楽節の前半を生成する部分です。
-ソースコードではTuneGenerator.tsxがトップレベルです。TuneGenerator.Parameters をJSONから読み込みます。
+ソースコードでは`crates/auto-composer/src/generator/tune.rs`がトップレベルです。`generator::tune::Parameters` をJSONから読み込みます。
 
 ### Cadence
 chordが具体的な音の集合であるのに対し、
@@ -121,7 +142,7 @@ rhythmについては音楽理論が手近で見当たらなかったので独�
 拍の長さを1として、各拍を再帰的かつ確率的に2分割し、
 そこで得られた音の長さそれぞれを確率で休符にします。
 分割する確率と休符にしない確率は現在の音の長さに依存し、
-それぞれpBranchEdgesとpNoteOnEdgesをエッジとしたsmoothstepに従います。
+それぞれpBranchとpNoteOnのエッジによるsmoothstepに従います。
 ただし、max beat division depth 以上には分割しません。
 
 ### Pitch
@@ -134,8 +155,8 @@ pitchは候補の中から、対応付けられた重みに従い抽選され、
 
 weight = (absPitchFactor * relPitchFactor * scaleFactor * chordFactor) ^ (1 + rhythmExponent)
 
-* absPitchFactor ... キー音からの距離に依存し、absPitchFactorEdgesをエッジとしたsmoothstepで計算されます。
-* relPitchFactor ... 直前の音高からの距離に依存し、absPitchFactorEdgesをエッジとしたsmoothstepで計算されます。
+* absPitchFactor ... キー音からの距離に依存し、absPitchFactorのエッジによるsmoothstepで計算されます。
+* relPitchFactor ... 直前の音高からの距離に依存し、relPitchFactorのエッジによるsmoothstepで計算されます。
 * scaleFactor ... スケールに含まれる音ならfactorInScale、そうでないなら1です。
 * chordFactor ... コードに含まれる音ならfactorInChord、そうでないなら1です。
 * rhythmExponent ... 短い音では奇抜な音を出しやすく、長い音では無難な音にするための項です。
@@ -144,7 +165,7 @@ weight = (absPitchFactor * relPitchFactor * scaleFactor * chordFactor) ^ (1 + rh
 ## Variant生成
 与えられた曲を基にアレンジを加えた曲を生成する部分です。
 アレンジを加える時間範囲と、アレンジを加える段階(cadence, chord, pitch, rhythm)を設定しておきます。
-ソースコードではVariantGenerator.tsxがトップレベルです。VariantGenerator.Parameters をJSONから読み込みます。
+ソースコードでは`crates/auto-composer/src/generator/variant.rs`がトップレベルです。`generator::variant::Parameters` をJSONから読み込みます。
 
 ### Cadence で変更を加える
 アレンジを加える範囲について、その前後の状態を考慮した条件付き確率分布に従うマルコフ連鎖で再生成します。
