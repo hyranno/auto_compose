@@ -5,6 +5,8 @@
 
 use std::fmt;
 
+use crate::tune::Cadence;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// A weighted random choice was made from an empty list.
@@ -14,6 +16,18 @@ pub enum Error {
     /// The transition probabilities of a Markov chain lack the transition `from` -> `to`
     /// (indices into the states).
     MissingTransition { from: usize, to: usize },
+    /// The root probabilities of the chords lack this cadence.
+    MissingRootProbabilities(Cadence),
+    /// A timeline of the tune has no item at or before the time (`Timeline.get` throws in
+    /// TypeScript). The name is the field of the tune, such as `"chord"`.
+    NoItemAt { timeline: &'static str },
+    /// A note of the tree has no pitch.
+    MissingPitch,
+    /// A parameter is out of its domain. The name is the field of the parameters.
+    ///
+    /// These are checked only where the TypeScript version would loop forever or index out of
+    /// bounds; other values are accepted as they are.
+    InvalidParameter(&'static str),
 }
 
 impl fmt::Display for Error {
@@ -27,6 +41,12 @@ impl fmt::Display for Error {
                     "missing transition probability from state {from} to state {to}"
                 )
             }
+            Self::MissingRootProbabilities(c) => {
+                write!(f, "no root probabilities for the cadence {}", c.as_str())
+            }
+            Self::NoItemAt { timeline } => write!(f, "the {timeline} timeline has no item yet"),
+            Self::MissingPitch => write!(f, "a note has no pitch"),
+            Self::InvalidParameter(name) => write!(f, "invalid parameter: {name}"),
         }
     }
 }

@@ -1,5 +1,7 @@
 //! Tunes, scales, chords and the note tree (`src/core/tune.ts`).
 
+use serde::{Deserialize, Serialize};
+
 use crate::util::{Timeline, TimelineItem};
 
 /// MIDI note number on 12 equal temperament.
@@ -91,7 +93,7 @@ pub trait RootedTones {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Scale {
     pub key: Notenum,
     /// Offsets from the key in semitones.
@@ -157,9 +159,11 @@ impl RootedTones for Chord {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Resolution {
+    #[serde(rename = "Perfect authentic")]
     Perfect,
+    #[serde(rename = "Imperfect authentic")]
     Imperfect,
     Deceptive,
     Plagal,
@@ -196,10 +200,13 @@ impl Resolution {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Cadence {
+    #[serde(rename = "Tonic")]
     T,
+    #[serde(rename = "Dominant")]
     D,
+    #[serde(rename = "Subdominant")]
     S,
 }
 

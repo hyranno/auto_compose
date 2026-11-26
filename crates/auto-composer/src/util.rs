@@ -1,5 +1,7 @@
 //! Small numeric helpers, weighted random choice and timelines (`src/core/util.ts`).
 
+use serde::{Deserialize, Serialize};
+
 use crate::random::Rng;
 
 /// `((x % y) + y) % y`, the same expression as the TypeScript version.
@@ -18,6 +20,19 @@ pub fn smoothstep(edge0: f64, edge1: f64, x: f64) -> f64 {
     xn * xn * (3.0 - 2.0 * xn)
 }
 
+/// The edges of a [`smoothstep`] (`SmoothstepParameters` in TypeScript).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SmoothstepParams {
+    pub edge0: f64,
+    pub edge1: f64,
+}
+
+impl SmoothstepParams {
+    pub fn eval(&self, x: f64) -> f64 {
+        smoothstep(self.edge0, self.edge1, x)
+    }
+}
+
 /// `start, start + tick, ...` while the value is less than `end`.
 ///
 /// The value is accumulated by addition, like the `for` loop of `rangeIterator` in TypeScript.
@@ -26,7 +41,7 @@ pub fn range_step(start: f64, end: f64, tick: f64) -> impl Iterator<Item = f64> 
     std::iter::successors(Some(start), move |t| Some(t + tick)).take_while(move |&t| t < end)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeightedItem<T> {
     pub weight: f64,
     pub value: T,
@@ -80,7 +95,7 @@ pub fn merge_weighted_items<T: PartialEq + Clone>(
     res
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TimelineItem<T> {
     pub t: f64,
     pub value: T,

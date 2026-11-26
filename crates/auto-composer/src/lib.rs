@@ -5,8 +5,10 @@
 //! which random numbers are consumed.
 
 pub mod error;
+pub mod generator;
 pub mod linalg;
 pub mod markov;
 pub mod random;
+pub mod snapshot;
 pub mod tune;
 pub mod util;
