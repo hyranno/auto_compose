@@ -4,7 +4,7 @@ import * as helper from './solid_helper';
 
 import type {Parameters} from './core/note';
 import * as PitchWeight from './PitchWeightCalculator';
-import * as RhythmGenerator from './RhytmGenerator';
+import * as RhythmGenerator from './RhythmGenerator';
 
 
 export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
