@@ -1,0 +1,27 @@
+{
+  "name": "auto-composer-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example page of auto-composer, built on its WebAssembly bindings",
+  "type": "module",
+  "scripts": {
+    "wasm": "wasm-pack build ../crates/auto-composer-wasm --target web",
+    "predev": "npm run wasm",
+    "dev": "vite",
+    "prebuild": "npm run wasm",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "auto-composer-wasm": "file:../crates/auto-composer-wasm/pkg",
+    "solid-js": "^1.9.20",
+    "tone": "^15.1.22"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.4.0",
+    "vite-plugin-solid": "^2.11.17"
+  }
+}
