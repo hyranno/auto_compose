@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, Result};
 use crate::markov::{Condition, MarkovChain};
 use crate::random::{RandomSeed, Rng, RngFactory};
-use crate::tune::{Cadence, Chord, Note, NoteNode, Notenum, Resolution, Tune};
+use crate::tune::{Cadence, Chord, Note, NoteNode, Notenum, Resolution, Rhythm, Tune};
 use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
 
 use super::{cadence, chord, note, pitch_weight, rhythm, tune as tune_generator};
@@ -375,25 +375,17 @@ fn branch_paths(node: &NoteNode, path: &mut Vec<usize>, res: &mut Vec<Vec<usize>
     }
 }
 
-fn node_at<'a>(root: &'a NoteNode, path: &[usize]) -> Option<&'a NoteNode> {
-    path.iter().try_fold(root, |n, &i| n.children.get(i))
-}
-
 fn node_at_mut<'a>(root: &'a mut NoteNode, path: &[usize]) -> Option<&'a mut NoteNode> {
     path.iter().try_fold(root, |n, &i| n.children.get_mut(i))
 }
 
 /// Merges each branch of two children inside the timespan into one note with the probability
 /// `1 - pBranch` of its duration, drawing once per branch, and interpolates its pitch between
-/// the leaves next to its children.
+/// the leaves next to the leaves of the branch.
 ///
-/// As in TypeScript, the branches and the leaves are listed before any merge. Reproduced bugs
-/// (bug 4 of the notes):
-/// - The leaves next to a child are found by the time of the child, which is the time of its
-///   first leaf when the child has children.
-/// - A branch under a merged branch is still visited and draws, although it is no longer in
-///   the tree.
-/// - The merged note keeps the `isNoteOn` of the branch.
+/// The branches are visited in pre-order, and a branch under a merged one is skipped without
+/// drawing. The neighbour pitches are those before any merge. The merged note is on if any of
+/// its leaves was on.
 pub fn merge_rhythm(
     tune: &Tune,
     root: &mut NoteNode,
@@ -401,40 +393,32 @@ pub fn merge_rhythm(
     rng: &mut impl Rng,
     params: &note::Parameters,
 ) -> Result<()> {
-    let leaves: Vec<(f64, Option<Notenum>)> = root
-        .leaves()
-        .iter()
-        .map(|l| (l.rhythm.t, l.pitch))
-        .collect();
-    let pitches: Vec<Option<Notenum>> = leaves.iter().map(|l| l.1).collect();
+    let leaves: Vec<Rhythm> = root.leaves().iter().map(|l| l.rhythm).collect();
+    let pitches: Vec<Option<Notenum>> = root.leaves().iter().map(|l| l.pitch).collect();
     let mut paths = Vec::new();
     branch_paths(root, &mut Vec::new(), &mut paths);
-    // What each branch looks like before the merges; a merge changes only the merged branch.
-    let targets: Vec<(Vec<usize>, NoteNode)> = paths
-        .into_iter()
-        .map(|path| {
-            let node = node_at(root, &path).expect("a path just collected");
-            (path, node.clone())
-        })
-        .collect();
-    for (path, branch) in targets {
-        if !inside(timespan, branch.rhythm.t) {
+    let mut merged_paths: Vec<Vec<usize>> = Vec::new();
+    for path in paths {
+        if merged_paths.iter().any(|m| path.starts_with(m)) {
             continue;
         }
-        let p_merge = 1.0 - params.rhythm.p_branch.eval(branch.rhythm.duration);
+        let branch = node_at_mut(root, &path).expect("a path just collected");
+        let rhythm = branch.rhythm;
+        if !inside(timespan, rhythm.t) {
+            continue;
+        }
+        let p_merge = 1.0 - params.rhythm.p_branch.eval(rhythm.duration);
         if rng.random() < p_merge {
-            let [i0, i1] = [0, 1].map(|k| {
-                let t = branch.children[k].rhythm.t;
-                leaves
-                    .iter()
-                    .position(|l| l.0 == t)
-                    .ok_or(Error::NoNeighbour)
-            });
-            let (i0, i1) = (i0?, i1?);
+            let end_t = rhythm.t + rhythm.duration;
+            let under = |l: &Rhythm| rhythm.t <= l.t && l.t < end_t;
+            let i0 = leaves.iter().position(under).expect("a branch has leaves");
+            let i1 = leaves.iter().rposition(under).expect("a branch has leaves");
             let start = neighbour_pitch(&pitches, i0.checked_sub(1), i0)?;
             let end = neighbour_pitch(&pitches, Some(i1 + 1), i1)?;
-            let mut merged = NoteNode::new(branch.rhythm);
-            merged.pitch = branch.pitch;
+            let mut merged = NoteNode::new(Rhythm {
+                is_note_on: leaves[i0..=i1].iter().any(|l| l.is_note_on),
+                ..rhythm
+            });
             interpolate(
                 tune,
                 start,
@@ -443,11 +427,8 @@ pub fn merge_rhythm(
                 &mut [&mut merged],
                 &params.pitch_weight,
             )?;
-            // A branch under a merged one is gone from the tree; its result is discarded.
-            if let Some(node) = node_at_mut(root, &path) {
-                node.children.clear();
-                node.pitch = merged.pitch;
-            }
+            *branch = merged;
+            merged_paths.push(path);
         }
     }
     Ok(())
@@ -477,7 +458,7 @@ mod tests {
     use super::*;
     use crate::generator::test_util::{ConstantRng, SEEDS, default_params, empty_tune};
     use crate::random::{ReliableRandom, ReliableRandomFactory, ScriptedRng};
-    use crate::tune::{Rhythm, Scale};
+    use crate::tune::Scale;
 
     // Ported from src/core/generators.test.ts.
 
@@ -681,7 +662,7 @@ mod tests {
     }
 
     #[test]
-    fn a_branch_under_a_merged_branch_still_draws() {
+    fn a_branch_under_a_merged_branch_is_skipped() {
         // root: [L0, B, L3], B: [C, l2], C: [l1a, l1b]. B and C are the branches of two children.
         let c = node(1.0, 1.0, None, vec![leaf(1.0, 0.5, 70), leaf(1.5, 0.5, 71)]);
         let b = node(1.0, 2.0, None, vec![c, leaf(2.0, 1.0, 72)]);
@@ -701,8 +682,8 @@ mod tests {
             &params,
         )
         .unwrap();
-        // B: one draw to merge and one for its pitch; C, no longer in the tree: the same.
-        assert_eq!(rng.consumed, 4);
+        // B: one draw to merge and one for its pitch; C, no longer in the tree, draws nothing.
+        assert_eq!(rng.consumed, 2);
         let leaves: Vec<_> = root
             .leaves()
             .iter()
@@ -710,6 +691,41 @@ mod tests {
             .collect();
         assert_eq!(leaves, [(0.0, 1.0), (1.0, 2.0), (3.0, 1.0)]);
         assert!(root.children[1].pitch.is_some());
+    }
+
+    #[test]
+    fn merge_interpolates_between_the_leaves_next_to_the_branch() {
+        // root: [L0, B, L3], B: [l1, C], C: [l2a, l2b]. The leaf after B is L3, not l2b.
+        let off = |t, duration, pitch| {
+            let mut n = leaf(t, duration, pitch);
+            n.rhythm.is_note_on = false;
+            n
+        };
+        let c = node(2.0, 1.0, None, vec![off(2.0, 0.5, 90), off(2.5, 0.5, 90)]);
+        let b = node(1.0, 2.0, None, vec![off(1.0, 1.0, 90), c]);
+        let mut root = node(
+            0.0,
+            4.0,
+            None,
+            vec![leaf(0.0, 1.0, 66), b, leaf(3.0, 1.0, 74)],
+        );
+        // Merge B, then draw its pitch from the middle of the distribution.
+        let mut rng = ScriptedRng::new(vec![0.0, 0.5]);
+        let params = default_params().note;
+        merge_rhythm(
+            &tune_with_a_chord(),
+            &mut root,
+            [0.5, 3.0],
+            &mut rng,
+            &params,
+        )
+        .unwrap();
+        assert_eq!(rng.consumed(), 2);
+        let merged = &root.children[1];
+        assert!(merged.children.is_empty());
+        // Less than 6 semitones from both 66 and 74.
+        assert!((69..=70).contains(&merged.pitch.unwrap()), "{merged:?}");
+        assert!(!merged.rhythm.is_note_on);
     }
 
     #[test]
