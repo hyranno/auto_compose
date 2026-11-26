@@ -32,6 +32,8 @@ pub struct MarkovChain<T> {
 
 impl<T: Clone + PartialEq> MarkovChain<T> {
     /// `transition` lists, for each state, the weights of the next states.
+    /// The weights are ratios: each row is divided by its sum to make the transition
+    /// probabilities. A row with a negative or non-finite weight, or whose sum is 0, is an error.
     ///
     /// It is read like `new Map(transition)` in TypeScript: the states are ordered by their
     /// first appearance, and a later entry for the same state replaces the earlier one.
@@ -48,13 +50,23 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
         let n = states.len();
         let mut data = Vec::with_capacity(n * n);
         for (from, (_, items)) in entries.iter().enumerate() {
-            for (to, state) in states.iter().enumerate() {
-                let item = items
-                    .iter()
-                    .find(|wi| wi.value == *state)
-                    .ok_or(Error::MissingTransition { from, to })?;
-                data.push(item.weight);
+            let row = states
+                .iter()
+                .enumerate()
+                .map(|(to, state)| {
+                    items
+                        .iter()
+                        .find(|wi| wi.value == *state)
+                        .map(|item| item.weight)
+                        .ok_or(Error::MissingTransition { from, to })
+                })
+                .collect::<Result<Vec<f64>>>()?;
+            let sum: f64 = row.iter().sum();
+            let valid = row.iter().all(|w| (0.0..f64::INFINITY).contains(w));
+            if !valid || sum == 0.0 || !sum.is_finite() {
+                return Err(Error::InvalidTransition { from });
             }
+            data.extend(row.iter().map(|w| w / sum));
         }
         let transition_matrix = Matrix::from_fn(n, n, |i, j| data[i * n + j]);
         let stationary = stationary_distribution(&transition_matrix);
@@ -395,6 +407,46 @@ mod tests {
                 .calc_distribution_conditional(&Condition::new(po, ps), &Condition::new(fo, fs))
                 .unwrap();
             assert_eq!(d, expected, "{ps:?} {po} {fs:?} {fo}");
+        }
+    }
+
+    #[test]
+    fn weights_are_ratios() {
+        let w = WeightedItem::new;
+        let scaled = [
+            (T, vec![w(1.0, T), w(3.0, D), w(6.0, S)]),
+            (D, vec![w(90.0, T), w(10.0, D), w(0.0, S)]),
+            (S, vec![w(0.8, T), w(1.0, D), w(0.2, S)]),
+        ];
+        let chain = MarkovChain::new(T, &scaled).unwrap();
+        let expected = cadence_chain();
+        for i in 0..3 {
+            assert_close(
+                chain.transition_matrix().row(i),
+                expected.transition_matrix().row(i),
+            );
+        }
+        assert_close(chain.stationary(), expected.stationary());
+    }
+
+    #[test]
+    fn weights_that_are_not_ratios_are_errors() {
+        let w = WeightedItem::new;
+        for bad in [
+            [0.0, 0.0],
+            [-1.0, 2.0],
+            [f64::NAN, 1.0],
+            [f64::INFINITY, 1.0],
+        ] {
+            let p = [
+                (T, vec![w(1.0, T), w(1.0, D)]),
+                (D, vec![w(bad[0], T), w(bad[1], D)]),
+            ];
+            assert_eq!(
+                MarkovChain::new(T, &p).unwrap_err(),
+                Error::InvalidTransition { from: 1 },
+                "{bad:?}"
+            );
         }
     }
 

@@ -9,8 +9,8 @@ import * as TuneGenerator from './tune_generator';
 import * as VariantGenerator from './variant';
 import {snapshot} from './snapshot';
 
-const goldenDir = path.resolve(__dirname, '../../fixtures/golden');
-const loadFixture = (rel: string) => JSON.parse(readFileSync(path.join(goldenDir, rel), 'utf8'));
+const resources = path.resolve(__dirname, '../../resources');
+const loadResource = (name: string) => JSON.parse(readFileSync(path.join(resources, name), 'utf8'));
 
 describe('ScriptedRng', () => {
   test('returns the values in order and then throws', () => {
@@ -41,23 +41,28 @@ describe('defaultRngFactory', () => {
 
 describe('recordingRngFactory', () => {
   test('does not change the tune output', () => {
-    const c = loadFixture('tune/default_seed-per-layer.json');
+    const params = loadResource('TuneGenParams_default.json');
     const log: RngRecord[] = [];
-    const tune = TuneGenerator.generate(c.params, {rngFactory: recordingRngFactory(log)});
-    expect(snapshot(tune)).toStrictEqual(c.expected);
+    const tune = snapshot(TuneGenerator.generate(params, {rngFactory: recordingRngFactory(log)}));
+    expect(tune).toStrictEqual(snapshot(TuneGenerator.generate(params)));
     // Generators run in this order, each consuming its own Rng.
     const labels = [...new Set(log.map(r => r.label))];
     expect(labels).toStrictEqual(['cadence', 'chord.root', 'chord.tone', 'rhythm', 'note.pitch']);
     // One root and one tone draw per chord.
     const count = (l: string) => log.filter(r => r.label == l).length;
-    expect(count('chord.root')).toBe(c.expected.chord.length);
-    expect(count('chord.tone')).toBe(c.expected.chord.length);
+    expect(count('chord.root')).toBe(tune.chord.length);
+    expect(count('chord.tone')).toBe(tune.chord.length);
   });
   test('does not change the variant output', () => {
-    const c = loadFixture('variant/default_layer-3_span-2-8.json');
+    const base = loadResource('TuneGenParams_default.json');
+    const params = {
+      ...loadResource('VariantGenParams_default.json'),
+      timespan: [{value: [2, 8], weight: 1}],
+      layer: [{value: 3, weight: 1}],
+    };
     const log: RngRecord[] = [];
-    const tune = VariantGenerator.generate(c.params, c.base, {rngFactory: recordingRngFactory(log)});
-    expect(snapshot(tune)).toStrictEqual(c.expected);
+    const tune = VariantGenerator.generate(params, base, {rngFactory: recordingRngFactory(log)});
+    expect(snapshot(tune)).toStrictEqual(snapshot(VariantGenerator.generate(params, base)));
     expect(log[0].label).toBe('variant');
     expect(log[1].label).toBe('variant');
   });
