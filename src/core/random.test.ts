@@ -62,3 +62,42 @@ describe('recordingRngFactory', () => {
     expect(log[1].label).toBe('variant');
   });
 });
+
+// fixtures/rng.json pins the raw output of reliable-random; the Rust port reproduces it.
+describe('reliable-random (fixtures/rng.json)', () => {
+  const fixture = JSON.parse(readFileSync(path.resolve(__dirname, '../../fixtures/rng.json'), 'utf8'));
+  const cases: [number, number, number[]][] = fixture.cases.map((c: any) => [c.state, c.sequence, c.u32]);
+
+  // Reference implementation of the algorithm the Rust port follows.
+  // It differs from the standard PCG32 output function: xorshifted is not masked to 32 bits,
+  // and the left rotation is `rot ^ 31` (= 31 - rot) instead of `(-rot) & 31`.
+  const U32 = (1n << 32n) - 1n;
+  const U64 = (1n << 64n) - 1n;
+  function reference(state: number, sequence: number, count: number): number[] {
+    const inc = ((BigInt(sequence) << 1n) | 1n) & U64;
+    let s = 0n;
+    const next = () => {
+      const old = s;
+      s = (old * 6364136223846793005n + inc) & U64;
+      const xorshifted = ((old >> 18n) ^ old) >> 27n;
+      const rot = old >> 59n;
+      return Number(((xorshifted >> rot) | (xorshifted << (rot ^ 31n))) & U32);
+    };
+    next();
+    s = (s + BigInt(state)) & U64;
+    next();
+    return [...Array(count)].map(next);
+  }
+
+  test('fixtures exist', () => expect(cases.length).toBeGreaterThan(0));
+  test.each(cases)('state=%d sequence=%d', (state, sequence, u32) => {
+    const r = new Random(state, sequence);
+    expect(u32.map(() => Number(r._random_b()))).toStrictEqual(u32);
+    expect(reference(state, sequence, u32.length)).toStrictEqual(u32);
+    const f = new Random(state, sequence);
+    expect(u32.map(() => f.random())).toStrictEqual(u32.map(v => v / 2 ** 32));
+  });
+  test('non-integer seeds throw', () => {
+    expect(() => new Random(0.5, 0)).toThrow();
+  });
+});

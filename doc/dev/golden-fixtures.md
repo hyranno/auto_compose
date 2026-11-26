@@ -3,15 +3,23 @@
 `fixtures/golden/` holds pairs of generator parameters and the tune they produce.
 They pin down the exact output of the generators, including the random number sequence,
 and are shared between the TypeScript implementation and the Rust port.
+`fixtures/rng.json` pins the raw output of the random number generator itself.
 
 ## Layout
 
 ```
+fixtures/rng.json              first u32 outputs of reliable-random for several seeds
 fixtures/golden/
   tune/<case>.json             {"params": TuneGenerator.Parameters, "expected": TuneSnapshot}
   variant/<case>.json          {"params": VariantGenerator.Parameters, "base": TuneGenerator.Parameters, "expected": TuneSnapshot}
   variant_excluded.json        variant cases that currently throw (only present when there are any)
 ```
+
+`rng.json` lists `{state, sequence, u32}` cases: `u32` are the first outputs of
+`new Random(state, sequence)._random_b()`, and `random()` returns `u32 / 2^32`.
+The seeds include negative values and values beyond 32 bits.
+reliable-random is a PCG32 variant whose output function differs from the standard one;
+`src/core/random.test.ts` contains a reference implementation of the exact algorithm.
 
 `TuneSnapshot` is defined in `src/core/snapshot.ts`. Times and durations are sums of powers of two,
 so the expected values are compared exactly.
@@ -19,8 +27,9 @@ so the expected values are compared exactly.
 
 ## Usage
 
-- `npm test` runs `src/core/golden.test.ts`, which regenerates every case and compares it with the fixture.
-- `npm run gen_golden` rewrites the fixtures from the current implementation (`scripts/gen_golden.ts`,
+- `npm test` runs `src/core/golden.test.ts`, which regenerates every case and compares it with the fixture,
+  and `src/core/random.test.ts`, which checks `rng.json`.
+- `npm run gen_golden` rewrites all the fixtures from the current implementation (`scripts/gen_golden.ts`,
   which also defines the cases). Regenerate only when a change of output is intended, and review the diff.
 - `scripts/run_ts.mjs` runs a TypeScript file through Vite's module runner,
   because `src/` uses extensionless imports that plain `node` cannot resolve.
@@ -42,3 +51,19 @@ TuneGenerator.generate(params, {rngFactory: recordingRngFactory(log)});
 ```
 
 `ScriptedRng` returns a fixed list of values, for unit tests that need specific draws (e.g. boundary values).
+
+## Unit tests
+
+Besides the fixtures, `src/core/*.test.ts` hold unit tests meant to be ported to the Rust tests.
+Their inputs and expectations are written as tables for that reason.
+
+- `util.test.ts`: `smoothstep` (including `edge0 == edge1`, which yields `NaN` exactly at the edge),
+  `modulo`, `TreeNode`, `Timeline`, and `WeightedRandom` at the boundaries of the cumulative ratios.
+- `tune.test.ts`, `markov.test.ts`: scales, chords, and the stationary, backward and conditional
+  distributions of the default cadence chain.
+- `generators.test.ts`: properties of each generator and the exact number of random draws, using
+  `ScriptedRng` or a constant `Rng`.
+
+Tests marked "known bug" record suspicious behaviour (described in a comment next to each test)
+that the port reproduces on purpose until it is compatible with the fixtures. Fixing it is a separate,
+intentional change that also updates the fixtures.

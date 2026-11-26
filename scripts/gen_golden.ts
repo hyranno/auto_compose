@@ -1,6 +1,9 @@
-// Generates the golden fixtures under fixtures/golden/ from the current TS implementation.
+// Generates the fixtures under fixtures/ from the current TS implementation:
+// fixtures/rng.json (raw output of reliable-random) and fixtures/golden/ (generator input/output pairs).
 // Usage: npm run gen_golden
-// The fixtures are committed and checked by src/core/golden.test.ts (and later by the Rust tests).
+// The fixtures are committed and checked by src/core/random.test.ts and src/core/golden.test.ts
+// (and later by the Rust tests).
+import {Random} from 'reliable-random';
 import {mkdirSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 
@@ -110,6 +113,14 @@ for (const [state, sequence] of [[1, 2], [77, 5], [5, 1], [13, 1]]) {
   }, presets[0][1]]);
 }
 
+// --- rng cases ---
+// Seeds cover zero, small, negative (two's complement), and values beyond 32 bits.
+const rngSeeds: [number, number][] = [
+  [0, 0], [1, 0], [0, 1], [754, 489], [4649, 459], [-1, -7], [-4649, 459],
+  [Number.MAX_SAFE_INTEGER, 2 ** 40 + 3], [-Number.MAX_SAFE_INTEGER, -(2 ** 52)],
+];
+const rngCount = 16;
+
 // --- write ---
 const root = path.resolve('fixtures/golden');
 function resetDir(dir: string) {
@@ -139,6 +150,14 @@ function format(data: unknown, indent = ''): string {
 function write(file: string, data: unknown) {
   writeFileSync(file, format(data) + '\n');
 }
+
+write(path.resolve('fixtures/rng.json'), {
+  description: 'First outputs of reliable-random Random(state, sequence)._random_b() (u32). random() is u32 / 2^32.',
+  cases: rngSeeds.map(([state, sequence]) => {
+    const r = new Random(state, sequence);
+    return {state, sequence, u32: [...Array(rngCount)].map(() => Number(r._random_b()))};
+  }),
+});
 
 resetDir(path.join(root, 'tune'));
 for (const [name, params] of tuneCases) {
