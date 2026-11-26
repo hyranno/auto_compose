@@ -152,24 +152,18 @@ impl<T> Timeline<T> {
     /// The last item whose time is not after `t`. `None` before the first item
     /// (the TypeScript version throws).
     pub fn get(&self, t: f64) -> Option<&TimelineItem<T>> {
-        self.items.iter().rev().find(|item| item.t <= t)
+        self.get_index(t).map(|i| &self.items[i])
     }
 
-    /// The index of [`Timeline::get`].
-    ///
-    /// Before the first item it returns `len()`, as the TypeScript version does
-    /// (`length - 1 - findIndex(...)` with `findIndex` returning -1). Kept for compatibility.
-    pub fn get_index(&self, t: f64) -> usize {
-        match self.items.iter().rev().position(|item| item.t <= t) {
-            Some(i) => self.items.len() - 1 - i,
-            None => self.items.len(),
-        }
+    /// The index of [`Timeline::get`]. `None` before the first item
+    /// (the TypeScript version returned the length).
+    pub fn get_index(&self, t: f64) -> Option<usize> {
+        self.items.iter().rposition(|item| item.t <= t)
     }
 
     /// Removes the item at [`Timeline::get_index`] (nothing before the first item).
     pub fn remove(&mut self, t: f64) {
-        let i = self.get_index(t);
-        if i < self.items.len() {
+        if let Some(i) = self.get_index(t) {
             self.items.remove(i);
         }
     }
@@ -385,16 +379,16 @@ mod tests {
     #[test]
     fn timeline_get_index() {
         let mut tl = events();
-        assert_eq!(PROBES.map(|t| tl.get_index(t)), [0, 1, 2, 3]);
+        assert_eq!(PROBES.map(|t| tl.get_index(t)), [0, 1, 2, 3].map(Some));
         tl.add([TimelineItem::new(1.5, 1.5)]);
-        assert_eq!(PROBES.map(|t| tl.get_index(t)), [0, 2, 3, 4]);
+        assert_eq!(PROBES.map(|t| tl.get_index(t)), [0, 2, 3, 4].map(Some));
     }
 
     #[test]
     fn timeline_exact_times() {
         let tl = events();
         let ts = [0.0, 1.0, 2.0, 3.0];
-        assert_eq!(ts.map(|t| tl.get_index(t)), [0, 1, 2, 3]);
+        assert_eq!(ts.map(|t| tl.get_index(t)), [0, 1, 2, 3].map(Some));
         assert_eq!(ts.map(|t| tl.get(t).unwrap().value), [0.0, 1.0, 2.0, 3.0]);
     }
 
@@ -427,12 +421,10 @@ mod tests {
         assert_eq!(values(&tl), [0.0, 2.0, 3.0]);
     }
 
-    // Known quirk kept for compatibility: before the first item, get_index returns len()
-    // (TypeScript: getIndex returns length and get throws).
     #[test]
     fn timeline_before_the_first_item() {
         let mut tl = timeline([(1.0, 'a'), (2.0, 'b')]);
-        assert_eq!(tl.get_index(0.0), 2);
+        assert_eq!(tl.get_index(0.0), None);
         assert_eq!(tl.get(0.0), None);
         tl.remove(0.0);
         assert_eq!(tl.len(), 2);

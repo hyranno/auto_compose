@@ -97,8 +97,12 @@ pub fn generate(
 }
 
 /// The indices of `timeline` at both ends of `timespan` ([`Timeline::get_index`]).
-fn span_indices<T>(timeline: &Timeline<T>, timespan: [f64; 2]) -> [usize; 2] {
-    timespan.map(|t| timeline.get_index(t))
+/// A timespan that starts before the first item is an error.
+fn span_indices<T>(timeline: &Timeline<T>, timespan: [f64; 2]) -> Result<[usize; 2]> {
+    match timespan.map(|t| timeline.get_index(t)) {
+        [Some(start), Some(end)] => Ok([start, end]),
+        _ => Err(Error::InvalidParameter("timespan")),
+    }
 }
 
 /// Redraws the cadences strictly inside the timespan by the Markov chain, starting from the
@@ -109,7 +113,7 @@ pub fn vary_cadence(
     rng: &mut impl Rng,
     params: &cadence::Parameters,
 ) -> Result<Timeline<Cadence>> {
-    let [start, end] = span_indices(&tune.cadence, timespan);
+    let [start, end] = span_indices(&tune.cadence, timespan)?;
     let list = tune.cadence.list();
     if end <= start + 1 {
         return Ok(tune.cadence.clone());
@@ -142,7 +146,7 @@ pub fn vary_chord(
     rng: &mut impl Rng,
     params: &chord::Parameters,
 ) -> Result<Timeline<Chord>> {
-    let [start, end] = span_indices(&tune.chord, timespan);
+    let [start, end] = span_indices(&tune.chord, timespan)?;
     let items = tune
         .chord
         .list()
@@ -263,7 +267,7 @@ pub fn vary_pitch(
     params: &note::Parameters,
     factory: &dyn RngFactory,
 ) -> Result<Timeline<Note>> {
-    let [start, end] = span_indices(&tune.notes, timespan);
+    let [start, end] = span_indices(&tune.notes, timespan)?;
     let mut tree = note::generate_tree(tune, params, factory)?;
     let mut leaves = tree.leaves_mut();
     let pitch_at = |leaves: &[&mut NoteNode], i: usize| {
@@ -688,6 +692,19 @@ mod tests {
             .collect();
         assert_eq!(leaves, [(0.0, 1.0), (1.0, 2.0), (3.0, 1.0)]);
         assert!(root.children[1].pitch.is_some());
+    }
+
+    #[test]
+    fn a_timespan_before_the_tune_is_an_error() {
+        // The rhythm variant does not look up the timelines and accepts it.
+        for layer in [Layer::Cadence, Layer::Chord, Layer::Pitch] {
+            let params = variant_params(layer, [-1.0, 5.0], (0, 0));
+            assert_eq!(
+                generate(&params, &base(), &ReliableRandomFactory),
+                Err(Error::InvalidParameter("timespan")),
+                "{layer:?}"
+            );
+        }
     }
 
     #[test]
