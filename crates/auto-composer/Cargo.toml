@@ -1,0 +1,13 @@
+[package]
+name = "auto-composer"
+version = "0.1.0"
+description = "Automatic composition of short tunes (core library)"
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

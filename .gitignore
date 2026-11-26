@@ -4,3 +4,5 @@ dist
 .devcontainer/local/
 *.local/
 *.local.*
+
+/target

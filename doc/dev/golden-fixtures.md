@@ -31,6 +31,9 @@ so the expected values are compared exactly.
   and `src/core/random.test.ts`, which checks `rng.json`.
 - `npm run gen_golden` rewrites all the fixtures from the current implementation (`scripts/gen_golden.ts`,
   which also defines the cases). Regenerate only when a change of output is intended, and review the diff.
+- `cargo test` runs the Rust side: `crates/auto-composer/tests/rng.rs` checks `rng.json`
+  against `auto_composer::random::ReliableRandom`.
+  Before committing Rust code, run `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`.
 - `scripts/run_ts.mjs` runs a TypeScript file through Vite's module runner,
   because `src/` uses extensionless imports that plain `node` cannot resolve.
 
