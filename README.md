@@ -2,7 +2,7 @@ English | [日本語](README.ja.md)
 
 # What is this
 A tool to help with composing music.
-It is also available [here](http://uncotechhack.net/preview/auto_compose/) (the former TypeScript version).
+Try it [here](https://hyranno.github.io/auto_compose/).
 It generates a musical phrase automatically from various parameters.
 It is based on Western music theory, but simplifies it and may contain mistakes.
 Use it when you want to compose but starting from nothing is hard.

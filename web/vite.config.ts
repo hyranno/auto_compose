@@ -3,6 +3,8 @@ import solidPlugin from 'vite-plugin-solid';
 
 export default defineConfig({
   plugins: [solidPlugin()],
+  // Relative URLs, so the built page works under any path (e.g. GitHub Pages at /auto_compose/).
+  base: './',
   server: {
     // Listen on all addresses of the container: the port forwarding of the devcontainer
     // does not reach a server that listens only on `localhost`.
