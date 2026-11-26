@@ -1,5 +1,5 @@
-//! Plain-JSON form of a [`Tune`], the format of the golden fixtures shared with the TypeScript
-//! implementation (`src/core/snapshot.ts`).
+//! Plain-JSON form of a [`Tune`], the format of the golden fixtures
+//! (the same as `src/core/snapshot.ts` of the TypeScript implementation).
 
 use serde::{Deserialize, Serialize};
 

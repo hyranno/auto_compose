@@ -10,4 +10,4 @@ license-file.workspace = true
 serde = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }

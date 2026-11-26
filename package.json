@@ -8,8 +8,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "test": "vitest run",
-    "gen_schema": "npx ts-node --esm src/generate_parameters_schema.ts",
-    "gen_golden": "node scripts/run_ts.mjs scripts/gen_golden.ts"
+    "gen_schema": "npx ts-node --esm src/generate_parameters_schema.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.11",
