@@ -9,6 +9,8 @@ import * as DefaultVariantGenParams from '../resources/VariantGenParams_default.
 import {Tune} from './core/tune';
 import * as TuneGenerator from './TuneGenerator';
 import * as VariantGenerator from './VariantGenerator';
+import * as TuneGeneratorCore from './core/tune_generator';
+import * as VariantGeneratorCore from './core/variant';
 import {PianoRoll} from './PianoRoll';
 import {TunePlayer} from './TunePlayer';
 import {TuneMidiExporter} from './TuneMidiExporter';
@@ -20,8 +22,8 @@ const App: Component = () => {
   const [baseTune, setBaseTune] = createSignal(new Tune());
   const [variantTune, setVariantTune] = createSignal(new Tune());
   const generate = () => {
-    setBaseTune( TuneGenerator.generate( tuneParamsUi.get() ) );
-    setVariantTune( VariantGenerator.generate(variantParamsUi.get(), tuneParamsUi.get()) );
+    setBaseTune( TuneGeneratorCore.generate( tuneParamsUi.get() ) );
+    setVariantTune( VariantGeneratorCore.generate(variantParamsUi.get(), tuneParamsUi.get()) );
   };
   const tune = () => baseTune().merge( variantTune() );
 

@@ -45,5 +45,5 @@ function generateSchemaFile(sourcePath: string, typename: string, saveBasename: 
   writeFileSync(dest, schemaString);
 }
 
-generateSchemaFile("./src/TuneGenerator.tsx", "Parameters", "TuneGeneratorParameters");
-generateSchemaFile("./src/VariantGenerator.tsx", "Parameters", "VariantGeneratorParameters");
+generateSchemaFile("./src/core/tune_generator.ts", "Parameters", "TuneGeneratorParameters");
+generateSchemaFile("./src/core/variant.ts", "Parameters", "VariantGeneratorParameters");

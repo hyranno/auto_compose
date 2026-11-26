@@ -1,17 +1,15 @@
 import type { Component } from 'solid-js';
-import { Random } from 'reliable-random';
 
 import * as util from './core/util';
 import * as helper from './solid_helper';
 
-import {Tune, Cadence, Chord} from './core/tune';
+import {Cadence} from './core/tune';
+import * as core from './core/chord';
+import type {Parameters} from './core/chord';
 
 
 namespace RootGenerator {
-  export type Parameters = {
-    seed: util.RandomSeed;
-    probabilities: [Cadence, util.WeightedItem<number>[]][];
-  };
+  type Parameters = core.RootGenerator.Parameters;
   export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
     private seed = new helper.RandomSeed(4649,459);
     private probabilities: [Cadence, util.WeightedItem<number>[]][] = [
@@ -38,25 +36,11 @@ namespace RootGenerator {
       </details>;
     };
   }
-  export function generate(tune: Tune, params: Parameters): util.Timeline<number> {
-    let rand = new Random(params.seed.state, params.seed.sequence);
-    let probabilities = new Map(params.probabilities);
-    let events = tune.cadence.list().map( c => {
-      let items = probabilities.get(c.value);
-      util.assertIsDefined(items);
-      return {
-        t: c.t,
-        value: (new util.WeightedRandom(rand, items)).get(),
-      }
-    } );
-    return util.Timeline.fromItems(events);
-  }
+
 }
 
 namespace ToneGenerator {
-  export type Parameters = {
-    rand_tones: util.WeightedRandomParameters<number[]>;
-  };
+  type Parameters = core.ToneGenerator.Parameters;
   export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
     private seed = new helper.RandomSeed(4649,459);
     private tones: util.WeightedItem<number[]>[] = [
@@ -83,23 +67,11 @@ namespace ToneGenerator {
       </details>;
     };
   }
-  export function generate(tune:Tune, roots: util.Timeline<number>, params: Parameters): util.Timeline<Chord> {
-    let rand = new Random(params.rand_tones.seed.state, params.rand_tones.seed.sequence);
-    let rand_tones = new util.WeightedRandom(rand, params.rand_tones.items);
-    let events = roots.list().map( c => {return {
-      t: c.t,
-      value: new Chord(
-        tune.scale,
-        c.value,
-        rand_tones.get()
-      )
-    }} );
-    return util.Timeline.fromItems(events);
-  }
+
 }
 
 namespace ToneModifier {
-  export type Parameters = {}
+  type Parameters = core.ToneModifier.Parameters;
   export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
     get(): Parameters {
       return {}
@@ -110,11 +82,6 @@ namespace ToneModifier {
 }
 
 
-export type Parameters = {
-  root: RootGenerator.Parameters;
-  tone: ToneGenerator.Parameters;
-  modifier: ToneModifier.Parameters;
-};
 export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
   private root = new RootGenerator.ParametersUiAdapter();
   private tone = new ToneGenerator.ParametersUiAdapter();
@@ -138,7 +105,4 @@ export class ParametersUiAdapter extends helper.UiAdapter<Parameters> {
       <helper.ClassUI instance={this.tone} />
     </details>;
   };
-}
-export function generate(tune: Tune, params: Parameters): util.Timeline<Chord> {
-    return ToneGenerator.generate(tune, RootGenerator.generate(tune, params.root), params.tone);
 }
