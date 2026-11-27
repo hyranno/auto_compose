@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::random::Seed;
-use crate::tune::{Note, Notenum, Tune};
+use crate::tune::{Notenum, Rhythm, Tune};
 use crate::util::SmoothstepParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,37 +50,39 @@ pub fn calc_time_homo_weight(
     abs_pitch_factor * rel_pitch_factor * factor_in_scale
 }
 
-/// Applies the chord at `t` and the duration to a weight of [`calc_time_homo_weight`].
+/// Applies the chord at the time of `rhythm` and its duration to a weight of
+/// [`calc_time_homo_weight`].
 pub fn calc_with_time_homo_weight(
     tune: &Tune,
     time_homo_weight: f64,
-    candidate: &Note,
-    t: f64,
+    candidate: Notenum,
+    rhythm: &Rhythm,
     params: &Parameters,
 ) -> Result<f64> {
     let chord = &tune
         .chord
-        .get(t)
+        .get(rhythm.t)
         .ok_or(Error::NoItemAt { timeline: "chord" })?
         .value;
-    let factor_in_chord = if chord.includes(&tune.scale, candidate.pitch) {
+    let factor_in_chord = if chord.includes(&tune.scale, candidate) {
         params.factor_in_chord
     } else {
         1.0
     };
-    let rhythm_exponent = candidate.duration * params.rhythm_exponent_factor;
+    let rhythm_exponent = rhythm.duration * params.rhythm_exponent_factor;
     Ok((time_homo_weight * factor_in_chord).powf(1.0 + rhythm_exponent))
 }
 
+/// The weight of `candidate` for a note of `rhythm` after `prev`.
 pub fn calc(
     tune: &Tune,
     prev: Notenum,
-    candidate: &Note,
-    t: f64,
+    candidate: Notenum,
+    rhythm: &Rhythm,
     params: &Parameters,
 ) -> Result<f64> {
-    let w = calc_time_homo_weight(tune, prev, candidate.pitch, params);
-    calc_with_time_homo_weight(tune, w, candidate, t, params)
+    let w = calc_time_homo_weight(tune, prev, candidate, params);
+    calc_with_time_homo_weight(tune, w, candidate, rhythm, params)
 }
 
 #[cfg(test)]
@@ -139,13 +141,9 @@ mod tests {
             (69, 76, 1.0, 0.0, 0.0),
         ];
         for (prev, pitch, duration, t, expected) in cases {
-            let note = Note {
-                pitch,
-                duration,
-                is_note_on: true,
-            };
+            let rhythm = Rhythm::new(t, duration);
             assert_eq!(
-                calc(&tune, prev, &note, t, &p),
+                calc(&tune, prev, pitch, &rhythm, &p),
                 Ok(expected),
                 "{prev} -> {pitch}"
             );
@@ -157,13 +155,9 @@ mod tests {
         let p = default_params().pitch;
         let mut tune = tune();
         tune.chord = Timeline::new();
-        let note = Note {
-            pitch: 69,
-            duration: 1.0,
-            is_note_on: true,
-        };
+        let rhythm = Rhythm::new(0.0, 1.0);
         assert_eq!(
-            calc(&tune, 69, &note, 0.0, &p),
+            calc(&tune, 69, 69, &rhythm, &p),
             Err(Error::NoItemAt { timeline: "chord" })
         );
     }

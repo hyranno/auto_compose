@@ -42,6 +42,9 @@ The same parameters no longer give the same tunes as the TypeScript version
     the time measure is `{beats_per_bar, bars}`, and a timespan of a variant is `{start, end}`.
 - The tunes given to the web page have a single resolution and no `max_beat_division_depth`;
   the piano roll is as fine as the shortest note.
+- Rests have no pitch and draw no random numbers for one: the note after a rest follows the note
+  before it, so the same seeds give different tunes. In the tunes given to the web page, a rest
+  has no `pitch`. A rest that the rhythm variant turns into a note gets a new pitch.
 
 ### Fixed
 
@@ -59,6 +62,9 @@ The same parameters no longer give the same tunes as the TypeScript version
   some states can never be reached, and drop it only when the end itself cannot be reached,
   instead of dropping it or choosing an arbitrary state.
 - The variant parameters have their defaults before a file is loaded.
+- The parameters are checked before generating, so that an invalid table, cadence duration or
+  timespan is reported by the name of its field even when the seeds would not reach it.
+  A variant timespan that starts before 0 is an error for every layer, including the rhythm.
 
 ### Removed
 

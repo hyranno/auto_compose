@@ -36,8 +36,12 @@ pub struct ChordSnapshot {
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct NoteSnapshot {
     pub t: f64,
-    pub pitch: Notenum,
+    /// Omitted for a rest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "tsify", tsify(optional))]
+    pub pitch: Option<Notenum>,
     pub duration: f64,
+    /// Whether this is a note rather than a rest: whether it has a pitch.
     pub is_note_on: bool,
 }
 
@@ -68,7 +72,7 @@ impl From<&Tune> for TuneSnapshot {
                     t: e.t,
                     pitch: e.value.pitch,
                     duration: e.value.duration,
-                    is_note_on: e.value.is_note_on,
+                    is_note_on: e.value.is_note_on(),
                 })
                 .collect(),
         }

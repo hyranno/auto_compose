@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 use crate::random::{Rng, Seed};
 use crate::tune::{Cadence, Chord, Degree, PerCadence, Tune};
-use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
+use crate::util::{Timeline, TimelineItem, WeightedItem, validate_weights, weighted_pick};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
@@ -24,6 +24,19 @@ pub struct Parameters {
 }
 
 impl Parameters {
+    /// Checks that each table of weights can be chosen from.
+    pub fn validate(&self) -> Result<()> {
+        let names = PerCadence {
+            tonic: "chord.roots.tonic",
+            dominant: "chord.roots.dominant",
+            subdominant: "chord.roots.subdominant",
+        };
+        for cadence in Cadence::ALL {
+            validate_weights(self.roots.get(cadence), names.get(cadence))?;
+        }
+        validate_weights(&self.tones, "chord.tones")
+    }
+
     /// Draws a root for `cadence` and then the tones.
     pub fn draw(&self, cadence: Cadence, rng: &mut impl Rng) -> Result<Chord> {
         let root = *weighted_pick(self.roots.get(cadence), rng)?;
@@ -83,5 +96,23 @@ mod tests {
             ]
         );
         assert_eq!(rng.consumed(), 8);
+    }
+
+    #[test]
+    fn rejects_tables_that_cannot_be_chosen_from() {
+        use crate::error::Error;
+        assert_eq!(default_params().chord.validate(), Ok(()));
+        let mut params = default_params().chord;
+        params.roots.dominant.clear();
+        assert_eq!(
+            params.validate(),
+            Err(Error::InvalidParameter("chord.roots.dominant"))
+        );
+        let mut params = default_params().chord;
+        params.tones[1].weight = -1.0;
+        assert_eq!(
+            params.validate(),
+            Err(Error::InvalidParameter("chord.tones"))
+        );
     }
 }

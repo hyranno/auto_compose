@@ -22,8 +22,6 @@ pub enum Error {
     /// A timeline of the tune has no item at or before the time. The name is the field of the
     /// tune, such as `"chord"`.
     NoItemAt { timeline: &'static str },
-    /// A note of the tree has no pitch.
-    MissingPitch,
     /// A parameter is out of its domain. The name is the field of the parameters.
     InvalidParameter(&'static str),
 }
@@ -49,7 +47,6 @@ impl fmt::Display for Error {
                 "the transition weights from state {from} must be non-negative and not all 0"
             ),
             Self::NoItemAt { timeline } => write!(f, "the {timeline} timeline has no item yet"),
-            Self::MissingPitch => write!(f, "a note has no pitch"),
             Self::InvalidParameter(name) => write!(f, "invalid parameter: {name}"),
         }
     }

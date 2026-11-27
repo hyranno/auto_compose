@@ -81,12 +81,12 @@
       {"t": 8.5, "pitch": 66, "duration": 0.5, "is_note_on": true},
       {"t": 9, "pitch": 69, "duration": 2, "is_note_on": true},
       {"t": 11, "pitch": 71, "duration": 0.5, "is_note_on": true},
-      {"t": 11.5, "pitch": 71, "duration": 0.5, "is_note_on": false},
-      {"t": 12, "pitch": 68, "duration": 2, "is_note_on": true},
-      {"t": 14, "pitch": 73, "duration": 0.5, "is_note_on": true},
-      {"t": 14.5, "pitch": 73, "duration": 0.25, "is_note_on": false},
-      {"t": 14.75, "pitch": 69, "duration": 0.25, "is_note_on": true},
-      {"t": 15, "pitch": 69, "duration": 1, "is_note_on": true}
+      {"t": 11.5, "duration": 0.5, "is_note_on": false},
+      {"t": 12, "pitch": 71, "duration": 2, "is_note_on": true},
+      {"t": 14, "pitch": 69, "duration": 0.5, "is_note_on": true},
+      {"t": 14.5, "duration": 0.25, "is_note_on": false},
+      {"t": 14.75, "pitch": 73, "duration": 0.25, "is_note_on": true},
+      {"t": 15, "pitch": 73, "duration": 1, "is_note_on": true}
     ]
   }
 }
