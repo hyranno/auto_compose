@@ -1,4 +1,4 @@
-import { createEffect, For, Index, on, untrack, type JSX } from 'solid-js';
+import { createEffect, For, Index, on, Show, untrack, type JSX } from 'solid-js';
 import type { Seed, SmoothstepParams, WeightedItem } from 'auto-composer-wasm';
 
 // Inputs bound to a value of the parameter store: each takes the current value and a setter.
@@ -209,11 +209,21 @@ export function WeightedList<T>(
   );
 }
 
-/** A labelled row of inputs. */
-export function Field(props: { label: string; children: JSX.Element }) {
+/** A labelled row of inputs, with the explanation `help` shown as a tooltip of a `?` after the label. */
+export function Field(props: { label: string; help?: string; children: JSX.Element }) {
   return (
     <div class="field">
-      <span class="field-label">{props.label}</span>
+      <span class="field-label">
+        {props.label}
+        <Show when={props.help}>
+          {(help) => (
+            // Focusable, so that the tooltip shows on a tap or from the keyboard as well as on hover.
+            <span class="help" tabindex="0" aria-label={help()}>
+              ?<span class="tooltip" role="tooltip">{help()}</span>
+            </span>
+          )}
+        </Show>
+      </span>
       <div class="field-inputs">{props.children}</div>
     </div>
   );

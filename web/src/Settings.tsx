@@ -13,6 +13,7 @@ import {
   WeightedList,
 } from './fields';
 import { download, readChosenFile } from './file';
+import { HELP } from './help';
 import {
   CADENCES,
   defaultTune,
@@ -86,13 +87,13 @@ export function TuneSettings(props: { parameters: Parameters }) {
         load={props.parameters.loadTune}
         loadDefault={defaultTune}
       />
-      <Field label="seed">
+      <Field label="seed" help={HELP.tune.seed}>
         <SeedInput value={tune().seed} onChange={(v) => set('tune', 'seed', v)} />
       </Field>
-      <Field label="key (note number)">
+      <Field label="key (note number)" help={HELP.tune.key}>
         <NumberInput integer value={tune().scale.key} onChange={(v) => set('tune', 'scale', 'key', v)} />
       </Field>
-      <Field label="scale tones">
+      <Field label="scale tones" help={HELP.tune.tones}>
         <IntegerListInput value={tune().scale.tones} onChange={(v) => set('tune', 'scale', 'tones', v)} />
         <button type="button" onClick={() => set('tune', 'scale', 'tones', [...MAJOR_TONES])}>
           Major
@@ -101,7 +102,7 @@ export function TuneSettings(props: { parameters: Parameters }) {
           minor
         </button>
       </Field>
-      <Field label="beats per bar">
+      <Field label="beats per bar" help={HELP.tune.beatsPerBar}>
         <NumberInput
           integer
           min={1}
@@ -109,7 +110,7 @@ export function TuneSettings(props: { parameters: Parameters }) {
           onChange={(v) => set('tune', 'time_measure', 'beats_per_bar', v)}
         />
       </Field>
-      <Field label="bars">
+      <Field label="bars" help={HELP.tune.bars}>
         <NumberInput
           integer
           min={1}
@@ -117,7 +118,7 @@ export function TuneSettings(props: { parameters: Parameters }) {
           onChange={(v) => set('tune', 'time_measure', 'bars', v)}
         />
       </Field>
-      <Field label="resolution">
+      <Field label="resolution" help={HELP.tune.resolution}>
         <Select
           options={RESOLUTIONS}
           labels={RESOLUTION_LABELS}
@@ -127,17 +128,17 @@ export function TuneSettings(props: { parameters: Parameters }) {
       </Field>
 
       <Group title="Cadence">
-        <Field label="seed">
+        <Field label="seed" help={HELP.cadence.seed}>
           <LayerSeedInput value={tune().cadence.seed} onChange={(v) => set('tune', 'cadence', 'seed', v)} />
         </Field>
-        <Field label="duration (beats)">
+        <Field label="duration (beats)" help={HELP.cadence.duration}>
           <NumberInput
             min={0}
             value={tune().cadence.duration}
             onChange={(v) => set('tune', 'cadence', 'duration', v)}
           />
         </Field>
-        <Field label="transitions">
+        <Field label="transitions" help={HELP.cadence.transitions}>
           <table class="matrix">
             <thead>
               <tr>
@@ -171,12 +172,12 @@ export function TuneSettings(props: { parameters: Parameters }) {
       </Group>
 
       <Group title="Chord">
-        <Field label="seed">
+        <Field label="seed" help={HELP.chord.seed}>
           <LayerSeedInput value={tune().chord.seed} onChange={(v) => set('tune', 'chord', 'seed', v)} />
         </Field>
         <For each={CADENCES}>
           {(cadence) => (
-            <Field label={`roots on ${cadence} (degree)`}>
+            <Field label={`roots on ${cadence} (degree)`} help={HELP.chord.roots}>
               <WeightedList
                 value={tune().chord.roots[cadence]}
                 onChange={(v) => set('tune', 'chord', 'roots', cadence, v)}
@@ -188,7 +189,7 @@ export function TuneSettings(props: { parameters: Parameters }) {
             </Field>
           )}
         </For>
-        <Field label="tones (degrees from the root)">
+        <Field label="tones (degrees from the root)" help={HELP.chord.tones}>
           <WeightedList
             value={tune().chord.tones}
             onChange={(v) => set('tune', 'chord', 'tones', v)}
@@ -201,10 +202,10 @@ export function TuneSettings(props: { parameters: Parameters }) {
       </Group>
 
       <Group title="Rhythm">
-        <Field label="seed">
+        <Field label="seed" help={HELP.rhythm.seed}>
           <LayerSeedInput value={tune().rhythm.seed} onChange={(v) => set('tune', 'rhythm', 'seed', v)} />
         </Field>
-        <Field label="max beat division depth">
+        <Field label="max beat division depth" help={HELP.rhythm.maxDepth}>
           <NumberInput
             integer
             min={0}
@@ -212,43 +213,43 @@ export function TuneSettings(props: { parameters: Parameters }) {
             onChange={(v) => set('tune', 'rhythm', 'max_beat_division_depth', v)}
           />
         </Field>
-        <Field label="p_branch edges">
+        <Field label="p_branch edges" help={HELP.rhythm.pBranch}>
           <SmoothstepInput value={tune().rhythm.p_branch} onChange={(v) => set('tune', 'rhythm', 'p_branch', v)} />
         </Field>
-        <Field label="p_note_on edges">
+        <Field label="p_note_on edges" help={HELP.rhythm.pNoteOn}>
           <SmoothstepInput value={tune().rhythm.p_note_on} onChange={(v) => set('tune', 'rhythm', 'p_note_on', v)} />
         </Field>
       </Group>
 
       <Group title="Pitch">
-        <Field label="seed">
+        <Field label="seed" help={HELP.pitch.seed}>
           <LayerSeedInput value={tune().pitch.seed} onChange={(v) => set('tune', 'pitch', 'seed', v)} />
         </Field>
-        <Field label="abs_pitch_factor edges">
+        <Field label="abs_pitch_factor edges" help={HELP.pitch.absPitchFactor}>
           <SmoothstepInput
             value={tune().pitch.abs_pitch_factor}
             onChange={(v) => set('tune', 'pitch', 'abs_pitch_factor', v)}
           />
         </Field>
-        <Field label="rel_pitch_factor edges">
+        <Field label="rel_pitch_factor edges" help={HELP.pitch.relPitchFactor}>
           <SmoothstepInput
             value={tune().pitch.rel_pitch_factor}
             onChange={(v) => set('tune', 'pitch', 'rel_pitch_factor', v)}
           />
         </Field>
-        <Field label="factor_in_scale">
+        <Field label="factor_in_scale" help={HELP.pitch.factorInScale}>
           <NumberInput
             value={tune().pitch.factor_in_scale}
             onChange={(v) => set('tune', 'pitch', 'factor_in_scale', v)}
           />
         </Field>
-        <Field label="factor_in_chord">
+        <Field label="factor_in_chord" help={HELP.pitch.factorInChord}>
           <NumberInput
             value={tune().pitch.factor_in_chord}
             onChange={(v) => set('tune', 'pitch', 'factor_in_chord', v)}
           />
         </Field>
-        <Field label="rhythm_exponent_factor">
+        <Field label="rhythm_exponent_factor" help={HELP.pitch.rhythmExponentFactor}>
           <NumberInput
             value={tune().pitch.rhythm_exponent_factor}
             onChange={(v) => set('tune', 'pitch', 'rhythm_exponent_factor', v)}
@@ -270,10 +271,10 @@ export function VariantSettings(props: { parameters: Parameters }) {
         load={props.parameters.loadVariant}
         loadDefault={defaultVariant}
       />
-      <Field label="seed">
+      <Field label="seed" help={HELP.variant.seed}>
         <SeedInput value={variant().seed} onChange={(v) => set('variant', 'seed', v)} />
       </Field>
-      <Field label="resolution">
+      <Field label="resolution" help={HELP.variant.resolution}>
         <Select
           options={RESOLUTIONS}
           labels={RESOLUTION_LABELS}
@@ -281,7 +282,7 @@ export function VariantSettings(props: { parameters: Parameters }) {
           onChange={(v) => set('variant', 'resolution', v)}
         />
       </Field>
-      <Field label="timespan (beats)">
+      <Field label="timespan (beats)" help={HELP.variant.timespan}>
         <WeightedList
           value={variant().timespan}
           onChange={(v) => set('variant', 'timespan', v)}
@@ -300,7 +301,7 @@ export function VariantSettings(props: { parameters: Parameters }) {
           )}
         />
       </Field>
-      <Field label="layer">
+      <Field label="layer" help={HELP.variant.layer}>
         <WeightedList
           value={variant().layer}
           onChange={(v) => set('variant', 'layer', v)}

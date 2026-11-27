@@ -23,7 +23,7 @@ The top of the page holds the parameter settings, the middle the piano roll, and
 
 ## Parameter settings
 Set the parameters used for the generation.
-See below for the meaning of each parameter.
+See below for the meaning of each parameter; the `?` next to each field also explains it.
 After changing the parameters, press the generate button (or Enter in a field) to generate the tune again.
 A field whose value cannot be read is outlined in red, and the tune is not generated until it is fixed.
 
@@ -72,7 +72,7 @@ To understand the parameters in detail, see the algorithm section.
 * Rhythm
     + max beat division depth ... The shortest note, a 2^x-th note.
     + p_branch edges ... How much the notes are divided.
-        A smaller left value gives more short notes, and a larger right value gives fewer long notes.
+        A smaller left value gives more short notes, and a smaller right value gives fewer long notes.
     + p_note_on edges ... How often notes become rests. Smaller values give more rests.
 * Pitch
     + abs_pitch_factor edges ... Larger values make notes far from the key note more likely.

@@ -31,6 +31,44 @@ summary {
   padding-top: 0.2em;
 }
 
+.help {
+  position: relative;
+  display: inline-block;
+  margin-left: 0.3em;
+  width: 1.2em;
+  height: 1.2em;
+  line-height: 1.2em;
+  border-radius: 50%;
+  background: #ddd;
+  color: #333;
+  font-size: 0.8em;
+  text-align: center;
+  cursor: help;
+}
+
+.help .tooltip {
+  display: none;
+  position: absolute;
+  z-index: 1;
+  top: 1.6em;
+  left: 0;
+  width: max-content;
+  max-width: min(24rem, 80vw);
+  padding: 0.4em 0.6em;
+  border-radius: 4px;
+  background: #333;
+  color: #fff;
+  font-size: 1.2em;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+}
+
+.help:hover .tooltip,
+.help:focus .tooltip {
+  display: block;
+}
+
 .field-inputs,
 .weighted-list .row,
 .json-file {

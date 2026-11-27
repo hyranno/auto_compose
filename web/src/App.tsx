@@ -2,6 +2,7 @@ import { createSignal, Show } from 'solid-js';
 import { compose, type TuneSnapshot } from 'auto-composer-wasm';
 
 import { Field, NumberInput } from './fields';
+import { HELP } from './help';
 import { PianoRoll } from './PianoRoll';
 import { createParameters, DEFAULT_BPM } from './params';
 import { TuneSettings, VariantSettings } from './Settings';
@@ -65,7 +66,7 @@ export default function App() {
               noteBottom={t().scale.key - ROLL_RANGE}
               noteTop={t().scale.key + ROLL_RANGE - 1}
             />
-            <Field label="BPM">
+            <Field label="BPM" help={HELP.bpm}>
               <NumberInput min={1} value={bpm()} onChange={setBpm} />
             </Field>
             <TuneOutput tune={t()} bpm={bpm()} />

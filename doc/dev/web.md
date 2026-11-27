@@ -34,6 +34,7 @@ by restarting `npm run dev`.
 | File | Contents |
 |---|---|
 | `src/params.ts` | The parameter store: all the parameters as one Solid store of the plain JSON the wasm functions take |
+| `src/help.ts` | The explanations of the fields, shown as tooltips |
 | `src/Settings.tsx` | The forms of the tune and variant parameters, and saving and loading them as JSON |
 | `src/fields.tsx` | Inputs bound to a value of the store (number, integer list, seed, smoothstep, select, weighted list) |
 | `src/PianoRoll.tsx` | The piano roll of a `TuneSnapshot` |
