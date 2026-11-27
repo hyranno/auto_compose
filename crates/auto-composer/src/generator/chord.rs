@@ -65,7 +65,6 @@ pub fn generate(
         &mut factory.create(params.root.seed, "chord.root"),
     )?;
     generate_tones(
-        tune,
         &roots,
         &params.tone,
         &mut factory.create(params.tone.rand_tones.seed, "chord.tone"),
@@ -108,7 +107,6 @@ pub fn generate_roots(
 
 /// Draws the tones for each root (`ToneGenerator.generate`).
 pub fn generate_tones(
-    tune: &Tune,
     roots: &Timeline<Degree>,
     params: &ToneParameters,
     rng: &mut impl Rng,
@@ -118,10 +116,7 @@ pub fn generate_tones(
         .iter()
         .map(|r| {
             let tones = weighted_pick(&params.rand_tones.items, rng).ok_or(Error::NoItems)?;
-            Ok(TimelineItem::new(
-                r.t,
-                Chord::new(tune.scale.clone(), r.value, tones.clone()),
-            ))
+            Ok(TimelineItem::new(r.t, Chord::new(r.value, tones.clone())))
         })
         .collect::<Result<Vec<_>>>()?;
     Ok(Timeline::from_items(events))
@@ -153,7 +148,7 @@ mod tests {
         // 0.95 -> [0,2,4,6] (0.8 + 0.15 == 0.9500000000000001), 0.96 -> [0,4]
         let mut tone_rng = ScriptedRng::new([0.79, 0.8, 0.95, 0.96]);
         let roots = generate_roots(&tune, &params.root, &mut root_rng).unwrap();
-        let chords = generate_tones(&tune, &roots, &params.tone, &mut tone_rng).unwrap();
+        let chords = generate_tones(&roots, &params.tone, &mut tone_rng).unwrap();
         let actual: Vec<(f64, Degree, Vec<Degree>)> = chords
             .list()
             .iter()

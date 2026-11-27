@@ -21,9 +21,6 @@ pub struct Parameters {
     pub duration: f64,
 }
 
-/// The cadences at the start of a tune (not a parameter yet, as in TypeScript).
-const PREFIX: [Cadence; 1] = [Cadence::T];
-
 pub fn generate(
     tune: &Tune,
     params: &Parameters,
@@ -32,9 +29,9 @@ pub fn generate(
     generate_with(tune, params, &mut factory.create(params.seed, "cadence"))
 }
 
-/// Starts with `PREFIX`, ends with the postfix of the resolution, and draws once for each
+/// Starts with the tonic, ends with the postfix of the resolution, and draws once for each
 /// slot between them, conditioned on reaching the first cadence of the postfix.
-/// When there are fewer slots than the prefix and the postfix, the prefix wins.
+/// When there are fewer slots than the tonic and the postfix, the start of the postfix is cut.
 pub fn generate_with(
     tune: &Tune,
     params: &Parameters,
@@ -53,25 +50,28 @@ pub fn generate_with(
             timeline: "resolution",
         })?
         .value;
+    let chain = MarkovChain::new(&params.probabilities)?;
+    let start = Cadence::T;
+    let rest = times.len().saturating_sub(1);
     let postfix = resolution.postfix();
-    let mut chain = MarkovChain::new(PREFIX[PREFIX.len() - 1], &params.probabilities)?;
-    let postfix_offset = times.len() as isize - postfix.len() as isize;
-    let items = times
-        .iter()
-        .zip(0isize..)
-        .map(|(&t, i)| {
-            let value = if i < PREFIX.len() as isize {
-                PREFIX[i as usize]
-            } else if i < postfix_offset {
-                let cond = Condition::new((postfix_offset - i) as usize, postfix[0]);
-                chain.next_conditional(rng, &cond, false)?
-            } else {
-                postfix[(i - postfix_offset) as usize]
-            };
-            Ok(TimelineItem::new(t, value))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok(Timeline::from_items(items))
+    let postfix = &postfix[postfix.len().saturating_sub(rest)..];
+    let free = rest - postfix.len();
+    let mut values = Vec::with_capacity(times.len());
+    let mut prev = start;
+    for i in 0..free {
+        // `free - i` steps from the previous cadence to the postfix.
+        prev = chain.sample_next(&prev, &Condition::new(free - i, postfix[0]), rng)?;
+        values.push(prev);
+    }
+    let values = std::iter::once(start)
+        .chain(values)
+        .chain(postfix.iter().copied());
+    Ok(Timeline::from_items(
+        times
+            .into_iter()
+            .zip(values)
+            .map(|(t, value)| TimelineItem::new(t, value)),
+    ))
 }
 
 #[cfg(test)]
@@ -121,8 +121,8 @@ mod tests {
     }
 
     #[test]
-    fn draws_once_per_slot_between_the_prefix_and_the_postfix() {
-        // (resolution, expected draws) for 4/4 with duration 2 (8 slots, prefix of 1)
+    fn draws_once_per_slot_between_the_tonic_and_the_postfix() {
+        // (resolution, expected draws) for 4/4 with duration 2 (8 slots, the tonic first)
         let params = default_params().cadence;
         let cases = [
             (Resolution::Half, 6),
@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn the_prefix_wins_when_there_are_fewer_slots_than_prefix_and_postfix() {
+    fn the_postfix_is_cut_when_there_are_fewer_slots_than_the_tonic_and_the_postfix() {
         let tune = empty_tune([2, 2], Resolution::Perfect, 3); // 2 slots, postfix [D, T]
         let mut rng = ScriptedRng::new([]);
         let tl = generate_with(&tune, &default_params().cadence, &mut rng).unwrap();

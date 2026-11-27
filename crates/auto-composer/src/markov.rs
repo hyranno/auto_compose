@@ -1,7 +1,7 @@
 //! Time-homogeneous Markov chain on finite states (`src/core/markov.ts`).
 //!
-//! Unlike the TypeScript class, the chain does not own its random number source:
-//! each transition takes the [`Rng`] to draw from.
+//! The chain holds only the probabilities. The state to move from and the [`Rng`] to draw
+//! with are given to each draw.
 
 use crate::error::{Error, Result};
 use crate::linalg::Matrix;
@@ -21,13 +21,20 @@ impl<T> Condition<T> {
     }
 }
 
+/// The direction of a step of the chain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    Forward,
+    /// By the time-reversed chain ([`MarkovChain::backward_matrix`]).
+    Backward,
+}
+
 #[derive(Debug, Clone)]
 pub struct MarkovChain<T> {
     states: Vec<T>,
     transition_matrix: Matrix,
     backward_matrix: Matrix,
     stationary: Vec<f64>,
-    pub state: T,
 }
 
 impl<T: Clone + PartialEq> MarkovChain<T> {
@@ -38,7 +45,7 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
     /// It is read like `new Map(transition)` in TypeScript: the states are ordered by their
     /// first appearance, and a later entry for the same state replaces the earlier one.
     /// Every state needs a weight for every state.
-    pub fn new(initial_state: T, transition: &[(T, Vec<WeightedItem<T>>)]) -> Result<Self> {
+    pub fn new(transition: &[(T, Vec<WeightedItem<T>>)]) -> Result<Self> {
         let mut entries: Vec<(&T, &[WeightedItem<T>])> = Vec::new();
         for (state, items) in transition {
             match entries.iter_mut().find(|(s, _)| *s == state) {
@@ -79,7 +86,6 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
             transition_matrix,
             backward_matrix,
             stationary,
-            state: initial_state,
         })
     }
 
@@ -119,21 +125,23 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
             .collect()
     }
 
-    /// The distribution one step forward (or backward) from `v`.
-    pub fn calc_distribution(&self, v: &[f64], is_backward: bool) -> Vec<f64> {
-        let mat = if is_backward {
-            &self.backward_matrix
-        } else {
-            &self.transition_matrix
+    /// The distribution one step from `v`.
+    pub fn calc_distribution(&self, v: &[f64], direction: Direction) -> Vec<f64> {
+        let mat = match direction {
+            Direction::Forward => &self.transition_matrix,
+            Direction::Backward => &self.backward_matrix,
         };
         mat.left_mul(v)
     }
 
-    /// The distribution `offset` steps forward (or backward) from `v`.
-    pub fn calc_distribution_far(&self, offset: usize, v: &[f64], is_backward: bool) -> Vec<f64> {
-        (0..offset).fold(v.to_vec(), |res, _| {
-            self.calc_distribution(&res, is_backward)
-        })
+    /// The distribution `offset` steps from `v`.
+    pub fn calc_distribution_far(
+        &self,
+        offset: usize,
+        v: &[f64],
+        direction: Direction,
+    ) -> Vec<f64> {
+        (0..offset).fold(v.to_vec(), |res, _| self.calc_distribution(&res, direction))
     }
 
     /// The distribution of the state `cond_past.offset` steps after `cond_past.state`,
@@ -148,45 +156,33 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
             .ok_or(Error::UnknownState)?;
         let v_past = self.state_to_vector(&cond_past.state);
         let v_forward = self.state_to_vector(&cond_forward.state);
-        let dist_past = self.calc_distribution_far(cond_past.offset, &v_past, false);
-        let dist_forward = self.calc_distribution_far(cond_forward.offset, &v_forward, true);
-        let dist_past_to_forward =
-            self.calc_distribution_far(cond_past.offset + cond_forward.offset, &v_past, false);
+        let dist_past = self.calc_distribution_far(cond_past.offset, &v_past, Direction::Forward);
+        let dist_forward =
+            self.calc_distribution_far(cond_forward.offset, &v_forward, Direction::Backward);
+        let dist_past_to_forward = self.calc_distribution_far(
+            cond_past.offset + cond_forward.offset,
+            &v_past,
+            Direction::Forward,
+        );
         let scale = self.stationary[index_forward] / dist_past_to_forward[index_forward];
         Ok((0..self.states.len())
             .map(|i| dist_past[i] * dist_forward[i] * (1.0 / self.stationary[i]) * scale)
             .collect())
     }
 
-    /// Moves one step forward (or backward), drawing one random number.
-    pub fn next(&mut self, rng: &mut impl Rng, is_backward: bool) -> Result<T> {
-        let vp = self.calc_distribution(&self.state_to_vector(&self.state), is_backward);
-        self.pick(&vp, rng)
+    /// Draws the state one step after `from`, given that the chain is in `goal.state`
+    /// `goal.offset` steps after `from`. Draws one random number.
+    pub fn sample_next(&self, from: &T, goal: &Condition<T>, rng: &mut impl Rng) -> Result<T> {
+        let here = Condition::new(1, from.clone());
+        let there = Condition::new(goal.offset.saturating_sub(1), goal.state.clone());
+        let dist = self.calc_distribution_conditional(&here, &there)?;
+        self.pick(&dist, rng)
     }
 
-    /// Moves one step forward (or backward) so that the chain reaches `cond.state`
-    /// `cond.offset` steps from the current state, drawing one random number.
-    pub fn next_conditional(
-        &mut self,
-        rng: &mut impl Rng,
-        cond: &Condition<T>,
-        is_backward: bool,
-    ) -> Result<T> {
-        let here = Condition::new(1, self.state.clone());
-        let there = Condition::new(cond.offset.saturating_sub(1), cond.state.clone());
-        let vp = if is_backward {
-            self.calc_distribution_conditional(&there, &here)?
-        } else {
-            self.calc_distribution_conditional(&here, &there)?
-        };
-        self.pick(&vp, rng)
-    }
-
-    fn pick(&mut self, v: &[f64], rng: &mut impl Rng) -> Result<T> {
+    /// Draws a state with the weights `v`.
+    fn pick(&self, v: &[f64], rng: &mut impl Rng) -> Result<T> {
         let items = self.vector_to_weighted_items(v);
-        let next = weighted_pick(&items, rng).ok_or(Error::NoItems)?.clone();
-        self.state = next.clone();
-        Ok(next)
+        Ok(weighted_pick(&items, rng).ok_or(Error::NoItems)?.clone())
     }
 }
 
@@ -225,45 +221,62 @@ mod tests {
             (1, vec![w(0.001, 0), w(0.999, 1), w(0.0, 2)]),
             (2, vec![w(0.001, 0), w(0.0, 1), w(0.999, 2)]),
         ];
-        MarkovChain::new(0, &p).unwrap()
+        MarkovChain::new(&p).unwrap()
     }
 
     fn seed0() -> ReliableRandom {
         ReliableRandom::new(754, 489)
     }
 
+    /// Draws the states one at a time, each from the previous one (the first from 0).
+    fn walk(
+        chain: &MarkovChain<u8>,
+        rng: &mut impl Rng,
+        steps: impl IntoIterator<Item = Step>,
+    ) -> Vec<u8> {
+        let mut state = 0;
+        steps
+            .into_iter()
+            .map(|step| {
+                state = match step {
+                    Step::Free => {
+                        let dist = chain
+                            .calc_distribution(&chain.state_to_vector(&state), Direction::Forward);
+                        chain.pick(&dist, rng).unwrap()
+                    }
+                    Step::To(goal) => chain.sample_next(&state, &goal, rng).unwrap(),
+                };
+                state
+            })
+            .collect()
+    }
+
+    enum Step {
+        Free,
+        To(Condition<u8>),
+    }
+
     #[test]
     fn transition() {
-        let mut chain = chain3();
-        let mut r = seed0();
-        let got: Vec<_> = (0..4).map(|_| chain.next(&mut r, false).unwrap()).collect();
+        let got = walk(&chain3(), &mut seed0(), (0..4).map(|_| Step::Free));
         assert_eq!(got, [2, 2, 2, 2]);
     }
 
     #[test]
     fn conditional_transition() {
-        let mut chain = chain3();
-        let mut r = seed0();
-        let got: Vec<_> = [4, 3, 2, 1]
-            .map(|offset| {
-                chain
-                    .next_conditional(&mut r, &Condition::new(offset, 1), false)
-                    .unwrap()
-            })
-            .to_vec();
-        assert_eq!(got, [1, 1, 1, 1]);
+        let steps = [4, 3, 2, 1].map(|offset| Step::To(Condition::new(offset, 1)));
+        assert_eq!(walk(&chain3(), &mut seed0(), steps), [1, 1, 1, 1]);
     }
 
     #[test]
     fn conditional_transition_2() {
-        let mut chain = chain3();
-        let mut r = seed0();
-        let mut got = vec![chain.next(&mut r, false).unwrap()];
-        for (offset, state) in [(2, 1), (1, 1), (2, 2)] {
-            let cond = Condition::new(offset, state);
-            got.push(chain.next_conditional(&mut r, &cond, false).unwrap());
-        }
-        assert_eq!(got, [2, 0, 1, 0]);
+        let steps = [
+            Step::Free,
+            Step::To(Condition::new(2, 1)),
+            Step::To(Condition::new(1, 1)),
+            Step::To(Condition::new(2, 2)),
+        ];
+        assert_eq!(walk(&chain3(), &mut seed0(), steps), [2, 0, 1, 0]);
     }
 
     /// The cadence transition probabilities of resources/TuneGenParams_default.json.
@@ -274,7 +287,7 @@ mod tests {
             (D, vec![w(0.9, T), w(0.1, D), w(0.0, S)]),
             (S, vec![w(0.4, T), w(0.5, D), w(0.1, S)]),
         ];
-        MarkovChain::new(T, &p).unwrap()
+        MarkovChain::new(&p).unwrap()
     }
 
     fn assert_close(got: &[f64], expected: &[f64]) {
@@ -299,7 +312,7 @@ mod tests {
         let pi = chain.stationary();
         assert_close(pi, &[27.0 / 64.0, 19.0 / 64.0, 18.0 / 64.0]);
         assert!((sum(pi) - 1.0).abs() < 1e-12);
-        assert_close(&chain.calc_distribution(pi, false), pi);
+        assert_close(&chain.calc_distribution(pi, Direction::Forward), pi);
     }
 
     #[test]
@@ -318,14 +331,20 @@ mod tests {
     fn calc_distribution_far_applies_the_matrix_offset_times() {
         let chain = cadence_chain();
         let v = chain.state_to_vector(&D);
-        assert_close(&chain.calc_distribution_far(0, &v, false), &[0.0, 1.0, 0.0]);
-        assert_close(&chain.calc_distribution_far(1, &v, false), &[0.9, 0.1, 0.0]);
         assert_close(
-            &chain.calc_distribution_far(2, &v, false),
+            &chain.calc_distribution_far(0, &v, Direction::Forward),
+            &[0.0, 1.0, 0.0],
+        );
+        assert_close(
+            &chain.calc_distribution_far(1, &v, Direction::Forward),
+            &[0.9, 0.1, 0.0],
+        );
+        assert_close(
+            &chain.calc_distribution_far(2, &v, Direction::Forward),
             &[0.18, 0.28, 0.54],
         );
         assert_close(
-            &chain.calc_distribution_far(1, &v, true),
+            &chain.calc_distribution_far(1, &v, Direction::Backward),
             &[81.0 / 190.0, 0.1, 90.0 / 190.0],
         );
     }
@@ -418,7 +437,7 @@ mod tests {
             (D, vec![w(90.0, T), w(10.0, D), w(0.0, S)]),
             (S, vec![w(0.8, T), w(1.0, D), w(0.2, S)]),
         ];
-        let chain = MarkovChain::new(T, &scaled).unwrap();
+        let chain = MarkovChain::new(&scaled).unwrap();
         let expected = cadence_chain();
         for i in 0..3 {
             assert_close(
@@ -443,7 +462,7 @@ mod tests {
                 (D, vec![w(bad[0], T), w(bad[1], D)]),
             ];
             assert_eq!(
-                MarkovChain::new(T, &p).unwrap_err(),
+                MarkovChain::new(&p).unwrap_err(),
                 Error::InvalidTransition { from: 1 },
                 "{bad:?}"
             );
@@ -455,7 +474,7 @@ mod tests {
         let w = WeightedItem::new;
         let missing = [(T, vec![w(1.0, T)]), (D, vec![w(1.0, T), w(0.0, D)])];
         assert_eq!(
-            MarkovChain::new(T, &missing).unwrap_err(),
+            MarkovChain::new(&missing).unwrap_err(),
             Error::MissingTransition { from: 0, to: 1 }
         );
         let chain = chain3();

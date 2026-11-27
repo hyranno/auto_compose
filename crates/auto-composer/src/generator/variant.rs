@@ -3,12 +3,12 @@
 //! The variant draws from its own random number source (label `"variant"`): first the timespan,
 //! then the layer, then everything the variant of that layer needs. The original tune is
 //! generated in between with the seeds of the base parameters, and the layers below the chosen
-//! one are generated on top of the variant, as in TypeScript.
+//! one are generated on top of the variant.
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::markov::{Condition, MarkovChain};
+use crate::markov::{Condition, Direction, MarkovChain};
 use crate::random::{RandomSeed, Rng, RngFactory};
 use crate::tune::{Cadence, Chord, Note, NoteNode, Notenum, Resolution, Rhythm, Tune};
 use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
@@ -111,16 +111,19 @@ pub fn generate(
     if layer == Layer::Chord {
         tune.chord = vary_chord(&tune, timespan, &mut rng, &tune_params.chord)?;
     }
-    tune.notes = note::generate(&tune, &tune_params.note, factory)?;
+    let mut tree = note::generate_tree(&tune, &tune_params.note, factory)?;
     match layer {
-        Layer::Pitch => {
-            tune.notes = vary_pitch(&tune, timespan, &mut rng, &tune_params.note, factory)?;
-        }
-        Layer::Rhythm => {
-            tune.notes = vary_rhythm(&tune, timespan, &mut rng, &tune_params.note, factory)?;
-        }
+        Layer::Pitch => vary_pitch(
+            &tune,
+            &mut tree,
+            timespan,
+            &mut rng,
+            &tune_params.note.pitch_weight,
+        )?,
+        Layer::Rhythm => vary_rhythm(&tune, &mut tree, timespan, &mut rng, &tune_params.note)?,
         Layer::Cadence | Layer::Chord => {}
     }
+    tune.notes = note::tree_to_timeline(&tree)?;
     Ok(tune)
 }
 
@@ -146,13 +149,9 @@ pub fn vary_cadence(
     if end <= start + 1 {
         return Ok(tune.cadence.clone());
     }
-    let at = |i: usize| {
-        list.get(i).map(|e| e.value).ok_or(Error::NoItemAt {
-            timeline: "cadence",
-        })
-    };
-    let mut chain = MarkovChain::new(at(start)?, &params.probabilities)?;
-    let goal = at(end)?;
+    let chain = MarkovChain::new(&params.probabilities)?;
+    let goal = list[end].value;
+    let mut prev = list[start].value;
     let items = list
         .iter()
         .enumerate()
@@ -160,8 +159,8 @@ pub fn vary_cadence(
             if !(start < i && i < end) {
                 return Ok(e.clone());
             }
-            let value = chain.next_conditional(rng, &Condition::new(end - i, goal), false)?;
-            Ok(TimelineItem::new(e.t, value))
+            prev = chain.sample_next(&prev, &Condition::new(end - i, goal), rng)?;
+            Ok(TimelineItem::new(e.t, prev))
         })
         .collect::<Result<Vec<_>>>()?;
     Ok(Timeline::from_items(items))
@@ -194,10 +193,7 @@ pub fn vary_chord(
             let items_root = chord::root_items(&params.root, cadence)?;
             let root = *weighted_pick(items_root, rng).ok_or(Error::NoItems)?;
             let tones = weighted_pick(&params.tone.rand_tones.items, rng).ok_or(Error::NoItems)?;
-            Ok(TimelineItem::new(
-                e.t,
-                Chord::new(tune.scale.clone(), root, tones.clone()),
-            ))
+            Ok(TimelineItem::new(e.t, Chord::new(root, tones.clone())))
         })
         .collect::<Result<Vec<_>>>()?;
     Ok(Timeline::from_items(items))
@@ -241,7 +237,7 @@ pub fn interpolate(
             (p, row)
         })
         .collect();
-    let chain = MarkovChain::new(0, &transition)?;
+    let chain = MarkovChain::new(&transition)?;
     let nearest = |p: Notenum| p.clamp(candidates[0], candidates[candidates.len() - 1]);
     let end = nearest(end);
     let mut prev = nearest(start);
@@ -253,7 +249,7 @@ pub fn interpolate(
             &Condition::new(len - i, end),
         )?;
         if !is_distribution(&dist) {
-            dist = chain.calc_distribution(&chain.state_to_vector(&prev), false);
+            dist = chain.calc_distribution(&chain.state_to_vector(&prev), Direction::Forward);
         }
         let items = chain
             .vector_to_weighted_items(&dist)
@@ -286,17 +282,16 @@ fn is_distribution(v: &[f64]) -> bool {
     v.iter().all(|w| (0.0..f64::INFINITY).contains(w)) && v.iter().any(|&w| w > 0.0)
 }
 
-/// Regenerates the notes of the base parameters and redraws the pitches of the notes strictly
-/// inside the timespan (the indices are taken from `tune.notes`).
+/// Redraws the pitches of the leaves of `tree` strictly inside the timespan
+/// (by the indices of the leaves at its ends).
 pub fn vary_pitch(
     tune: &Tune,
+    tree: &mut NoteNode,
     timespan: [f64; 2],
     rng: &mut impl Rng,
-    params: &note::Parameters,
-    factory: &dyn RngFactory,
-) -> Result<Timeline<Note>> {
-    let [start, end] = span_indices(&tune.notes, timespan)?;
-    let mut tree = note::generate_tree(tune, params, factory)?;
+    params: &pitch_weight::Parameters,
+) -> Result<()> {
+    let [start, end] = span_indices(&note::tree_to_timeline(tree)?, timespan)?;
     let mut leaves = tree.leaves_mut();
     let pitch_at = |leaves: &[&mut NoteNode], i: usize| {
         leaves
@@ -310,31 +305,21 @@ pub fn vary_pitch(
     let dest = leaves
         .get_mut(start + 1..end.max(start + 1))
         .unwrap_or_default();
-    interpolate(
-        tune,
-        start_pitch,
-        end_pitch,
-        rng,
-        dest,
-        &params.pitch_weight,
-    )?;
-    note::tree_to_timeline(&tree)
+    interpolate(tune, start_pitch, end_pitch, rng, dest, params)
 }
 
-/// Regenerates the note tree of the base parameters, then splits, merges and toggles the notes
-/// inside the timespan.
+/// Splits, merges and toggles the leaves of `tree` inside the timespan.
 pub fn vary_rhythm(
     tune: &Tune,
+    tree: &mut NoteNode,
     timespan: [f64; 2],
     rng: &mut impl Rng,
     params: &note::Parameters,
-    factory: &dyn RngFactory,
-) -> Result<Timeline<Note>> {
-    let mut tree = note::generate_tree(tune, params, factory)?;
-    split_rhythm(tune, &mut tree, timespan, rng, params)?;
-    merge_rhythm(tune, &mut tree, timespan, rng, params)?;
-    toggle_note_on(&mut tree, timespan, rng, &params.rhythm);
-    note::tree_to_timeline(&tree)
+) -> Result<()> {
+    split_rhythm(tune, tree, timespan, rng, params)?;
+    merge_rhythm(tune, tree, timespan, rng, params)?;
+    toggle_note_on(tree, timespan, rng, &params.rhythm);
+    Ok(())
 }
 
 fn inside(timespan: [f64; 2], t: f64) -> bool {
@@ -680,10 +665,7 @@ mod tests {
     fn tune_with_a_chord() -> Tune {
         let mut tune = empty_tune([4, 4], Resolution::Half, 3);
         tune.scale = Scale::major(69);
-        tune.chord = Timeline::from_items([TimelineItem::new(
-            0.0,
-            Chord::new(tune.scale.clone(), 0, vec![0, 2, 4]),
-        )]);
+        tune.chord = Timeline::from_items([TimelineItem::new(0.0, Chord::new(0, vec![0, 2, 4]))]);
         tune
     }
 
@@ -741,8 +723,7 @@ mod tests {
             TimelineItem::new(4.0, Cadence::D),
         ]);
         tune.chord = Timeline::from_items(
-            [0.0, 2.0, 4.0, 6.0]
-                .map(|t| TimelineItem::new(t, Chord::new(tune.scale.clone(), 0, vec![0]))),
+            [0.0, 2.0, 4.0, 6.0].map(|t| TimelineItem::new(t, Chord::new(0, vec![0]))),
         );
         let mut rng = ConstantRng::new(0.5);
         let chord = vary_chord(&tune, [1.0, 5.0], &mut rng, &default_params().chord).unwrap();

@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::tune::{Cadence, Degree, Notenum, Resolution, RootedTones, Scale, Tune};
+use crate::tune::{Cadence, Degree, Notenum, Resolution, Scale, Tune};
 use crate::util::TimelineItem;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,7 +27,7 @@ pub struct ChordSnapshot {
     pub t: f64,
     pub root: Degree,
     pub tones: Vec<Degree>,
-    /// Redundant with `root` and `tones`; kept to cross-check [`RootedTones::notenums`].
+    /// Redundant with `root` and `tones`; kept to cross-check [`Chord::notenums`](crate::tune::Chord::notenums).
     pub notenums: Vec<Notenum>,
 }
 
@@ -59,7 +59,7 @@ impl From<&Tune> for TuneSnapshot {
                     t: e.t,
                     root: e.value.root,
                     tones: e.value.tones.clone(),
-                    notenums: e.value.notenums(),
+                    notenums: e.value.notenums(&tune.scale).collect(),
                 })
                 .collect(),
             notes: tune

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::tune::{Note, Notenum, RootedTones, Tune};
+use crate::tune::{Note, Notenum, Tune};
 use crate::util::SmoothstepParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -63,7 +63,7 @@ pub fn calc_with_time_homo_weight(
         .get(t)
         .ok_or(Error::NoItemAt { timeline: "chord" })?
         .value;
-    let factor_in_chord = if chord.includes(candidate.pitch) {
+    let factor_in_chord = if chord.includes(&tune.scale, candidate.pitch) {
         params.factor_in_chord
     } else {
         1.0
@@ -96,8 +96,8 @@ mod tests {
         let mut tune = empty_tune([4, 4], Resolution::Half, 3);
         tune.scale = Scale::major(69); // A major: 69 71 73 74 76 78 80
         tune.chord = Timeline::from_items([
-            TimelineItem::new(0.0, Chord::new(tune.scale.clone(), 0, vec![0, 2, 4])), // 69 73 76
-            TimelineItem::new(8.0, Chord::new(tune.scale.clone(), 4, vec![0, 2, 4])), // 76 80 83
+            TimelineItem::new(0.0, Chord::new(0, vec![0, 2, 4])), // 69 73 76
+            TimelineItem::new(8.0, Chord::new(4, vec![0, 2, 4])), // 76 80 83
         ]);
         tune
     }

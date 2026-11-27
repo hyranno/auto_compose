@@ -3,7 +3,6 @@
 //! Each `generate` takes the random number sources from a [`RngFactory`](crate::random::RngFactory)
 //! with the seed of its parameters, as the TypeScript version does with its `GenerateContext`.
 //! The steps inside take a `&mut impl Rng` so that tests can feed scripted values.
-//! The random numbers are consumed in the same order as in TypeScript.
 
 pub mod cadence;
 pub mod chord;

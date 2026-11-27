@@ -4,13 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::random::Rng;
 
-/// `((x % y) + y) % y`, the same expression as the TypeScript version.
-///
-/// It is not replaced with `rem_euclid`, whose result differs for some floating point inputs.
-pub fn modulo(x: f64, y: f64) -> f64 {
-    ((x % y) + y) % y
-}
-
 /// Hermite interpolation between `edge0` and `edge1`, clamped to `[0, 1]`.
 ///
 /// As in TypeScript, `edge0 == edge1` gives a step function that is `NaN` exactly at the edge
@@ -87,20 +80,6 @@ pub fn weighted_pick<'a, T>(items: &'a [WeightedItem<T>], rng: &mut impl Rng) ->
     Some(&items[index].value)
 }
 
-/// Sums the weights of items with equal values, keeping the order in which values first appear.
-pub fn merge_weighted_items<T: PartialEq + Clone>(
-    src: &[Vec<WeightedItem<T>>],
-) -> Vec<WeightedItem<T>> {
-    let mut res: Vec<WeightedItem<T>> = Vec::new();
-    for item in src.iter().flatten() {
-        match res.iter_mut().find(|wi| wi.value == item.value) {
-            Some(found) => found.weight += item.weight,
-            None => res.push(item.clone()),
-        }
-    }
-    res
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -116,8 +95,7 @@ impl<T> TimelineItem<T> {
     }
 }
 
-/// Items sorted by time. Items with equal times keep their insertion order (a stable sort,
-/// like JavaScript's `Array.prototype.sort`).
+/// Items sorted by time. Items with equal times keep their insertion order.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Timeline<T> {
     items: Vec<TimelineItem<T>>,
@@ -140,10 +118,12 @@ impl<T> Timeline<T> {
         res
     }
 
+    /// Inserts each item after the items whose time is not after it.
     pub fn add(&mut self, items: impl IntoIterator<Item = TimelineItem<T>>) {
-        self.items.extend(items);
-        self.items
-            .sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap_or(std::cmp::Ordering::Equal));
+        for item in items {
+            let i = self.upper_bound(item.t);
+            self.items.insert(i, item);
+        }
     }
 
     /// Adds the items of `src` shifted by `offset`.
@@ -158,23 +138,20 @@ impl<T> Timeline<T> {
         );
     }
 
-    /// The last item whose time is not after `t`. `None` before the first item
-    /// (the TypeScript version throws).
+    /// The last item whose time is not after `t`. `None` before the first item.
     pub fn get(&self, t: f64) -> Option<&TimelineItem<T>> {
         self.get_index(t).map(|i| &self.items[i])
     }
 
-    /// The index of [`Timeline::get`]. `None` before the first item
-    /// (the TypeScript version returned the length).
+    /// The index of [`Timeline::get`]. `None` before the first item.
     pub fn get_index(&self, t: f64) -> Option<usize> {
-        self.items.iter().rposition(|item| item.t <= t)
+        self.upper_bound(t).checked_sub(1)
     }
 
-    /// Removes the item at [`Timeline::get_index`] (nothing before the first item).
-    pub fn remove(&mut self, t: f64) {
-        if let Some(i) = self.get_index(t) {
-            self.items.remove(i);
-        }
+    /// The number of items whose time is not after `t`.
+    fn upper_bound(&self, t: f64) -> usize {
+        self.items
+            .partition_point(|item| item.t.total_cmp(&t).is_le())
     }
 
     pub fn list(&self) -> &[TimelineItem<T>] {
@@ -231,23 +208,6 @@ mod tests {
         assert_eq!(smoothstep(1.0, 1.0, 0.0), 0.0);
         assert_eq!(smoothstep(1.0, 1.0, 2.0), 1.0);
         assert!(smoothstep(1.0, 1.0, 1.0).is_nan());
-    }
-
-    #[test]
-    fn modulo_table() {
-        let cases = [
-            (0.0, 12.0, 0.0),
-            (5.0, 12.0, 5.0),
-            (12.0, 12.0, 0.0),
-            (13.0, 12.0, 1.0),
-            (-1.0, 12.0, 11.0),
-            (-12.0, 12.0, 0.0),
-            (-13.0, 12.0, 11.0),
-            (-1.0, 3.0, 2.0),
-        ];
-        for (x, y, expected) in cases {
-            assert_eq!(modulo(x, y), expected, "modulo({x}, {y})");
-        }
     }
 
     #[test]
@@ -346,22 +306,6 @@ mod tests {
         assert_eq!(rng.consumed(), 1);
     }
 
-    #[test]
-    fn merge_weighted_items_sums_equal_values() {
-        let merged = merge_weighted_items(&[
-            vec![WeightedItem::new(1.0, 'a'), WeightedItem::new(2.0, 'b')],
-            vec![WeightedItem::new(3.0, 'c'), WeightedItem::new(4.0, 'a')],
-        ]);
-        assert_eq!(
-            merged,
-            [
-                WeightedItem::new(5.0, 'a'),
-                WeightedItem::new(2.0, 'b'),
-                WeightedItem::new(3.0, 'c'),
-            ]
-        );
-    }
-
     fn timeline<T>(items: impl IntoIterator<Item = (f64, T)>) -> Timeline<T> {
         Timeline::from_items(items.into_iter().map(|(t, v)| TimelineItem::new(t, v)))
     }
@@ -424,18 +368,9 @@ mod tests {
     }
 
     #[test]
-    fn timeline_remove() {
-        let mut tl = events();
-        tl.remove(1.5);
-        assert_eq!(values(&tl), [0.0, 2.0, 3.0]);
-    }
-
-    #[test]
     fn timeline_before_the_first_item() {
-        let mut tl = timeline([(1.0, 'a'), (2.0, 'b')]);
+        let tl = timeline([(1.0, 'a'), (2.0, 'b')]);
         assert_eq!(tl.get_index(0.0), None);
         assert_eq!(tl.get(0.0), None);
-        tl.remove(0.0);
-        assert_eq!(tl.len(), 2);
     }
 }

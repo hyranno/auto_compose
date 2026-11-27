@@ -59,40 +59,9 @@ impl Tune {
     }
 }
 
-/// Operations shared by [`Scale`] and [`Chord`] (`RootedTones` in TypeScript).
-pub trait RootedTones {
-    fn notenums(&self) -> Vec<Notenum>;
-
-    /// Whether `note` is one of the notenums, ignoring the octave.
-    fn includes(&self, note: Notenum) -> bool {
-        self.notenums().iter().any(|v| v % 12 == note % 12)
-    }
-
-    /// Whether `note` is the first notenum, ignoring the octave.
-    fn is_root(&self, note: Notenum) -> bool {
-        self.notenums().first().is_some_and(|v| v % 12 == note % 12)
-    }
-
-    /// The notenum of a degree, wrapping into octaves.
-    ///
-    /// Panics if there are no tones (the TypeScript version returns `NaN`).
-    fn get(&self, pitch: Degree) -> Notenum {
-        let notenums = self.notenums();
-        let len = notenums.len() as i32;
-        notenums[pitch.rem_euclid(len) as usize] + 12 * pitch.div_euclid(len)
-    }
-
-    /// The mean of the notenums. `NaN` if there are none (the TypeScript version throws).
-    fn center(&self) -> f64 {
-        let notenums = self.notenums();
-        let Some((first, rest)) = notenums.split_first() else {
-            return f64::NAN;
-        };
-        let sum = rest
-            .iter()
-            .fold(f64::from(*first), |acc, &v| acc + f64::from(v));
-        sum / notenums.len() as f64
-    }
+/// Whether two notes are in the same pitch class.
+fn same_pitch_class(a: Notenum, b: Notenum) -> bool {
+    a.rem_euclid(12) == b.rem_euclid(12)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -116,17 +85,28 @@ impl Scale {
     pub fn minor(key: Notenum) -> Self {
         Self::new(key, vec![0, 2, 3, 5, 7, 8, 10])
     }
-}
 
-impl RootedTones for Scale {
-    fn notenums(&self) -> Vec<Notenum> {
-        self.tones.iter().map(|h| self.key + h).collect()
+    pub fn notenums(&self) -> impl Iterator<Item = Notenum> + '_ {
+        self.tones.iter().map(|h| self.key + h)
+    }
+
+    /// Whether `note` is on the scale, ignoring the octave.
+    pub fn includes(&self, note: Notenum) -> bool {
+        self.notenums().any(|v| same_pitch_class(v, note))
+    }
+
+    /// The notenum of a degree, wrapping into octaves.
+    ///
+    /// Panics if there are no tones.
+    pub fn get(&self, degree: Degree) -> Notenum {
+        let len = self.tones.len() as Degree;
+        self.key + self.tones[degree.rem_euclid(len) as usize] + 12 * degree.div_euclid(len)
     }
 }
 
+/// A chord on the scale of the tune.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chord {
-    pub scale: Scale,
     /// Degree of the root on the scale.
     pub root: Degree,
     /// Degrees from the root on the scale.
@@ -134,32 +114,18 @@ pub struct Chord {
 }
 
 impl Chord {
-    pub fn new(scale: Scale, root: Degree, tones: Vec<Degree>) -> Self {
-        Self { scale, root, tones }
+    pub fn new(root: Degree, tones: Vec<Degree>) -> Self {
+        Self { root, tones }
     }
 
-    /// Inversion: raises the lowest tone by an octave `times` times (lowers if negative).
-    pub fn rot(&self, scale: &Scale, times: i32) -> Chord {
-        let len = self.tones.len() as i32;
-        let octave = times.div_euclid(len);
-        let rest = times.rem_euclid(len);
-        let n = scale.tones.len() as i32;
-        let tones = self
-            .tones
-            .iter()
-            .zip(0..)
-            .map(|(h, i)| h + (octave + i32::from(i < rest)) * n)
-            .collect();
-        Chord::new(scale.clone(), self.root, tones)
+    /// The notenums of the tones on `scale`.
+    pub fn notenums<'a>(&'a self, scale: &'a Scale) -> impl Iterator<Item = Notenum> + 'a {
+        self.tones.iter().map(move |h| scale.get(self.root + h))
     }
-}
 
-impl RootedTones for Chord {
-    fn notenums(&self) -> Vec<Notenum> {
-        self.tones
-            .iter()
-            .map(|h| self.scale.get(self.root + h))
-            .collect()
+    /// Whether `note` is one of the tones on `scale`, ignoring the octave.
+    pub fn includes(&self, scale: &Scale, note: Notenum) -> bool {
+        self.notenums(scale).any(|v| same_pitch_class(v, note))
     }
 }
 
@@ -264,13 +230,6 @@ impl NoteNode {
         self.children.is_empty()
     }
 
-    /// All nodes in pre-order (`flat` in TypeScript).
-    pub fn flat(&self) -> Vec<&NoteNode> {
-        let mut res = Vec::new();
-        self.visit(&mut |n| res.push(n));
-        res
-    }
-
     fn visit<'a>(&'a self, f: &mut impl FnMut(&'a NoteNode)) {
         f(self);
         for c in &self.children {
@@ -331,30 +290,6 @@ mod tests {
     // Ported from src/core/tune.test.ts.
 
     #[test]
-    fn chord_rot() {
-        let scale = Scale::major(69);
-        let org = Chord::new(scale.clone(), 4, vec![0, 2, 4]);
-        assert_eq!(org.notenums(), [76, 80, 83]);
-        let cases: [(i32, [Notenum; 3]); 12] = [
-            (1, [88, 80, 83]),
-            (2, [88, 92, 83]),
-            (3, [88, 92, 95]),
-            (4, [100, 92, 95]),
-            (5, [100, 104, 95]),
-            (6, [100, 104, 107]),
-            (-1, [76, 80, 71]),
-            (-2, [76, 68, 71]),
-            (-3, [64, 68, 71]),
-            (-4, [64, 68, 59]),
-            (-5, [64, 56, 59]),
-            (-6, [52, 56, 59]),
-        ];
-        for (times, expected) in cases {
-            assert_eq!(org.rot(&scale, times).notenums(), expected, "rot {times}");
-        }
-    }
-
-    #[test]
     fn scale_get_wraps_degrees_into_octaves() {
         let scale = Scale::major(60);
         let cases = [
@@ -375,26 +310,20 @@ mod tests {
 
     #[test]
     fn scale_minor() {
-        assert_eq!(Scale::minor(57).notenums(), [57, 59, 60, 62, 64, 65, 67]);
+        let notenums: Vec<_> = Scale::minor(57).notenums().collect();
+        assert_eq!(notenums, [57, 59, 60, 62, 64, 65, 67]);
     }
 
     #[test]
-    fn scale_includes_and_is_root_ignore_the_octave() {
+    fn scale_includes_ignores_the_octave() {
         let scale = Scale::major(60);
-        let notes = [48, 60, 61, 71, 72, 73, 83];
+        let notes = [-1, 0, 1, 48, 60, 61, 71, 72, 73, 83];
         assert_eq!(
             notes.map(|n| scale.includes(n)),
-            [true, true, false, true, true, false, true]
+            [
+                true, true, false, true, true, false, true, true, false, true
+            ]
         );
-        assert_eq!(
-            notes.map(|n| scale.is_root(n)),
-            [true, true, false, false, true, false, false]
-        );
-    }
-
-    #[test]
-    fn scale_center_is_the_mean() {
-        assert_eq!(Scale::major(60).center(), 458.0 / 7.0);
     }
 
     #[test]
@@ -408,20 +337,20 @@ mod tests {
             (-1, &[0, 2, 4], &[59, 62, 65]),
         ];
         for (root, tones, expected) in cases {
-            let chord = Chord::new(scale.clone(), root, tones.to_vec());
-            assert_eq!(chord.notenums(), expected, "root {root}");
+            let chord = Chord::new(root, tones.to_vec());
+            let notenums: Vec<_> = chord.notenums(&scale).collect();
+            assert_eq!(notenums, expected, "root {root}");
         }
     }
 
     #[test]
-    fn chord_includes_is_root_and_center() {
-        let chord = Chord::new(Scale::major(60), 5, vec![0, 2, 4]); // A minor: 69, 72, 76
+    fn chord_includes_ignores_the_octave() {
+        let scale = Scale::major(60);
+        let chord = Chord::new(5, vec![0, 2, 4]); // A minor: 69, 72, 76
         assert_eq!(
-            [57, 60, 64, 65].map(|n| chord.includes(n)),
-            [true, true, true, false]
+            [-3, 57, 60, 64, 65].map(|n| chord.includes(&scale, n)),
+            [true, true, true, true, false]
         );
-        assert_eq!([57, 81, 60].map(|n| chord.is_root(n)), [true, true, false]);
-        assert_eq!(chord.center(), 217.0 / 3.0);
     }
 
     #[test]
@@ -439,14 +368,14 @@ mod tests {
             length: 4.0,
             scale: scale.clone(),
             cadence: tl(vec![(0.0, Cadence::T), (2.0, Cadence::D)]),
-            chord: tl(vec![(0.0, Chord::new(scale.clone(), 0, vec![0, 2, 4]))]),
+            chord: tl(vec![(0.0, Chord::new(0, vec![0, 2, 4]))]),
             notes: tl(vec![(0.0, note(60, 4.0, true))]),
             ..Tune::default()
         };
         let b = Tune {
             length: 2.0,
             cadence: tl(vec![(0.0, Cadence::S)]),
-            chord: tl(vec![(0.0, Chord::new(scale.clone(), 3, vec![0, 2, 4]))]),
+            chord: tl(vec![(0.0, Chord::new(3, vec![0, 2, 4]))]),
             notes: tl(vec![(1.0, note(65, 1.0, false))]),
             resolution: tl(vec![(0.0, Resolution::Half)]),
             ..Tune::default()
@@ -522,11 +451,6 @@ mod tests {
 
     fn names(nodes: &[&NoteNode]) -> Vec<f64> {
         nodes.iter().map(|n| n.rhythm.t).collect()
-    }
-
-    #[test]
-    fn note_node_flat_is_pre_order() {
-        assert_eq!(names(&tree().flat()), [0.0, 1.0, 3.0, 4.0, 2.0]);
     }
 
     #[test]
