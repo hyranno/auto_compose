@@ -15,6 +15,8 @@ import {
 import { download, readChosenFile } from './file';
 import {
   CADENCES,
+  defaultTune,
+  defaultVariant,
   LAYERS,
   MAJOR_TONES,
   MINOR_TONES,
@@ -23,23 +25,36 @@ import {
   type Parameters,
 } from './params';
 
-/** Buttons to save a part of the parameters as JSON and to load it back. */
-function JsonFile(props: { filename: string; save: () => unknown; load: (json: unknown) => void }) {
+/** Buttons to save a part of the parameters as JSON, to load it back, and to load its defaults. */
+function JsonFile(props: {
+  filename: string;
+  save: () => unknown;
+  load: (json: unknown) => void;
+  loadDefault: () => unknown;
+}) {
   const [error, setError] = createSignal<string>();
   let input!: HTMLInputElement;
-  const load = async () => {
+  /** Loads the JSON that `read` gives, or shows why it is not loaded. */
+  const load = async (read: () => unknown) => {
     try {
-      const text = await readChosenFile(input);
-      if (text === undefined) return;
-      props.load(JSON.parse(text));
+      const json = await read();
+      if (json === undefined) return;
+      props.load(json);
       setError(undefined);
     } catch (e) {
       setError(`Not loaded: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      // Lets the same file be chosen again after it is edited.
-      input.value = '';
     }
   };
+  const loadChosenFile = () =>
+    load(async () => {
+      try {
+        const text = await readChosenFile(input);
+        return text === undefined ? undefined : JSON.parse(text);
+      } finally {
+        // Lets the same file be chosen again after it is edited.
+        input.value = '';
+      }
+    });
   return (
     <div class="json-file">
       <button
@@ -51,7 +66,10 @@ function JsonFile(props: { filename: string; save: () => unknown; load: (json: u
       <button type="button" onClick={() => input.click()}>
         load JSON
       </button>
-      <input ref={input} type="file" accept=".json,application/json" hidden onChange={load} />
+      <input ref={input} type="file" accept=".json,application/json" hidden onChange={loadChosenFile} />
+      <button type="button" onClick={() => load(props.loadDefault)}>
+        load default
+      </button>
       <Show when={error()}>{(message) => <p role="alert">{message()}</p>}</Show>
     </div>
   );
@@ -66,6 +84,7 @@ export function TuneSettings(props: { parameters: Parameters }) {
         filename="TuneGenParams.json"
         save={() => props.parameters.snapshot().tune}
         load={props.parameters.loadTune}
+        loadDefault={defaultTune}
       />
       <Field label="seed">
         <SeedInput value={tune().seed} onChange={(v) => set('tune', 'seed', v)} />
@@ -249,6 +268,7 @@ export function VariantSettings(props: { parameters: Parameters }) {
         filename="VariantGenParams.json"
         save={() => props.parameters.snapshot().variant}
         load={props.parameters.loadVariant}
+        loadDefault={defaultVariant}
       />
       <Field label="seed">
         <SeedInput value={variant().seed} onChange={(v) => set('variant', 'seed', v)} />

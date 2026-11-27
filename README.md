@@ -28,6 +28,7 @@ After changing the parameters, press the generate button (or Enter in a field) t
 A field whose value cannot be read is outlined in red, and the tune is not generated until it is fixed.
 
 Press the save JSON button to save the settings to a file, and the load JSON button to load them back.
+The load default button restores the settings the page starts with (`resources/TuneGenParams_minor.json` for the tune).
 Examples are in the `resources` folder, and the format (JSON Schema) is in the `schemas` folder.
 If a loaded file has an error, it is not applied and the error is shown.
 

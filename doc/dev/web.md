@@ -41,8 +41,11 @@ by restarting `npm run dev`.
 | `src/tune.ts` | Helpers on `TuneSnapshot`: lookups on the timelines, pitch classes, the melody and chord tracks |
 | `src/file.ts` | Downloading and reading files |
 
-The defaults of the store come from `defaultTuneParameters()` and `defaultVariantParameters()`,
-so the page holds no defaults of its own. The forms cover all the parameters.
+The defaults of the page come from `resources/`: the tune parameters are
+`resources/TuneGenParams_minor.json`, imported as a JSON module (hence `../resources` in
+`server.fs.allow`), and the variant parameters come from `defaultVariantParameters()`.
+They are what the page starts with and what the load default buttons restore.
+The page starts at 120 BPM (`DEFAULT_BPM` in `src/params.ts`). The forms cover all the parameters.
 
 The text inputs (`ParsedInput` in `src/fields.tsx`) keep what the user types. A text that parses
 is written to the store at once; one that does not is marked with `setCustomValidity` and leaves the

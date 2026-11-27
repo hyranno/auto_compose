@@ -28,6 +28,7 @@ AIによって生み出される創作物の取扱いに準ずるものと考え
 読み取れない値の入力欄は赤枠で示され、直すまで曲は生成されません。
 
 設定はsave JSONボタンでファイルに保存し、load JSONボタンで読み込めます。
+load defaultボタンでページを開いたときの設定(曲は `resources/TuneGenParams_minor.json`)に戻せます。
 ファイルの例はresourcesフォルダにあり、書式(JSON Schema)はschemasフォルダにあります。
 読み込んだファイルに誤りがある場合は、反映されずにエラーが表示されます。
 

@@ -3,7 +3,7 @@ import { compose, type TuneSnapshot } from 'auto-composer-wasm';
 
 import { Field, NumberInput } from './fields';
 import { PianoRoll } from './PianoRoll';
-import { createParameters } from './params';
+import { createParameters, DEFAULT_BPM } from './params';
 import { TuneSettings, VariantSettings } from './Settings';
 import { TuneOutput } from './Output';
 import './App.css';
@@ -15,7 +15,7 @@ export default function App() {
   const parameters = createParameters();
   const [tune, setTune] = createSignal<TuneSnapshot>();
   const [error, setError] = createSignal<string>();
-  const [bpm, setBpm] = createSignal(100);
+  const [bpm, setBpm] = createSignal(DEFAULT_BPM);
 
   let form!: HTMLFormElement;
 

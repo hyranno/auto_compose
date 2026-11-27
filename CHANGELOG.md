@@ -17,6 +17,8 @@ The same parameters no longer give the same tunes as the TypeScript version
   Both the tune and the variant parameters can be saved and loaded, and every parameter has a form
   (including the cadence transitions, the chord roots and tones, and the timespans and layers of
   the variant). An input that does not parse is marked and blocks the generation.
+  The page starts with the minor example (`resources/TuneGenParams_minor.json`) at 120 BPM,
+  and the load default buttons restore it.
 - Golden fixtures (`fixtures/`) that pin the generated output.
 - CI on GitHub Actions (formatting, clippy, tests of the crates and the bindings, and the build of the
   web page), which also deploys the page to GitHub Pages from `master`.

@@ -12,8 +12,9 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     fs: {
-      // `auto-composer-wasm` is linked from outside this package (`file:` dependency).
-      allow: ['.', '../crates/auto-composer-wasm/pkg'],
+      // `auto-composer-wasm` is linked from outside this package (`file:` dependency),
+      // and the default parameters of the page are read from `resources/`.
+      allow: ['.', '../crates/auto-composer-wasm/pkg', '../resources'],
     },
   },
   build: {
