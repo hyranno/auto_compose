@@ -1,4 +1,4 @@
-//! Time-homogeneous Markov chain on finite states (`src/core/markov.ts`).
+//! Time-homogeneous Markov chain on finite states.
 //!
 //! The chain holds only the probabilities. The state to move from and the [`Rng`] to draw
 //! with are given to each draw.
@@ -21,20 +21,10 @@ impl<T> Condition<T> {
     }
 }
 
-/// The direction of a step of the chain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Direction {
-    Forward,
-    /// By the time-reversed chain ([`MarkovChain::backward_matrix`]).
-    Backward,
-}
-
 #[derive(Debug, Clone)]
 pub struct MarkovChain<T> {
     states: Vec<T>,
     transition_matrix: Matrix,
-    backward_matrix: Matrix,
-    stationary: Vec<f64>,
 }
 
 impl<T: Clone + PartialEq> MarkovChain<T> {
@@ -76,16 +66,9 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
             data.extend(row.iter().map(|w| w / sum));
         }
         let transition_matrix = Matrix::from_fn(n, n, |i, j| data[i * n + j]);
-        let stationary = stationary_distribution(&transition_matrix);
-        // P(S(t-1)=j | S(t)=i) = P(S(t)=i | S(t-1)=j) * P(S(t)=j) / P(S(t)=i)
-        let backward_matrix = Matrix::from_fn(n, n, |i, j| {
-            transition_matrix.get(j, i) * stationary[j] / stationary[i]
-        });
         Ok(Self {
             states,
             transition_matrix,
-            backward_matrix,
-            stationary,
         })
     }
 
@@ -95,14 +78,6 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
 
     pub fn transition_matrix(&self) -> &Matrix {
         &self.transition_matrix
-    }
-
-    pub fn backward_matrix(&self) -> &Matrix {
-        &self.backward_matrix
-    }
-
-    pub fn stationary(&self) -> &[f64] {
-        &self.stationary
     }
 
     pub fn state_to_index(&self, state: &T) -> Option<usize> {
@@ -125,85 +100,72 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
             .collect()
     }
 
-    /// The distribution one step from `v`.
-    pub fn calc_distribution(&self, v: &[f64], direction: Direction) -> Vec<f64> {
-        let mat = match direction {
-            Direction::Forward => &self.transition_matrix,
-            Direction::Backward => &self.backward_matrix,
-        };
-        mat.left_mul(v)
+    /// The distribution one step after `v`.
+    pub fn calc_distribution(&self, v: &[f64]) -> Vec<f64> {
+        self.transition_matrix.left_mul(v)
     }
 
-    /// The distribution `offset` steps from `v`.
-    pub fn calc_distribution_far(
-        &self,
-        offset: usize,
-        v: &[f64],
-        direction: Direction,
-    ) -> Vec<f64> {
-        (0..offset).fold(v.to_vec(), |res, _| self.calc_distribution(&res, direction))
+    /// The distribution `offset` steps after `v`.
+    pub fn calc_distribution_far(&self, offset: usize, v: &[f64]) -> Vec<f64> {
+        (0..offset).fold(v.to_vec(), |res, _| self.calc_distribution(&res))
+    }
+
+    /// The probability of being in `state` `offset` steps after each state.
+    pub fn calc_reach_probabilities(&self, offset: usize, state: &T) -> Vec<f64> {
+        let v = self.state_to_vector(state);
+        (0..offset).fold(v, |res, _| self.transition_matrix.mul_vec(&res))
     }
 
     /// The distribution of the state `cond_past.offset` steps after `cond_past.state`,
     /// given that the chain is in `cond_forward.state` `cond_forward.offset` steps after that.
+    ///
+    /// The values are not finite if the condition cannot be met.
     pub fn calc_distribution_conditional(
         &self,
         cond_past: &Condition<T>,
         cond_forward: &Condition<T>,
     ) -> Result<Vec<f64>> {
-        let index_forward = self
-            .state_to_index(&cond_forward.state)
-            .ok_or(Error::UnknownState)?;
+        if self.state_to_index(&cond_forward.state).is_none() {
+            return Err(Error::UnknownState);
+        }
         let v_past = self.state_to_vector(&cond_past.state);
-        let v_forward = self.state_to_vector(&cond_forward.state);
-        let dist_past = self.calc_distribution_far(cond_past.offset, &v_past, Direction::Forward);
-        let dist_forward =
-            self.calc_distribution_far(cond_forward.offset, &v_forward, Direction::Backward);
-        let dist_past_to_forward = self.calc_distribution_far(
-            cond_past.offset + cond_forward.offset,
-            &v_past,
-            Direction::Forward,
-        );
-        let scale = self.stationary[index_forward] / dist_past_to_forward[index_forward];
-        Ok((0..self.states.len())
-            .map(|i| dist_past[i] * dist_forward[i] * (1.0 / self.stationary[i]) * scale)
-            .collect())
+        let dist_past = self.calc_distribution_far(cond_past.offset, &v_past);
+        let reach = self.calc_reach_probabilities(cond_forward.offset, &cond_forward.state);
+        let joint: Vec<f64> = dist_past.iter().zip(&reach).map(|(p, r)| p * r).collect();
+        let sum: f64 = joint.iter().sum();
+        Ok(joint.iter().map(|w| w / sum).collect())
     }
 
-    /// Draws the state one step after `from`, given that the chain is in `goal.state`
-    /// `goal.offset` steps after `from`. Draws one random number.
-    pub fn sample_next(&self, from: &T, goal: &Condition<T>, rng: &mut impl Rng) -> Result<T> {
+    /// The distribution of the state one step after `from`, given that the chain is in
+    /// `goal.state` `goal.offset` steps after `from`. When the goal cannot be reached, the
+    /// condition is dropped: the distribution one step after `from`.
+    pub fn next_distribution(&self, from: &T, goal: &Condition<T>) -> Result<Vec<f64>> {
         let here = Condition::new(1, from.clone());
         let there = Condition::new(goal.offset.saturating_sub(1), goal.state.clone());
         let dist = self.calc_distribution_conditional(&here, &there)?;
+        if is_distribution(&dist) {
+            Ok(dist)
+        } else {
+            Ok(self.calc_distribution(&self.state_to_vector(from)))
+        }
+    }
+
+    /// Draws the state of [`MarkovChain::next_distribution`], drawing one random number.
+    pub fn sample_next(&self, from: &T, goal: &Condition<T>, rng: &mut impl Rng) -> Result<T> {
+        let dist = self.next_distribution(from, goal)?;
         self.pick(&dist, rng)
     }
 
     /// Draws a state with the weights `v`.
     fn pick(&self, v: &[f64], rng: &mut impl Rng) -> Result<T> {
         let items = self.vector_to_weighted_items(v);
-        Ok(weighted_pick(&items, rng).ok_or(Error::NoItems)?.clone())
+        Ok(weighted_pick(&items, rng)?.clone())
     }
 }
 
-/// Solves `(I - P)^T x = 0` with `sum(x) = 1`, as the TypeScript version does:
-/// the system is extended to `(n+1) x (n+1)` with the last row and column all 1,
-/// the right-hand side `[0, ..., 0, 1]`, and the last element of the solution is dropped.
-fn stationary_distribution(p: &Matrix) -> Vec<f64> {
-    let n = p.rows();
-    let lefthand0 = Matrix::identity(n).sub(p).transpose();
-    let lefthand = Matrix::from_fn(n + 1, n + 1, |i, j| {
-        if i < n && j < n {
-            lefthand0.get(i, j)
-        } else {
-            1.0
-        }
-    });
-    let mut righthand = vec![0.0; n + 1];
-    righthand[n] = 1.0;
-    let mut x = lefthand.solve(&righthand);
-    x.truncate(n);
-    x
+/// Whether the weights can be drawn from: finite, non-negative and not all 0.
+fn is_distribution(v: &[f64]) -> bool {
+    v.iter().all(|w| (0.0..f64::INFINITY).contains(w)) && v.iter().any(|&w| w > 0.0)
 }
 
 #[cfg(test)]
@@ -211,8 +173,6 @@ mod tests {
     use super::*;
     use crate::random::ReliableRandom;
     use crate::tune::Cadence::{self, D, S, T};
-
-    // Ported from src/core/markov.test.ts.
 
     fn chain3() -> MarkovChain<u8> {
         let w = WeightedItem::new;
@@ -240,8 +200,7 @@ mod tests {
             .map(|step| {
                 state = match step {
                     Step::Free => {
-                        let dist = chain
-                            .calc_distribution(&chain.state_to_vector(&state), Direction::Forward);
+                        let dist = chain.calc_distribution(&chain.state_to_vector(&state));
                         chain.pick(&dist, rng).unwrap()
                     }
                     Step::To(goal) => chain.sample_next(&state, &goal, rng).unwrap(),
@@ -307,45 +266,23 @@ mod tests {
     }
 
     #[test]
-    fn stationary_distribution_of_the_default_cadence() {
-        let chain = cadence_chain();
-        let pi = chain.stationary();
-        assert_close(pi, &[27.0 / 64.0, 19.0 / 64.0, 18.0 / 64.0]);
-        assert!((sum(pi) - 1.0).abs() < 1e-12);
-        assert_close(&chain.calc_distribution(pi, Direction::Forward), pi);
-    }
-
-    #[test]
-    fn backward_matrix() {
-        let chain = cadence_chain();
-        let b = chain.backward_matrix();
-        assert_close(b.row(0), &[0.1, 57.0 / 90.0, 24.0 / 90.0]);
-        assert_close(b.row(1), &[81.0 / 190.0, 0.1, 90.0 / 190.0]);
-        assert_close(b.row(2), &[0.9, 0.0, 0.1]);
-        for i in 0..3 {
-            assert!((sum(b.row(i)) - 1.0).abs() < 1e-12);
-        }
-    }
-
-    #[test]
     fn calc_distribution_far_applies_the_matrix_offset_times() {
         let chain = cadence_chain();
         let v = chain.state_to_vector(&D);
+        assert_close(&chain.calc_distribution_far(0, &v), &[0.0, 1.0, 0.0]);
+        assert_close(&chain.calc_distribution_far(1, &v), &[0.9, 0.1, 0.0]);
+        assert_close(&chain.calc_distribution_far(2, &v), &[0.18, 0.28, 0.54]);
+    }
+
+    #[test]
+    fn reach_probabilities_apply_the_matrix_from_the_right() {
+        let chain = cadence_chain();
+        assert_close(&chain.calc_reach_probabilities(0, &D), &[0.0, 1.0, 0.0]);
+        assert_close(&chain.calc_reach_probabilities(1, &D), &[0.3, 0.1, 0.5]);
+        // P[i][T] * 0.3 + P[i][D] * 0.1 + P[i][S] * 0.5
         assert_close(
-            &chain.calc_distribution_far(0, &v, Direction::Forward),
-            &[0.0, 1.0, 0.0],
-        );
-        assert_close(
-            &chain.calc_distribution_far(1, &v, Direction::Forward),
-            &[0.9, 0.1, 0.0],
-        );
-        assert_close(
-            &chain.calc_distribution_far(2, &v, Direction::Forward),
-            &[0.18, 0.28, 0.54],
-        );
-        assert_close(
-            &chain.calc_distribution_far(1, &v, Direction::Backward),
-            &[81.0 / 190.0, 0.1, 90.0 / 190.0],
+            &chain.calc_reach_probabilities(2, &D),
+            &[0.03 + 0.03 + 0.3, 0.27 + 0.01, 0.12 + 0.05 + 0.05],
         );
     }
 
@@ -387,15 +324,10 @@ mod tests {
         assert_close(&d1, &w.map(|x| x / sum(&w)));
     }
 
-    // Printed with full precision from the TypeScript implementation (vectorious 6).
+    // The values printed by the TypeScript implementation, up to rounding.
     #[test]
-    fn matches_typescript_bit_for_bit() {
+    fn known_values() {
         let chain = cadence_chain();
-        assert_eq!(chain.stationary(), [0.421875, 0.296875, 0.28125]);
-        let b = chain.backward_matrix();
-        assert_eq!(b.row(0), [0.1, 0.6333333333333334, 0.26666666666666666]);
-        assert_eq!(b.row(1), [0.4263157894736842, 0.1, 0.47368421052631576]);
-        assert_eq!(b.row(2), [0.8999999999999999, 0.0, 0.1]);
         // (past state, past offset, forward state, forward offset, expected)
         let cases = [
             (
@@ -425,8 +357,24 @@ mod tests {
             let d = chain
                 .calc_distribution_conditional(&Condition::new(po, ps), &Condition::new(fo, fs))
                 .unwrap();
-            assert_eq!(d, expected, "{ps:?} {po} {fs:?} {fo}");
+            assert_close(&d, &expected);
         }
+    }
+
+    #[test]
+    fn next_distribution_drops_an_unreachable_goal() {
+        let w = WeightedItem::new;
+        // 0 is absorbing: 1 cannot be reached from 0.
+        let p = [
+            (0u8, vec![w(1.0, 0), w(0.0, 1)]),
+            (1, vec![w(0.5, 0), w(0.5, 1)]),
+        ];
+        let chain = MarkovChain::new(&p).unwrap();
+        let dist = chain.next_distribution(&0, &Condition::new(2, 1)).unwrap();
+        assert_eq!(dist, [1.0, 0.0]);
+        // Reachable: from 1 to 1 in 2 steps, the next state must be 1.
+        let dist = chain.next_distribution(&1, &Condition::new(2, 1)).unwrap();
+        assert_close(&dist, &[0.0, 1.0]);
     }
 
     #[test]
@@ -445,7 +393,6 @@ mod tests {
                 expected.transition_matrix().row(i),
             );
         }
-        assert_close(chain.stationary(), expected.stationary());
     }
 
     #[test]

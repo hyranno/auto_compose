@@ -37,8 +37,7 @@ pub fn generate_with(
     params: &Parameters,
     rng: &mut impl Rng,
 ) -> Result<Timeline<Cadence>> {
-    // A NaN or infinite duration gives one slot, as in TypeScript; only these would loop forever.
-    if params.duration <= 0.0 {
+    if !(params.duration > 0.0 && params.duration.is_finite()) {
         return Err(Error::InvalidParameter("cadence.duration"));
     }
     let length = f64::from(tune.time_measure[0] * tune.time_measure[1]);
@@ -161,15 +160,18 @@ mod tests {
     }
 
     #[test]
-    fn rejects_a_duration_that_is_not_positive() {
-        let params = Parameters {
-            duration: 0.0,
-            ..default_params().cadence
-        };
+    fn rejects_a_duration_that_is_not_positive_and_finite() {
         let tune = empty_tune([4, 4], Resolution::Half, 3);
-        assert_eq!(
-            generate_with(&tune, &params, &mut ConstantRng::new(0.0)),
-            Err(Error::InvalidParameter("cadence.duration"))
-        );
+        for duration in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            let params = Parameters {
+                duration,
+                ..default_params().cadence
+            };
+            assert_eq!(
+                generate_with(&tune, &params, &mut ConstantRng::new(0.0)),
+                Err(Error::InvalidParameter("cadence.duration")),
+                "{duration}"
+            );
+        }
     }
 }

@@ -11,6 +11,8 @@ use crate::tune::Cadence;
 pub enum Error {
     /// A weighted random choice was made from an empty list.
     NoItems,
+    /// The weights of a weighted random choice are negative or not finite, or they are all 0.
+    InvalidWeights,
     /// A state of a Markov chain was not found among its states.
     UnknownState,
     /// The transition probabilities of a Markov chain lack the transition `from` -> `to`
@@ -37,6 +39,10 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NoItems => write!(f, "no items to choose from"),
+            Self::InvalidWeights => write!(
+                f,
+                "the weights to choose by must be non-negative and finite, and not all 0"
+            ),
             Self::UnknownState => write!(f, "unknown state of the Markov chain"),
             Self::MissingTransition { from, to } => {
                 write!(

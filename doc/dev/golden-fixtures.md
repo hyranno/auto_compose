@@ -73,7 +73,5 @@ Seeds in the parameter JSON are read as JavaScript does: the number becomes a `f
 
 The Rust unit tests are in the `#[cfg(test)]` module of each file (`util.rs`, `tune.rs`, `markov.rs`,
 `generator/*.rs`, ...). Many were ported from the former TypeScript tests (`src/core/*.test.ts`), whose inputs and expectations are
-written as tables for that reason, and compare exactly where TypeScript printed the value with full
-precision. The linear algebra (`linalg.rs`) performs the same operations in the same order as the
-JavaScript fallback of vectorious (LU decomposition with partial pivoting), so the Markov chain matched
-TypeScript bit for bit.
+written as tables for that reason. Values computed in floating point (such as the distributions of
+the Markov chain) are compared with a tolerance.

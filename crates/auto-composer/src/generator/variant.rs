@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::markov::{Condition, Direction, MarkovChain};
+use crate::markov::{Condition, MarkovChain};
 use crate::random::{RandomSeed, Rng, RngFactory};
 use crate::tune::{Cadence, Chord, Note, NoteNode, Notenum, Resolution, Rhythm, Tune};
 use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
@@ -96,8 +96,8 @@ pub fn generate(
     factory: &dyn RngFactory,
 ) -> Result<Tune> {
     let mut rng = factory.create(params.seed, "variant");
-    let timespan = *weighted_pick(&params.timespan, &mut rng).ok_or(Error::NoItems)?;
-    let layer = *weighted_pick(&params.layer, &mut rng).ok_or(Error::NoItems)?;
+    let timespan = *weighted_pick(&params.timespan, &mut rng)?;
+    let layer = *weighted_pick(&params.layer, &mut rng)?;
     let tune_params = tune_generator::Parameters {
         resolution: params.resolution,
         ..base.clone()
@@ -191,8 +191,8 @@ pub fn vary_chord(
                 })?
                 .value;
             let items_root = chord::root_items(&params.root, cadence)?;
-            let root = *weighted_pick(items_root, rng).ok_or(Error::NoItems)?;
-            let tones = weighted_pick(&params.tone.rand_tones.items, rng).ok_or(Error::NoItems)?;
+            let root = *weighted_pick(items_root, rng)?;
+            let tones = weighted_pick(&params.tone.rand_tones.items, rng)?;
             Ok(TimelineItem::new(e.t, Chord::new(root, tones.clone())))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -222,7 +222,7 @@ pub fn interpolate(
     let key = tune.scale.key;
     let candidates: Vec<Notenum> = (key - max_length_to_key + 1..key + max_length_to_key).collect();
     if candidates.is_empty() {
-        // TypeScript fails to build the Markov chain of no states.
+        // The Markov chain needs a state.
         return Err(Error::InvalidParameter("pitchWeight.absPitchFactor.edge1"));
     }
     let transition: Vec<(Notenum, Vec<WeightedItem<Notenum>>)> = candidates
@@ -244,13 +244,7 @@ pub fn interpolate(
     let len = dest.len();
     for (i, note) in dest.iter_mut().enumerate() {
         // From the note `i`, `len - 1 - i` notes and then `end` follow.
-        let mut dist = chain.calc_distribution_conditional(
-            &Condition::new(1, prev),
-            &Condition::new(len - i, end),
-        )?;
-        if !is_distribution(&dist) {
-            dist = chain.calc_distribution(&chain.state_to_vector(&prev), Direction::Forward);
-        }
+        let dist = chain.next_distribution(&prev, &Condition::new(len - i + 1, end))?;
         let items = chain
             .vector_to_weighted_items(&dist)
             .into_iter()
@@ -270,16 +264,11 @@ pub fn interpolate(
                 Ok(WeightedItem::new(weight, item.value))
             })
             .collect::<Result<Vec<_>>>()?;
-        let pitch = *weighted_pick(&items, rng).ok_or(Error::NoItems)?;
+        let pitch = *weighted_pick(&items, rng)?;
         note.pitch = Some(pitch);
         prev = pitch;
     }
     Ok(())
-}
-
-/// Whether the weights can be drawn from: finite, non-negative and not all 0.
-fn is_distribution(v: &[f64]) -> bool {
-    v.iter().all(|w| (0.0..f64::INFINITY).contains(w)) && v.iter().any(|&w| w > 0.0)
 }
 
 /// Redraws the pitches of the leaves of `tree` strictly inside the timespan

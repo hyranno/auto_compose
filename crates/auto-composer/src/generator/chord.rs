@@ -98,7 +98,7 @@ pub fn generate_roots(
         .iter()
         .map(|c| {
             let items = root_items(params, c.value)?;
-            let root = *weighted_pick(items, rng).ok_or(Error::NoItems)?;
+            let root = *weighted_pick(items, rng)?;
             Ok(TimelineItem::new(c.t, root))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -115,7 +115,7 @@ pub fn generate_tones(
         .list()
         .iter()
         .map(|r| {
-            let tones = weighted_pick(&params.rand_tones.items, rng).ok_or(Error::NoItems)?;
+            let tones = weighted_pick(&params.rand_tones.items, rng)?;
             Ok(TimelineItem::new(r.t, Chord::new(r.value, tones.clone())))
         })
         .collect::<Result<Vec<_>>>()?;

@@ -43,7 +43,7 @@ pub fn generate_pitch(
             Ok(WeightedItem::new(weight, pitch))
         })
         .collect::<Result<Vec<_>>>()?;
-    note.pitch = Some(*weighted_pick(&items, rng).ok_or(Error::NoItems)?);
+    note.pitch = Some(*weighted_pick(&items, rng)?);
     Ok(())
 }
 

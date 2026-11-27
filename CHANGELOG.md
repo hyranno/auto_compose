@@ -38,6 +38,11 @@ The same parameters no longer give the same tunes as the TypeScript version
   the next one.
 - An item of weight 0 in a probability table is never chosen.
 - An invalid parameter file is rejected with an error instead of being used.
+- A probability table whose weights are all 0, negative or not finite is an error instead of
+  choosing its first item, and so is a cadence duration that is not finite.
+- The Markov chains (the cadences and the pitch variant) keep their condition on the end when
+  some states can never be reached, and drop it only when the end itself cannot be reached,
+  instead of dropping it or choosing an arbitrary state.
 - The variant parameters have their defaults before a file is loaded.
 
 ### Removed

@@ -1,19 +1,22 @@
-//! Small numeric helpers, weighted random choice and timelines (`src/core/util.ts`).
+//! Small numeric helpers, weighted random choice and timelines.
 
 use serde::{Deserialize, Serialize};
 
+use crate::error::{Error, Result};
 use crate::random::Rng;
 
 /// Hermite interpolation between `edge0` and `edge1`, clamped to `[0, 1]`.
 ///
-/// As in TypeScript, `edge0 == edge1` gives a step function that is `NaN` exactly at the edge
-/// (`f64::clamp` propagates `NaN` like `Math.min` / `Math.max`, unlike `f64::max`).
+/// `edge0 == edge1` gives a step function: 0 before the edge and 1 from it.
 pub fn smoothstep(edge0: f64, edge1: f64, x: f64) -> f64 {
+    if edge0 == edge1 {
+        return if x < edge0 { 0.0 } else { 1.0 };
+    }
     let xn = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
     xn * xn * (3.0 - 2.0 * xn)
 }
 
-/// The edges of a [`smoothstep`] (`SmoothstepParameters` in TypeScript).
+/// The edges of a [`smoothstep`].
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -28,12 +31,17 @@ impl SmoothstepParams {
     }
 }
 
-/// `start, start + tick, ...` while the value is less than `end`.
+/// `start, start + tick, ...` while the value is less than `end`. Each value is
+/// `start + i * tick`.
 ///
-/// The value is accumulated by addition, like the `for` loop of `rangeIterator` in TypeScript.
-/// It does not end if `tick` is not positive (and `start < end`).
+/// Panics if `tick` is not positive and finite.
 pub fn range_step(start: f64, end: f64, tick: f64) -> impl Iterator<Item = f64> {
-    std::iter::successors(Some(start), move |t| Some(t + tick)).take_while(move |&t| t < end)
+    assert!(
+        tick > 0.0 && tick.is_finite(),
+        "the step must be positive and finite"
+    );
+    let count = ((end - start) / tick).ceil().max(0.0) as usize;
+    (0..count).map(move |i| start + i as f64 * tick)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -53,31 +61,38 @@ impl<T> WeightedItem<T> {
 
 /// Picks an item with a probability proportional to its weight, drawing one random number.
 ///
-/// The cumulative ratios are left-to-right sums divided by the total, and the first item whose
-/// ratio is greater than the draw (in `[0, 1)`) is chosen, so an item of weight 0 is never chosen.
-/// The first item is chosen when there is none (for example when every weight is 0 and the ratios
-/// are `NaN`). `WeightedRandom.get` of the TypeScript version chose the first ratio not less than
-/// the draw, which also picked a first item of weight 0 for a draw of 0.
-///
-/// Returns `None` if `items` is empty (the TypeScript version throws). A value is drawn anyway.
-pub fn weighted_pick<'a, T>(items: &'a [WeightedItem<T>], rng: &mut impl Rng) -> Option<&'a T> {
-    let randval = rng.random();
-    let first = items.first()?;
-    let total = items[1..]
+/// An item of weight 0 is never chosen. It is an error if `items` is empty (nothing is drawn
+/// then), or if a weight is negative or not finite, or the weights are all 0.
+pub fn weighted_pick<'a, T>(items: &'a [WeightedItem<T>], rng: &mut impl Rng) -> Result<&'a T> {
+    if items.is_empty() {
+        return Err(Error::NoItems);
+    }
+    let cumulative: Vec<f64> = items
         .iter()
-        .fold(first.weight, |acc, w| acc + w.weight);
-    let mut accum = first.weight;
-    let index = items
-        .iter()
-        .enumerate()
-        .position(|(i, item)| {
-            if i > 0 {
-                accum += item.weight;
-            }
-            randval < accum / total
+        .scan(0.0, |acc, item| {
+            *acc += item.weight;
+            Some(*acc)
         })
-        .unwrap_or(0);
-    Some(&items[index].value)
+        .collect();
+    let total = cumulative[cumulative.len() - 1];
+    let valid = items
+        .iter()
+        .all(|item| item.weight >= 0.0 && item.weight.is_finite());
+    if !valid || !(total > 0.0 && total.is_finite()) {
+        return Err(Error::InvalidWeights);
+    }
+    let x = rng.random() * total;
+    let index = cumulative.partition_point(|&c| c <= x);
+    // `x` rounded up to the total: the last item that can be chosen.
+    let index = if index < items.len() {
+        index
+    } else {
+        items
+            .iter()
+            .rposition(|item| item.weight > 0.0)
+            .expect("the total is positive")
+    };
+    Ok(&items[index].value)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -172,8 +187,6 @@ mod tests {
     use super::*;
     use crate::random::{ReliableRandom, ScriptedRng};
 
-    // Ported from src/core/util.test.ts.
-
     #[test]
     fn smoothstep_basic() {
         let cases = [(-1.0, 0.0), (0.0, 0.0), (0.5, 0.5), (1.0, 1.0), (2.0, 1.0)];
@@ -204,25 +217,33 @@ mod tests {
     }
 
     #[test]
-    fn smoothstep_equal_edges_is_a_step_except_nan_at_the_edge() {
-        assert_eq!(smoothstep(1.0, 1.0, 0.0), 0.0);
-        assert_eq!(smoothstep(1.0, 1.0, 2.0), 1.0);
-        assert!(smoothstep(1.0, 1.0, 1.0).is_nan());
+    fn smoothstep_equal_edges_is_a_step() {
+        assert_eq!(
+            [0.0, 1.0, 2.0].map(|x| smoothstep(1.0, 1.0, x)),
+            [0.0, 1.0, 1.0]
+        );
     }
 
     #[test]
-    fn range_step_accumulates() {
+    fn range_step_multiplies() {
         assert_eq!(
             range_step(0.0, 4.0, 1.0).collect::<Vec<_>>(),
             [0.0, 1.0, 2.0, 3.0]
         );
         assert_eq!(range_step(0.0, 3.0, 2.0).collect::<Vec<_>>(), [0.0, 2.0]);
         assert_eq!(range_step(0.0, 0.0, 1.0).count(), 0);
-        // Accumulated, not multiplied: 0.1 + 0.1 + 0.1 = 0.30000000000000004.
+        assert_eq!(range_step(1.0, 0.0, 1.0).count(), 0);
         assert_eq!(
             range_step(0.0, 0.35, 0.1).collect::<Vec<_>>(),
-            [0.0, 0.1, 0.2, 0.30000000000000004]
+            [0.0, 0.1, 0.2, 3.0 * 0.1]
         );
+        assert_eq!(range_step(2.0, 3.0, 0.5).collect::<Vec<_>>(), [2.0, 2.5]);
+    }
+
+    #[test]
+    #[should_panic(expected = "positive and finite")]
+    fn range_step_rejects_a_step_that_is_not_positive() {
+        let _ = range_step(0.0, 1.0, 0.0);
     }
 
     fn uniform(n: usize) -> Vec<WeightedItem<usize>> {
@@ -275,21 +296,31 @@ mod tests {
     }
 
     #[test]
-    fn weighted_pick_all_zero_falls_back_to_the_first_item() {
-        let items = [WeightedItem::new(0.0, 'a'), WeightedItem::new(0.0, 'b')];
-        assert_eq!(pick_scripted(&items, &[0.0, 0.5, 0.99]), ['a', 'a', 'a']);
+    fn weighted_pick_a_draw_rounded_up_to_the_total_picks_the_last_possible_item() {
+        let items = [
+            WeightedItem::new(1.0, 'a'),
+            WeightedItem::new(2.0, 'b'),
+            WeightedItem::new(0.0, 'c'),
+        ];
+        assert_eq!(pick_scripted(&items, &[1.0]), ['b']);
     }
 
     #[test]
-    fn weighted_pick_ratios_are_left_to_right_sums() {
-        // 0.1 + 0.2 = 0.30000000000000004 > 0.3, so a draw of 0.3 still picks the second item.
-        let items = [
-            WeightedItem::new(0.1, 'a'),
-            WeightedItem::new(0.2, 'b'),
-            WeightedItem::new(0.7, 'c'),
-        ];
-        let draws = [0.3, 0.30000000000000004, 0.3000000000000001];
-        assert_eq!(pick_scripted(&items, &draws), ['b', 'c', 'c']);
+    fn weighted_pick_invalid_weights() {
+        for bad in [
+            [0.0, 0.0],
+            [-1.0, 2.0],
+            [f64::NAN, 1.0],
+            [f64::INFINITY, 1.0],
+        ] {
+            let items = bad.map(|w| WeightedItem::new(w, ()));
+            let mut rng = ScriptedRng::new([0.5]);
+            assert_eq!(
+                weighted_pick(&items, &mut rng),
+                Err(Error::InvalidWeights),
+                "{bad:?}"
+            );
+        }
     }
 
     #[test]
@@ -302,8 +333,8 @@ mod tests {
     #[test]
     fn weighted_pick_empty() {
         let mut rng = ScriptedRng::new([0.5]);
-        assert_eq!(weighted_pick::<i32>(&[], &mut rng), None);
-        assert_eq!(rng.consumed(), 1);
+        assert_eq!(weighted_pick::<i32>(&[], &mut rng), Err(Error::NoItems));
+        assert_eq!(rng.consumed(), 0);
     }
 
     fn timeline<T>(items: impl IntoIterator<Item = (f64, T)>) -> Timeline<T> {

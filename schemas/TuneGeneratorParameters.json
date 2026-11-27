@@ -311,7 +311,7 @@
       ]
     },
     "SmoothstepParams": {
-      "description": "The edges of a [`smoothstep`] (`SmoothstepParameters` in TypeScript).",
+      "description": "The edges of a [`smoothstep`].",
       "type": "object",
       "properties": {
         "edge0": {
