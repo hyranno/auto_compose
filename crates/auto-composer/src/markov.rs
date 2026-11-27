@@ -171,7 +171,7 @@ fn is_distribution(v: &[f64]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::random::ReliableRandom;
+    use crate::generator::test_util::seeded;
     use crate::tune::Cadence::{self, D, S, T};
 
     fn chain3() -> MarkovChain<u8> {
@@ -182,10 +182,6 @@ mod tests {
             (2, vec![w(0.001, 0), w(0.0, 1), w(0.999, 2)]),
         ];
         MarkovChain::new(&p).unwrap()
-    }
-
-    fn seed0() -> ReliableRandom {
-        ReliableRandom::new(754, 489)
     }
 
     /// Draws the states one at a time, each from the previous one (the first from 0).
@@ -210,32 +206,54 @@ mod tests {
             .collect()
     }
 
+    #[derive(Clone)]
     enum Step {
         Free,
         To(Condition<u8>),
     }
 
+    /// Walks with each seed and checks that every step has a positive probability and that
+    /// every goal is met.
+    fn check_walks(steps: &[Step]) {
+        let chain = chain3();
+        for s in 0..50 {
+            let mut rng = seeded(s, 1);
+            let walk = walk(&chain, &mut rng, steps.iter().cloned());
+            let mut prev = 0;
+            for (i, (step, &state)) in steps.iter().zip(&walk).enumerate() {
+                let p = chain
+                    .transition_matrix()
+                    .get(usize::from(prev), usize::from(state));
+                assert!(p > 0.0, "seed {s}: {walk:?}");
+                if let Step::To(goal) = step {
+                    // The goal is met at the step `i + goal.offset - 1`, if the walk gets there.
+                    if let Some(&at) = walk.get(i + goal.offset - 1) {
+                        assert_eq!(at, goal.state, "seed {s}: {walk:?}");
+                    }
+                }
+                prev = state;
+            }
+        }
+    }
+
     #[test]
     fn transition() {
-        let got = walk(&chain3(), &mut seed0(), (0..4).map(|_| Step::Free));
-        assert_eq!(got, [2, 2, 2, 2]);
+        check_walks(&[Step::Free, Step::Free, Step::Free, Step::Free]);
     }
 
     #[test]
     fn conditional_transition() {
-        let steps = [4, 3, 2, 1].map(|offset| Step::To(Condition::new(offset, 1)));
-        assert_eq!(walk(&chain3(), &mut seed0(), steps), [1, 1, 1, 1]);
+        check_walks(&[4, 3, 2, 1].map(|offset| Step::To(Condition::new(offset, 1))));
     }
 
     #[test]
     fn conditional_transition_2() {
-        let steps = [
+        check_walks(&[
             Step::Free,
             Step::To(Condition::new(2, 1)),
             Step::To(Condition::new(1, 1)),
             Step::To(Condition::new(2, 2)),
-        ];
-        assert_eq!(walk(&chain3(), &mut seed0(), steps), [2, 0, 1, 0]);
+        ]);
     }
 
     /// The cadence transition probabilities of resources/TuneGenParams_default.json.

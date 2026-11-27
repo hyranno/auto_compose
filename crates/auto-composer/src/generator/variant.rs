@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::markov::{Condition, MarkovChain};
-use crate::random::{RandomSeed, Rng, RngFactory};
+use crate::random::{RandomSeed, Rng, RngFactory, chance};
 use crate::tune::{Cadence, Chord, Note, NoteNode, Notenum, Resolution, Rhythm, Tune};
 use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
 
@@ -350,7 +350,7 @@ pub fn split_rhythm(
             continue;
         }
         let p_split = params.rhythm.p_branch.eval(rhythm.duration);
-        if rng.random() < p_split {
+        if chance(rng, p_split) {
             let sub_duration = rhythm.duration / NUM_CHILDREN as f64;
             leaf.children.extend(
                 (0..NUM_CHILDREN)
@@ -411,7 +411,7 @@ pub fn merge_rhythm(
             continue;
         }
         let p_merge = 1.0 - params.rhythm.p_branch.eval(rhythm.duration);
-        if rng.random() < p_merge {
+        if chance(rng, p_merge) {
             let end_t = rhythm.t + rhythm.duration;
             let under = |l: &Rhythm| rhythm.t <= l.t && l.t < end_t;
             let i0 = leaves.iter().position(under).expect("a branch has leaves");
@@ -450,17 +450,21 @@ pub fn toggle_note_on(
             continue;
         }
         let p_note_on = params.p_note_on.eval(leaf.rhythm.duration);
-        leaf.rhythm.is_note_on = rng.random() < p_note_on;
+        leaf.rhythm.is_note_on = chance(rng, p_note_on);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
+    use std::convert::Infallible;
+
+    use rand::TryRng;
 
     use super::*;
+    use crate::generator::test_util::seeded;
     use crate::generator::test_util::{ConstantRng, SEEDS, default_params, empty_tune};
-    use crate::random::{ReliableRandom, ReliableRandomFactory, ScriptedRng};
+    use crate::random::{ScriptedRng, SeededRngFactory};
     use crate::tune::Scale;
 
     // Ported from src/core/generators.test.ts.
@@ -509,9 +513,20 @@ mod tests {
 
     struct Borrowed<'a, R>(&'a RefCell<R>);
 
-    impl<R: Rng> Rng for Borrowed<'_, R> {
-        fn random(&mut self) -> f64 {
-            self.0.borrow_mut().random()
+    impl<R: Rng> TryRng for Borrowed<'_, R> {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> std::result::Result<u32, Infallible> {
+            Ok(self.0.borrow_mut().next_u32())
+        }
+
+        fn try_next_u64(&mut self) -> std::result::Result<u64, Infallible> {
+            Ok(self.0.borrow_mut().next_u64())
+        }
+
+        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> std::result::Result<(), Infallible> {
+            self.0.borrow_mut().fill_bytes(dst);
+            Ok(())
         }
     }
 
@@ -520,7 +535,7 @@ mod tests {
             if label == "variant" {
                 Box::new(Borrowed(&self.rng))
             } else {
-                ReliableRandomFactory.create(seed, label)
+                SeededRngFactory.create(seed, label)
             }
         }
     }
@@ -542,12 +557,12 @@ mod tests {
 
     #[test]
     fn layers_0_to_2_keep_the_original_outside_the_timespan() {
-        let original = tune_generator::generate(&base(), &ReliableRandomFactory).unwrap();
+        let original = tune_generator::generate(&base(), &SeededRngFactory).unwrap();
         for layer in [Layer::Cadence, Layer::Chord, Layer::Pitch] {
             for ts in TIMESPANS {
                 for seed in SEEDS {
                     let params = variant_params(layer, ts, seed);
-                    let tune = generate(&params, &base(), &ReliableRandomFactory).unwrap();
+                    let tune = generate(&params, &base(), &SeededRngFactory).unwrap();
                     let what = format!("{layer:?} {ts:?} {seed:?}");
                     if layer == Layer::Cadence {
                         assert_eq!(
@@ -581,11 +596,11 @@ mod tests {
 
     #[test]
     fn layer_3_keeps_the_notes_before_the_timespan_and_the_upper_layers() {
-        let original = tune_generator::generate(&base(), &ReliableRandomFactory).unwrap();
+        let original = tune_generator::generate(&base(), &SeededRngFactory).unwrap();
         for ts in TIMESPANS {
             for seed in SEEDS {
                 let params = variant_params(Layer::Rhythm, ts, seed);
-                let tune = generate(&params, &base(), &ReliableRandomFactory).unwrap();
+                let tune = generate(&params, &base(), &SeededRngFactory).unwrap();
                 let before = |tl: &Timeline<Note>| -> Vec<TimelineItem<Note>> {
                     tl.list().iter().filter(|e| e.t <= ts[0]).cloned().collect()
                 };
@@ -617,7 +632,7 @@ mod tests {
             rng: RefCell::new(ScriptedRng::new(values)),
         };
         let tune = generate(&params, &base(), &factory).unwrap();
-        let original = tune_generator::generate(&base(), &ReliableRandomFactory).unwrap();
+        let original = tune_generator::generate(&base(), &SeededRngFactory).unwrap();
         // Timespan [6, 11] and layer Cadence; the Cadence variant then draws for the slots
         // strictly inside: the cadences last 2 beats, so only the one at t = 8.
         let ts = [6.0, 11.0];
@@ -696,7 +711,7 @@ mod tests {
         for layer in [Layer::Cadence, Layer::Chord, Layer::Pitch] {
             let params = variant_params(layer, [-1.0, 5.0], (0, 0));
             assert_eq!(
-                generate(&params, &base(), &ReliableRandomFactory),
+                generate(&params, &base(), &SeededRngFactory),
                 Err(Error::InvalidParameter("timespan")),
                 "{layer:?}"
             );
@@ -831,7 +846,7 @@ mod tests {
         let params = default_params().note.pitch_weight;
         let (start, end) = (63, 75);
         for (state, sequence) in SEEDS {
-            let mut rng = ReliableRandom::new(state, sequence);
+            let mut rng = seeded(state, sequence);
             let mut notes: Vec<NoteNode> = (0..3).map(|i| leaf(f64::from(i), 1.0, 0)).collect();
             let mut dest: Vec<&mut NoteNode> = notes.iter_mut().collect();
             interpolate(&tune, start, end, &mut rng, &mut dest, &params).unwrap();
@@ -854,7 +869,7 @@ mod tests {
             let run = |start, end| {
                 let mut notes = [leaf(0.0, 1.0, 0), leaf(1.0, 1.0, 0)];
                 let [a, b] = &mut notes;
-                let mut rng = ReliableRandom::new(state, sequence);
+                let mut rng = seeded(state, sequence);
                 interpolate(&tune, start, end, &mut rng, &mut [a, b], &params).unwrap();
                 notes
             };
@@ -871,7 +886,7 @@ mod tests {
             .iter()
             .map(|&(state, sequence)| {
                 let mut note = leaf(0.0, 1.0, 0);
-                let mut rng = ReliableRandom::new(state, sequence);
+                let mut rng = seeded(state, sequence);
                 interpolate(&tune, 62, 76, &mut rng, &mut [&mut note], &params).unwrap();
                 note.pitch.unwrap()
             })

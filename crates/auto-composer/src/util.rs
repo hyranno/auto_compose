@@ -1,9 +1,10 @@
 //! Small numeric helpers, weighted random choice and timelines.
 
+use rand::distr::weighted::{Error as WeightError, WeightedIndex};
+use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::random::Rng;
 
 /// Hermite interpolation between `edge0` and `edge1`, clamped to `[0, 1]`.
 ///
@@ -59,40 +60,19 @@ impl<T> WeightedItem<T> {
     }
 }
 
-/// Picks an item with a probability proportional to its weight, drawing one random number.
+/// Picks an item with a probability proportional to its weight, drawing one word.
 ///
 /// An item of weight 0 is never chosen. It is an error if `items` is empty (nothing is drawn
 /// then), or if a weight is negative or not finite, or the weights are all 0.
-pub fn weighted_pick<'a, T>(items: &'a [WeightedItem<T>], rng: &mut impl Rng) -> Result<&'a T> {
-    if items.is_empty() {
-        return Err(Error::NoItems);
-    }
-    let cumulative: Vec<f64> = items
-        .iter()
-        .scan(0.0, |acc, item| {
-            *acc += item.weight;
-            Some(*acc)
-        })
-        .collect();
-    let total = cumulative[cumulative.len() - 1];
-    let valid = items
-        .iter()
-        .all(|item| item.weight >= 0.0 && item.weight.is_finite());
-    if !valid || !(total > 0.0 && total.is_finite()) {
-        return Err(Error::InvalidWeights);
-    }
-    let x = rng.random() * total;
-    let index = cumulative.partition_point(|&c| c <= x);
-    // `x` rounded up to the total: the last item that can be chosen.
-    let index = if index < items.len() {
-        index
-    } else {
-        items
-            .iter()
-            .rposition(|item| item.weight > 0.0)
-            .expect("the total is positive")
-    };
-    Ok(&items[index].value)
+pub fn weighted_pick<'a, T>(
+    items: &'a [WeightedItem<T>],
+    rng: &mut (impl Rng + ?Sized),
+) -> Result<&'a T> {
+    let dist = WeightedIndex::new(items.iter().map(|item| item.weight)).map_err(|e| match e {
+        WeightError::InvalidInput => Error::NoItems,
+        _ => Error::InvalidWeights,
+    })?;
+    Ok(&items[rng.sample(&dist)].value)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -185,7 +165,9 @@ impl<T> Timeline<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::random::{ReliableRandom, ScriptedRng};
+    use rand_pcg::Pcg32;
+
+    use crate::random::ScriptedRng;
 
     #[test]
     fn smoothstep_basic() {
@@ -257,12 +239,19 @@ mod tests {
     }
 
     #[test]
-    fn weighted_pick_with_seeds() {
-        let items = uniform(5);
-        let mut r = ReliableRandom::new(754, 489);
-        assert_eq!(pick_with(&items, &mut r, 4), [3, 1, 0, 3]);
-        let mut r = ReliableRandom::new(222, 9643);
-        assert_eq!(pick_with(&items, &mut r, 4), [1, 2, 4, 0]);
+    fn weighted_pick_frequencies_follow_the_weights() {
+        let items = [
+            WeightedItem::new(1.0, 0),
+            WeightedItem::new(3.0, 1),
+            WeightedItem::new(0.0, 2),
+        ];
+        let mut rng = Pcg32::new(754, 489);
+        let mut counts = [0; 3];
+        for v in pick_with(&items, &mut rng, 10000) {
+            counts[v] += 1;
+        }
+        assert_eq!(counts[2], 0);
+        assert!((2300..2700).contains(&counts[0]), "{counts:?}");
     }
 
     fn pick_scripted<T: Clone>(items: &[WeightedItem<T>], values: &[f64]) -> Vec<T> {
@@ -277,7 +266,7 @@ mod tests {
             WeightedItem::new(2.0, 'b'),
             WeightedItem::new(1.0, 'c'),
         ];
-        let draws = [0.0, 0.25, 0.2500001, 0.75, 0.7500001, 1.0 - 2f64.powi(-32)];
+        let draws = [0.0, 0.25, 0.2500001, 0.75, 0.7500001, 1.0 - 2f64.powi(-52)];
         assert_eq!(
             pick_scripted(&items, &draws),
             ['a', 'b', 'b', 'c', 'c', 'c']
@@ -291,18 +280,8 @@ mod tests {
             WeightedItem::new(1.0, 'b'),
             WeightedItem::new(0.0, 'c'),
         ];
-        let draws = [0.0, 2f64.powi(-32), 0.5, 1.0 - 2f64.powi(-32)];
+        let draws = [0.0, 2f64.powi(-52), 0.5, 1.0 - 2f64.powi(-52)];
         assert_eq!(pick_scripted(&items, &draws), ['b', 'b', 'b', 'b']);
-    }
-
-    #[test]
-    fn weighted_pick_a_draw_rounded_up_to_the_total_picks_the_last_possible_item() {
-        let items = [
-            WeightedItem::new(1.0, 'a'),
-            WeightedItem::new(2.0, 'b'),
-            WeightedItem::new(0.0, 'c'),
-        ];
-        assert_eq!(pick_scripted(&items, &[1.0]), ['b']);
     }
 
     #[test]

@@ -97,14 +97,10 @@ pub fn generate(
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-
     use super::*;
-    use crate::generator::test_util::{SEEDS, default_params, simple_params};
+    use crate::generator::test_util::{Counting, SEEDS, default_params, seeded, simple_params};
     use crate::generator::tune as tune_generator;
-    use crate::random::{RecordingRngFactory, ReliableRandomFactory};
-
-    // Ported from src/core/generators.test.ts.
+    use crate::random::SeededRngFactory;
 
     #[test]
     fn one_draw_per_leaf_and_pitches_near_the_previous_one() {
@@ -113,17 +109,18 @@ mod tests {
                 let mut params = base.clone();
                 params.note.seed = RandomSeed::new(state, sequence);
                 params.note.rhythm.seed = RandomSeed::new(state, sequence);
-                let log = RefCell::new(Vec::new());
-                let factory = RecordingRngFactory::new(ReliableRandomFactory, &log);
-                let tune = tune_generator::generate(&params, &factory).unwrap();
+                let tune = tune_generator::generate(&params, &SeededRngFactory).unwrap();
                 let what = format!("{name} seed={state}");
                 // One pitch draw per leaf, rests included.
-                let draws = log
-                    .borrow()
-                    .iter()
-                    .filter(|r| r.label == "note.pitch")
-                    .count();
-                assert_eq!(draws, tune.notes.len(), "{what}");
+                let tree = rhythm::generate(&tune, &params.note.rhythm, &SeededRngFactory);
+                let leaves = tree.leaves().len();
+                let mut rng = Counting {
+                    inner: seeded(state, sequence),
+                    consumed: 0,
+                };
+                pitch_tree(&tune, tree, &params.note, &mut rng).unwrap();
+                assert_eq!(rng.consumed, leaves, "{what}");
+                assert_eq!(leaves, tune.notes.len(), "{what}");
                 let mut prev = tune.scale.key;
                 for e in tune.notes.list() {
                     assert!(
@@ -139,8 +136,8 @@ mod tests {
     #[test]
     fn leaves_and_notes_match() {
         let params = default_params();
-        let tune = tune_generator::generate(&params, &ReliableRandomFactory).unwrap();
-        let tree = generate_tree(&tune, &params.note, &ReliableRandomFactory).unwrap();
+        let tune = tune_generator::generate(&params, &SeededRngFactory).unwrap();
+        let tree = generate_tree(&tune, &params.note, &SeededRngFactory).unwrap();
         assert_eq!(tree_to_timeline(&tree).unwrap(), tune.notes);
     }
 }

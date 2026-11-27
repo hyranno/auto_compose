@@ -14,7 +14,12 @@ pub mod variant;
 
 #[cfg(test)]
 pub(crate) mod test_util {
-    use crate::random::Rng;
+    use std::convert::Infallible;
+
+    use rand::{Rng, TryRng};
+    use rand_pcg::Pcg32;
+
+    use crate::random::unit_to_u64;
     use crate::tune::{Resolution, Scale, Tune};
     use crate::util::{Timeline, TimelineItem};
 
@@ -46,7 +51,39 @@ pub(crate) mod test_util {
 
     pub const SEEDS: [(i64, i64); 5] = [(4649, 459), (1, 0), (-1, -7), (13, 21), (100, 3)];
 
-    /// Returns the same value forever and counts the draws.
+    /// Counts the words drawn from `inner`.
+    pub struct Counting<R> {
+        pub inner: R,
+        pub consumed: usize,
+    }
+
+    impl<R: Rng> TryRng for Counting<R> {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Infallible> {
+            self.consumed += 1;
+            Ok(self.inner.next_u32())
+        }
+
+        fn try_next_u64(&mut self) -> Result<u64, Infallible> {
+            self.consumed += 1;
+            Ok(self.inner.next_u64())
+        }
+
+        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Infallible> {
+            self.consumed += 1;
+            self.inner.fill_bytes(dst);
+            Ok(())
+        }
+    }
+
+    /// A generator for a seed of [`SEEDS`].
+    pub fn seeded(state: i64, sequence: i64) -> Pcg32 {
+        Pcg32::new(state as u64, sequence as u64)
+    }
+
+    /// Returns the same value in `[0, 1)` forever (see [`crate::random::ScriptedRng`]) and
+    /// counts the words drawn.
     #[derive(Debug, Default)]
     pub struct ConstantRng {
         value: f64,
@@ -59,10 +96,20 @@ pub(crate) mod test_util {
         }
     }
 
-    impl Rng for ConstantRng {
-        fn random(&mut self) -> f64 {
+    impl TryRng for ConstantRng {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Infallible> {
+            Ok((self.try_next_u64()? >> 32) as u32)
+        }
+
+        fn try_next_u64(&mut self) -> Result<u64, Infallible> {
             self.consumed += 1;
-            self.value
+            Ok(unit_to_u64(self.value))
+        }
+
+        fn try_fill_bytes(&mut self, _dst: &mut [u8]) -> Result<(), Infallible> {
+            unimplemented!("ConstantRng gives words only")
         }
     }
 }

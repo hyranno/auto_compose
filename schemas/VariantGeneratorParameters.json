@@ -65,7 +65,7 @@
   ],
   "$defs": {
     "RandomSeed": {
-      "description": "Seed of a [`ReliableRandom`].\n\nThe parts are read from JSON like JavaScript reads them: the number is taken\nas a `f64` (as `JSON.parse` does) and then converted like `BigInt(x) & U64_MASK`, i.e. to the\ntwo's complement of the integer modulo 2^64. A number that is not an integer is an error\n(`BigInt` throws).",
+      "description": "Seed of a random number generator: the state and the stream of a [`Pcg32`].\n\nThe parts are read from JSON like JavaScript reads them: the number is taken\nas a `f64` (as `JSON.parse` does) and then converted like `BigInt(x) & U64_MASK`, i.e. to the\ntwo's complement of the integer modulo 2^64. A number that is not an integer is an error\n(`BigInt` throws).",
       "type": "object",
       "properties": {
         "state": {

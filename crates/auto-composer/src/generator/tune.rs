@@ -70,7 +70,7 @@ pub fn empty(params: &Parameters) -> Result<Tune> {
 mod tests {
     use super::*;
     use crate::generator::test_util::default_params;
-    use crate::random::ReliableRandomFactory;
+    use crate::random::SeededRngFactory;
 
     #[test]
     fn reads_the_resource_files() {
@@ -88,7 +88,7 @@ mod tests {
         let mut p = default_params();
         p.scale.tones.clear();
         assert_eq!(
-            generate(&p, &ReliableRandomFactory),
+            generate(&p, &SeededRngFactory),
             Err(Error::InvalidParameter("scale.tones"))
         );
     }

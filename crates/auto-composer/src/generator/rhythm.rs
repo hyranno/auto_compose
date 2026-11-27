@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::random::{RandomSeed, Rng, RngFactory};
+use crate::random::{RandomSeed, Rng, RngFactory, chance};
 use crate::tune::{NoteNode, Rhythm, Tune};
 use crate::util::SmoothstepParams;
 
@@ -43,7 +43,7 @@ pub fn generate_sub_tree(
 ) {
     node.children.clear();
     let p_branch = params.p_branch.eval(node.rhythm.duration);
-    let is_branch = 0 < depthcount && rng.random() < p_branch;
+    let is_branch = 0 < depthcount && chance(rng, p_branch);
     if is_branch {
         const NUM_CHILDREN: u32 = 2;
         let sub_duration = node.rhythm.duration / f64::from(NUM_CHILDREN);
@@ -55,7 +55,7 @@ pub fn generate_sub_tree(
         }
     } else {
         let p_note_on = params.p_note_on.eval(node.rhythm.duration);
-        node.rhythm.is_note_on = rng.random() < p_note_on;
+        node.rhythm.is_note_on = chance(rng, p_note_on);
     }
 }
 
@@ -68,7 +68,7 @@ pub fn merge_top_branches(root: &mut NoteNode, rng: &mut impl Rng, params: &Para
     while i + 1 < children.len() {
         let duration = children[i].rhythm.duration + children[i + 1].rhythm.duration;
         let p_merge = 1.0 - params.p_branch.eval(duration);
-        if rng.random() < p_merge {
+        if chance(rng, p_merge) {
             children[i].rhythm.duration = duration;
             children[i].children.clear();
             children[i + 1].rhythm.duration = 0.0;
@@ -109,8 +109,8 @@ pub fn generate_with(tune: &Tune, params: &Parameters, rng: &mut impl Rng) -> No
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::generator::test_util::seeded;
     use crate::generator::test_util::{ConstantRng, SEEDS, default_params, empty_tune};
-    use crate::random::ReliableRandom;
     use crate::tune::Resolution;
 
     // Ported from src/core/generators.test.ts.
@@ -123,8 +123,7 @@ mod tests {
                 let tune = empty_tune(measure, Resolution::Half, depth);
                 for (state, sequence) in SEEDS {
                     let what = format!("{measure:?} depth={depth} seed={state}");
-                    let root =
-                        generate_with(&tune, &base, &mut ReliableRandom::new(state, sequence));
+                    let root = generate_with(&tune, &base, &mut seeded(state, sequence));
                     assert_eq!(root.rhythm.duration, tune.length, "{what}");
                     assert_eq!(root.children.len(), measure[1] as usize, "{what}");
                     for (i, bar) in root.children.iter().enumerate() {

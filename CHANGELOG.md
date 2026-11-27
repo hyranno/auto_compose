@@ -27,6 +27,8 @@ The same parameters no longer give the same tunes as the TypeScript version
 - The generators of the layers draw independent random numbers even when they are given the
   same seed, as in the default parameters.
 - The JSON Schemas under `schemas/` are generated from the Rust types.
+- The random numbers come from the standard PCG32 of `rand_pcg` instead of a reproduction of the
+  npm package reliable-random, so the same seeds give different tunes.
 
 ### Fixed
 

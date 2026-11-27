@@ -102,34 +102,40 @@
     ],
     "cadence": [
       {"t": 0, "value": "Tonic"},
-      {"t": 3, "value": "Dominant"},
+      {"t": 3, "value": "Subdominant"},
       {"t": 6, "value": "Dominant"},
       {"t": 9, "value": "Dominant"}
     ],
     "chord": [
       {"t": 0, "root": 0, "tones": [0, 2, 4], "notenums": [64, 67, 71]},
-      {"t": 3, "root": 4, "tones": [0, 2, 4], "notenums": [71, 74, 78]},
-      {"t": 6, "root": 2, "tones": [0, 2, 4], "notenums": [67, 71, 74]},
-      {"t": 9, "root": 2, "tones": [0, 4], "notenums": [67, 74]}
+      {"t": 3, "root": 1, "tones": [0, 2, 4, 6], "notenums": [66, 69, 72, 76]},
+      {"t": 6, "root": 4, "tones": [0, 4], "notenums": [71, 78]},
+      {"t": 9, "root": 4, "tones": [0, 2, 4], "notenums": [71, 74, 78]}
     ],
     "notes": [
-      {"t": 0, "pitch": 67, "duration": 0.5, "isNoteOn": true},
+      {"t": 0, "pitch": 64, "duration": 0.5, "isNoteOn": true},
       {"t": 0.5, "pitch": 67, "duration": 0.5, "isNoteOn": true},
-      {"t": 1, "pitch": 67, "duration": 1, "isNoteOn": true},
+      {"t": 1, "pitch": 71, "duration": 0.5, "isNoteOn": true},
+      {"t": 1.5, "pitch": 67, "duration": 0.5, "isNoteOn": true},
       {"t": 2, "pitch": 67, "duration": 1, "isNoteOn": true},
-      {"t": 3, "pitch": 66, "duration": 1, "isNoteOn": true},
-      {"t": 4, "pitch": 71, "duration": 1, "isNoteOn": true},
-      {"t": 5, "pitch": 71, "duration": 1, "isNoteOn": true},
-      {"t": 6, "pitch": 67, "duration": 1, "isNoteOn": true},
-      {"t": 7, "pitch": 71, "duration": 0.5, "isNoteOn": true},
-      {"t": 7.5, "pitch": 71, "duration": 0.5, "isNoteOn": true},
-      {"t": 8, "pitch": 67, "duration": 0.5, "isNoteOn": false},
-      {"t": 8.5, "pitch": 67, "duration": 0.5, "isNoteOn": true},
-      {"t": 9, "pitch": 67, "duration": 0.5, "isNoteOn": true},
-      {"t": 9.5, "pitch": 67, "duration": 0.5, "isNoteOn": true},
-      {"t": 10, "pitch": 67, "duration": 1, "isNoteOn": true},
-      {"t": 11, "pitch": 67, "duration": 0.5, "isNoteOn": true},
-      {"t": 11.5, "pitch": 62, "duration": 0.5, "isNoteOn": true}
+      {"t": 3, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 3.5, "pitch": 64, "duration": 0.25, "isNoteOn": true},
+      {"t": 3.75, "pitch": 60, "duration": 0.25, "isNoteOn": true},
+      {"t": 4, "pitch": 60, "duration": 0.5, "isNoteOn": false},
+      {"t": 4.5, "pitch": 64, "duration": 0.5, "isNoteOn": true},
+      {"t": 5, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 5.5, "pitch": 69, "duration": 0.5, "isNoteOn": true},
+      {"t": 6, "pitch": 66, "duration": 0.5, "isNoteOn": false},
+      {"t": 6.5, "pitch": 71, "duration": 0.5, "isNoteOn": true},
+      {"t": 7, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 7.5, "pitch": 66, "duration": 0.25, "isNoteOn": false},
+      {"t": 7.75, "pitch": 64, "duration": 0.25, "isNoteOn": true},
+      {"t": 8, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 8.5, "pitch": 66, "duration": 0.5, "isNoteOn": true},
+      {"t": 9, "pitch": 66, "duration": 1, "isNoteOn": true},
+      {"t": 10, "pitch": 62, "duration": 0.5, "isNoteOn": true},
+      {"t": 10.5, "pitch": 62, "duration": 0.5, "isNoteOn": true},
+      {"t": 11, "pitch": 66, "duration": 1, "isNoteOn": true}
     ]
   }
 }

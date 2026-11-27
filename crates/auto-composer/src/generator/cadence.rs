@@ -76,8 +76,9 @@ pub fn generate_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::generator::test_util::seeded;
     use crate::generator::test_util::{ConstantRng, SEEDS, default_params, empty_tune};
-    use crate::random::{ReliableRandom, ScriptedRng};
+    use crate::random::ScriptedRng;
     use crate::tune::Resolution;
 
     // Ported from src/core/generators.test.ts.
@@ -95,7 +96,7 @@ mod tests {
                             duration,
                             ..base.clone()
                         };
-                        let mut rng = ReliableRandom::new(state, sequence);
+                        let mut rng = seeded(state, sequence);
                         let tl = generate_with(&tune, &params, &mut rng).unwrap();
                         let list = tl.list();
                         let what = format!("{resolution:?} {measure:?} {duration} {state}");
@@ -152,7 +153,7 @@ mod tests {
         let tune = empty_tune([4, 4], Resolution::Plagal, 3);
         let params = default_params().cadence;
         for s in 0..50 {
-            let mut rng = ReliableRandom::new(s, 1);
+            let mut rng = seeded(s, 1);
             let tl = generate_with(&tune, &params, &mut rng).unwrap();
             let list = tl.list();
             assert_ne!(list[list.len() - 3].value, Cadence::D, "seed {s}");
