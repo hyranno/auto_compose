@@ -59,6 +59,9 @@ The same parameters no longer give the same tunes as the TypeScript version
   some states can never be reached, and drop it only when the end itself cannot be reached,
   instead of dropping it or choosing an arbitrary state.
 - The variant parameters have their defaults before a file is loaded.
+- The parameters are checked before generating, so that an invalid table, cadence duration or
+  timespan is reported by the name of its field even when the seeds would not reach it.
+  A variant timespan that starts before 0 is an error for every layer, including the rhythm.
 
 ### Removed
 

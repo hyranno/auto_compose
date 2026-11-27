@@ -68,11 +68,23 @@ pub fn weighted_pick<'a, T>(
     items: &'a [WeightedItem<T>],
     rng: &mut (impl Rng + ?Sized),
 ) -> Result<&'a T> {
-    let dist = WeightedIndex::new(items.iter().map(|item| item.weight)).map_err(|e| match e {
+    let dist = weighted_index(items)?;
+    Ok(&items[rng.sample(&dist)].value)
+}
+
+/// Checks that [`weighted_pick`] can choose from `items`. An error is reported as an invalid
+/// parameter `name`.
+pub fn validate_weights<T>(items: &[WeightedItem<T>], name: &'static str) -> Result<()> {
+    weighted_index(items)
+        .map(|_| ())
+        .map_err(|_| Error::InvalidParameter(name))
+}
+
+fn weighted_index<T>(items: &[WeightedItem<T>]) -> Result<WeightedIndex<f64>> {
+    WeightedIndex::new(items.iter().map(|item| item.weight)).map_err(|e| match e {
         WeightError::InvalidInput => Error::NoItems,
         _ => Error::InvalidWeights,
-    })?;
-    Ok(&items[rng.sample(&dist)].value)
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -11,7 +11,7 @@ use crate::error::{Error, Result};
 use crate::markov::{Condition, MarkovChain};
 use crate::random::{Rng, Seed, chance, layer_rng};
 use crate::tune::{Cadence, Chord, Node, NodeKind, NoteNode, Notenum, Resolution, Rhythm, Tune};
-use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
+use crate::util::{Timeline, TimelineItem, WeightedItem, validate_weights, weighted_pick};
 
 use super::{cadence, chord, pitch_weight, rhythm, tune as tune_generator};
 
@@ -78,6 +78,28 @@ impl Default for Parameters {
     }
 }
 
+impl Parameters {
+    /// Checks the parameters of the variant and of its base tune
+    /// ([`tune_generator::Parameters::validate`]).
+    pub fn validate(&self, base: &tune_generator::Parameters) -> Result<()> {
+        base.validate()?;
+        validate_weights(&self.timespan, "timespan")?;
+        // A timespan starts at or after the first item of each timeline, at 0.
+        let valid = |ts: &Timespan| ts.start >= 0.0 && !ts.end.is_nan();
+        if !self.timespan.iter().all(|ts| valid(&ts.value)) {
+            return Err(Error::InvalidParameter("timespan"));
+        }
+        validate_weights(&self.layer, "layer")?;
+        // The pitches of the pitch and the rhythm variants are interpolated among
+        // `key ± (ceil(edge1) - 1)`.
+        let edge1 = base.pitch.abs_pitch_factor.edge1;
+        if edge1.is_nan() || edge1 <= 0.0 {
+            return Err(Error::InvalidParameter("pitch.abs_pitch_factor.edge1"));
+        }
+        Ok(())
+    }
+}
+
 /// Generates the tune of `base` (with the resolution of `params`) and varies one layer of it.
 pub fn generate(params: &Parameters, base: &tune_generator::Parameters) -> Result<Tune> {
     generate_with(params, base, &mut layer_rng(params.seed, "variant"))
@@ -89,6 +111,7 @@ pub fn generate_with(
     base: &tune_generator::Parameters,
     rng: &mut impl Rng,
 ) -> Result<Tune> {
+    params.validate(base)?;
     let timespan = *weighted_pick(&params.timespan, rng)?;
     let layer = *weighted_pick(&params.layer, rng)?;
     let tune_params = tune_generator::Parameters {
@@ -97,7 +120,7 @@ pub fn generate_with(
     };
     let p = &tune_params;
     // The layers in the order of `tune_generator::generate`, each varied when chosen.
-    let mut tune = tune_generator::empty(p)?;
+    let mut tune = tune_generator::empty(p);
     tune.cadence = tune_generator::generate_cadence(&tune, p)?;
     if layer == Layer::Cadence {
         tune.cadence = vary_cadence(&tune, timespan, rng, &p.cadence)?;
@@ -196,6 +219,9 @@ pub fn vary_chord(
 /// chord and the duration of the note. `start` and `end` outside the candidates are moved to
 /// the nearest candidate for the chain. When `end` cannot be reached in the remaining steps,
 /// the condition on `end` is dropped for that note.
+///
+/// Panics if `abs_pitch_factor.edge1` is not positive ([`Parameters::validate`]): there are no
+/// candidates then.
 pub fn interpolate(
     tune: &Tune,
     start: Notenum,
@@ -207,10 +233,7 @@ pub fn interpolate(
     let max_length_to_key = params.abs_pitch_factor.edge1.ceil() as Notenum;
     let key = tune.scale.key;
     let candidates: Vec<Notenum> = (key - max_length_to_key + 1..key + max_length_to_key).collect();
-    if candidates.is_empty() {
-        // The Markov chain needs a state.
-        return Err(Error::InvalidParameter("pitch.abs_pitch_factor.edge1"));
-    }
+    assert!(!candidates.is_empty(), "no candidate pitches");
     let transition: Vec<(Notenum, Vec<WeightedItem<Notenum>>)> = candidates
         .iter()
         .map(|&p| {
@@ -615,15 +638,40 @@ mod tests {
 
     #[test]
     fn a_timespan_before_the_tune_is_an_error() {
-        // The rhythm variant does not look up the timelines and accepts it.
-        for layer in [Layer::Cadence, Layer::Chord, Layer::Pitch] {
-            let params = variant_params(layer, [-1.0, 5.0], 0);
-            assert_eq!(
-                generate(&params, &base()),
-                Err(Error::InvalidParameter("timespan")),
-                "{layer:?}"
-            );
+        for layer in Layer::ALL {
+            for ts in [[-1.0, 5.0], [f64::NAN, 5.0], [1.0, f64::NAN]] {
+                let params = variant_params(layer, ts, 0);
+                assert_eq!(
+                    generate(&params, &base()),
+                    Err(Error::InvalidParameter("timespan")),
+                    "{layer:?} {ts:?}"
+                );
+            }
         }
+    }
+
+    #[test]
+    fn invalid_parameters_are_errors_before_drawing() {
+        let mut rng = ConstantRng::new(0.0);
+        let mut params = variant_params(Layer::Pitch, [6.0, 11.0], 0);
+        params.layer.clear();
+        assert_eq!(
+            generate_with(&params, &base(), &mut rng),
+            Err(Error::InvalidParameter("layer"))
+        );
+        let params = variant_params(Layer::Cadence, [6.0, 11.0], 0);
+        let mut base = base();
+        base.pitch.abs_pitch_factor.edge1 = 0.0;
+        assert_eq!(
+            generate_with(&params, &base, &mut rng),
+            Err(Error::InvalidParameter("pitch.abs_pitch_factor.edge1"))
+        );
+        base.scale.tones.clear();
+        assert_eq!(
+            generate_with(&params, &base, &mut rng),
+            Err(Error::InvalidParameter("scale.tones"))
+        );
+        assert_eq!(rng.consumed, 0);
     }
 
     #[test]

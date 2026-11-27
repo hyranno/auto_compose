@@ -43,6 +43,16 @@ impl Default for Parameters {
 }
 
 impl Parameters {
+    /// Checks the parameters that would make the generation fail whatever the seeds.
+    pub fn validate(&self) -> Result<()> {
+        // The degrees of the chords would divide by zero.
+        if self.scale.tones.is_empty() {
+            return Err(Error::InvalidParameter("scale.tones"));
+        }
+        self.cadence.validate()?;
+        self.chord.validate()
+    }
+
     /// The generator of a layer: its own seed if it has one, or the seed of the tune.
     pub fn layer_rng(&self, layer_seed: Option<Seed>, label: &str) -> Pcg32 {
         layer_rng(layer_seed.unwrap_or(self.seed), label)
@@ -51,7 +61,8 @@ impl Parameters {
 
 /// Generates the cadences, the chords and the notes in this order.
 pub fn generate(params: &Parameters) -> Result<Tune> {
-    let mut tune = empty(params)?;
+    params.validate()?;
+    let mut tune = empty(params);
     tune.cadence = generate_cadence(&tune, params)?;
     tune.chord = generate_chord(&tune, params)?;
     tune.notes = generate_notes(&tune, params)?.to_timeline();
@@ -87,16 +98,8 @@ pub fn generate_notes(tune: &Tune, params: &Parameters) -> Result<NoteNode> {
 
 /// A tune with the scale, the measure and the resolution of `params`, and no cadences,
 /// chords or notes yet.
-pub fn empty(params: &Parameters) -> Result<Tune> {
-    // The degrees of the chords would divide by zero.
-    if params.scale.tones.is_empty() {
-        return Err(Error::InvalidParameter("scale.tones"));
-    }
-    Ok(Tune::new(
-        params.time_measure,
-        params.scale.clone(),
-        params.resolution,
-    ))
+pub fn empty(params: &Parameters) -> Tune {
+    Tune::new(params.time_measure, params.scale.clone(), params.resolution)
 }
 
 #[cfg(test)]
@@ -136,5 +139,18 @@ mod tests {
         let mut p = default_params();
         p.scale.tones.clear();
         assert_eq!(generate(&p), Err(Error::InvalidParameter("scale.tones")));
+    }
+
+    #[test]
+    fn invalid_layers_are_errors_before_generating() {
+        let mut p = default_params();
+        p.cadence.duration = 0.0;
+        assert_eq!(
+            generate(&p),
+            Err(Error::InvalidParameter("cadence.duration"))
+        );
+        let mut p = default_params();
+        p.chord.tones.clear();
+        assert_eq!(generate(&p), Err(Error::InvalidParameter("chord.tones")));
     }
 }

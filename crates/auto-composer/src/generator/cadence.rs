@@ -25,6 +25,24 @@ pub struct Parameters {
 }
 
 impl Parameters {
+    /// Checks the duration and that each row of the transitions can be made into probabilities.
+    pub fn validate(&self) -> Result<()> {
+        if !(self.duration > 0.0 && self.duration.is_finite()) {
+            return Err(Error::InvalidParameter("cadence.duration"));
+        }
+        self.chain().map(|_| ()).map_err(|e| match e {
+            Error::InvalidTransition { from } => {
+                let names = PerCadence {
+                    tonic: "cadence.transitions.tonic",
+                    dominant: "cadence.transitions.dominant",
+                    subdominant: "cadence.transitions.subdominant",
+                };
+                Error::InvalidParameter(names.get(Cadence::ALL[from]))
+            }
+            _ => Error::InvalidParameter("cadence.transitions"),
+        })
+    }
+
     /// The Markov chain of [`Parameters::transitions`].
     pub fn chain(&self) -> Result<MarkovChain<Cadence>> {
         let transition: Vec<_> = Cadence::ALL
@@ -45,10 +63,9 @@ impl Parameters {
 /// Starts with the tonic, ends with the postfix of the resolution, and draws once for each
 /// slot between them, conditioned on reaching the first cadence of the postfix.
 /// When there are fewer slots than the tonic and the postfix, the start of the postfix is cut.
+///
+/// Panics if the duration is invalid ([`Parameters::validate`]).
 pub fn generate(tune: &Tune, params: &Parameters, rng: &mut impl Rng) -> Result<Timeline<Cadence>> {
-    if !(params.duration > 0.0 && params.duration.is_finite()) {
-        return Err(Error::InvalidParameter("cadence.duration"));
-    }
     let length = f64::from(tune.time_measure.beats());
     let times: Vec<f64> = range_step(0.0, length, params.duration).collect();
     let chain = params.chain()?;
@@ -165,17 +182,40 @@ mod tests {
 
     #[test]
     fn rejects_a_duration_that_is_not_positive_and_finite() {
-        let tune = empty_tune([4, 4], Resolution::Half);
         for duration in [0.0, -1.0, f64::NAN, f64::INFINITY] {
             let params = Parameters {
                 duration,
                 ..default_params().cadence
             };
             assert_eq!(
-                generate(&tune, &params, &mut ConstantRng::new(0.0)),
+                params.validate(),
                 Err(Error::InvalidParameter("cadence.duration")),
                 "{duration}"
             );
         }
+        assert_eq!(default_params().cadence.validate(), Ok(()));
+    }
+
+    #[test]
+    fn rejects_transitions_that_are_not_probabilities() {
+        for weight in [-1.0, f64::NAN, f64::INFINITY] {
+            let mut params = default_params().cadence;
+            params.transitions.dominant.subdominant = weight;
+            assert_eq!(
+                params.validate(),
+                Err(Error::InvalidParameter("cadence.transitions.dominant")),
+                "{weight}"
+            );
+        }
+        let mut params = default_params().cadence;
+        params.transitions.subdominant = PerCadence {
+            tonic: 0.0,
+            dominant: 0.0,
+            subdominant: 0.0,
+        };
+        assert_eq!(
+            params.validate(),
+            Err(Error::InvalidParameter("cadence.transitions.subdominant"))
+        );
     }
 }
