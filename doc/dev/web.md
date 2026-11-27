@@ -48,7 +48,9 @@ The defaults of the page come from `resources/`: the tune parameters are
 They are what the page starts with and what the load default buttons restore.
 The page starts at 120 BPM (`DEFAULT_BPM` in `src/params.ts`). The forms cover all the parameters.
 
-The text inputs (`ParsedInput` in `src/fields.tsx`) keep what the user types. A text that parses
+The inputs (`ParsedInput` in `src/fields.tsx`) keep what the user types. Numbers are
+`type="number"` inputs (a partial text such as `-` shows there as `validity.badInput`), and lists of
+integers are text inputs. A text that parses
 is written to the store at once; one that does not is marked with `setCustomValidity` and leaves the
 store at its last valid value, and `generate` refuses to run while such an input remains.
 Only the syntax (a number, an integer, the range of a seed) is checked there;

@@ -3,25 +3,32 @@ import type { Seed, SmoothstepParams, WeightedItem } from 'auto-composer-wasm';
 
 // Inputs bound to a value of the parameter store: each takes the current value and a setter.
 //
-// The text inputs keep what the user types. A text that does not parse is marked invalid
+// The inputs keep what the user types. A text that does not parse is marked invalid
 // (with `setCustomValidity`, so the form refuses to submit) and is not written to the store,
 // which keeps its last valid value; a text that parses is written at once.
+// Numbers use `type="number"` for the spin buttons and the arrow keys; a partial text such as `-`
+// reads as an empty `value` with `validity.badInput` there, and is treated as not parsing.
 
 type FieldProps<T> = { value: T; onChange: (value: T) => void };
 
 type Parsed<T> = { value: T } | { error: string };
 
-/** A text input of a value of type `T`, written as `format` gives and read back by `parse`. */
+/**
+ * An input of a value of type `T`, written as `format` gives and read back by `parse`.
+ * With `number`, it is a number input with the bounds and the step of the rule.
+ */
 function ParsedInput<T>(
   props: FieldProps<T> & {
     format: (value: T) => string;
     parse: (text: string) => Parsed<T>;
+    number?: NumberRule;
     label?: string;
     placeholder?: string;
     size?: number;
   },
 ) {
   let input!: HTMLInputElement;
+  const read = (): Parsed<T> => (input.validity.badInput ? { error: 'Enter a number.' } : props.parse(input.value));
   // Rewrites the text only when the value differs from what the text means,
   // so that a text being typed, such as `-` or `1.`, is not replaced.
   // The value is tracked through its JSON, because loading a file changes the arrays
@@ -30,7 +37,7 @@ function ParsedInput<T>(
     on(
       () => JSON.stringify(props.value),
       (json) => {
-        const parsed = props.parse(input.value);
+        const parsed = read();
         if (!('value' in parsed) || JSON.stringify(parsed.value) !== json) {
           input.value = props.format(untrack(() => props.value));
           input.setCustomValidity('');
@@ -39,7 +46,7 @@ function ParsedInput<T>(
     ),
   );
   const onInput = () => {
-    const parsed = props.parse(input.value);
+    const parsed = read();
     if ('value' in parsed) {
       input.setCustomValidity('');
       props.onChange(parsed.value);
@@ -50,9 +57,14 @@ function ParsedInput<T>(
   return (
     <input
       ref={input}
-      type="text"
+      type={props.number ? 'number' : 'text'}
+      min={props.number?.min}
+      max={props.number?.max}
+      step={props.number ? (props.number.integer ? 1 : 'any') : undefined}
       autocomplete="off"
       size={props.size ?? 6}
+      // `size` does not apply to number inputs; the extra width is for the spin buttons.
+      style={props.number ? { width: `calc(${props.size ?? 6}ch + 2em)` } : undefined}
       aria-label={props.label}
       title={props.label}
       placeholder={props.placeholder}
@@ -80,6 +92,7 @@ export function NumberInput(props: FieldProps<number> & NumberRule & { label?: s
       onChange={props.onChange}
       label={props.label}
       size={props.size}
+      number={props}
       format={String}
       parse={(text) => parseNumber(text, props)}
     />
@@ -125,6 +138,7 @@ export function LayerSeedInput(props: FieldProps<Seed | undefined>) {
       onChange={props.onChange}
       size={12}
       placeholder="tune seed"
+      number={SEED_RULE}
       format={(value) => (value === undefined ? '' : String(value))}
       parse={(text) => (text.trim() === '' ? { value: undefined } : parseNumber(text, SEED_RULE))}
     />
