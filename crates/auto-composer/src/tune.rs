@@ -218,22 +218,36 @@ impl<T> PerCadence<T> {
     }
 }
 
+/// A note or a rest.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Note {
-    pub pitch: Notenum,
+    /// `None` for a rest.
+    pub pitch: Option<Notenum>,
     pub duration: f64,
-    pub is_note_on: bool,
 }
 
+impl Note {
+    pub fn is_note_on(&self) -> bool {
+        self.pitch.is_some()
+    }
+}
+
+/// The span of a node of the rhythm tree, in beats.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rhythm {
-    pub is_note_on: bool,
     pub t: f64,
     pub duration: f64,
 }
 
-/// A node of the rhythm tree. The leaves are the notes and carry an `L`: nothing in the tree
-/// of the rhythm ([`RhythmNode`]), and the pitch once the pitches are drawn ([`NoteNode`]).
+impl Rhythm {
+    pub fn new(t: f64, duration: f64) -> Self {
+        Self { t, duration }
+    }
+}
+
+/// A node of the rhythm tree. The leaves are the notes and the rests, and carry an `L`:
+/// whether the note is on in the tree of the rhythm ([`RhythmNode`]), and the pitch, `None` for
+/// a rest, once the pitches are drawn ([`NoteNode`]).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node<L> {
     pub rhythm: Rhythm,
@@ -246,10 +260,10 @@ pub enum NodeKind<L> {
     Branch(Vec<Node<L>>),
 }
 
-/// A rhythm tree without pitches.
-pub type RhythmNode = Node<()>;
-/// A rhythm tree with the pitches of its leaves.
-pub type NoteNode = Node<Notenum>;
+/// A rhythm tree whose leaves tell whether the note is on.
+pub type RhythmNode = Node<bool>;
+/// A rhythm tree with the pitches of its leaves, `None` for the rests.
+pub type NoteNode = Node<Option<Notenum>>;
 
 impl<L> Node<L> {
     pub fn leaf(rhythm: Rhythm, value: L) -> Self {
@@ -341,8 +355,8 @@ impl<L> Node<L> {
 }
 
 impl NoteNode {
-    /// The pitches of the leaves.
-    pub fn pitches(&self) -> Vec<Notenum> {
+    /// The pitches of the leaves, `None` for the rests.
+    pub fn pitches(&self) -> Vec<Option<Notenum>> {
         self.leaves().into_iter().map(|(_, &p)| p).collect()
     }
 
@@ -354,7 +368,6 @@ impl NoteNode {
                 Note {
                     pitch,
                     duration: r.duration,
-                    is_note_on: r.is_note_on,
                 },
             )
         }))
@@ -435,16 +448,15 @@ mod tests {
             Timeline::from_items(items.into_iter().map(|(t, v)| TimelineItem::new(t, v)))
         }
         let scale = Scale::major(60);
-        let note = |pitch, duration, is_note_on| Note {
-            pitch,
+        let note = |pitch, duration| Note {
+            pitch: Some(pitch),
             duration,
-            is_note_on,
         };
         use Cadence::*;
         let a = Tune {
             cadence: tl(vec![(0.0, Tonic), (2.0, Dominant)]),
             chord: tl(vec![(0.0, Chord::new(0, vec![0, 2, 4]))]),
-            notes: tl(vec![(0.0, note(60, 4.0, true))]),
+            notes: tl(vec![(0.0, note(60, 4.0))]),
             ..Tune::new(
                 TimeMeasure::new(4, 1),
                 scale.clone(),
@@ -454,7 +466,7 @@ mod tests {
         let b = Tune {
             cadence: tl(vec![(0.0, Subdominant)]),
             chord: tl(vec![(0.0, Chord::new(3, vec![0, 2, 4]))]),
-            notes: tl(vec![(1.0, note(65, 1.0, false))]),
+            notes: tl(vec![(1.0, note(65, 1.0))]),
             ..Tune::new(TimeMeasure::new(2, 1), Scale::minor(60), Resolution::Half)
         };
 
@@ -471,7 +483,7 @@ mod tests {
             .notes
             .list()
             .iter()
-            .map(|e| (e.t, e.value.pitch))
+            .map(|e| (e.t, e.value.pitch.unwrap()))
             .collect();
         assert_eq!(pitches, [(0.0, 60), (5.0, 65)]);
         assert_eq!(m.time_measure, a.time_measure);
@@ -503,19 +515,21 @@ mod tests {
     //   a     b
     //  / \
     // c   d
+    // The leaf d is a rest.
     fn tree() -> RhythmNode {
-        let rhythm = |t: f64| Rhythm {
-            is_note_on: true,
-            t,
-            duration: 1.0,
-        };
-        let leaf = |t| Node::leaf(rhythm(t), ());
+        let rhythm = |t: f64| Rhythm::new(t, 1.0);
         // The times are names: r = 0, a = 1, b = 2, c = 3, d = 4.
         Node::branch(
             rhythm(0.0),
             vec![
-                Node::branch(rhythm(1.0), vec![leaf(3.0), leaf(4.0)]),
-                leaf(2.0),
+                Node::branch(
+                    rhythm(1.0),
+                    vec![
+                        Node::leaf(rhythm(3.0), true),
+                        Node::leaf(rhythm(4.0), false),
+                    ],
+                ),
+                Node::leaf(rhythm(2.0), true),
             ],
         )
     }
@@ -525,21 +539,23 @@ mod tests {
         let tree = tree();
         let ts: Vec<_> = tree.rhythms().iter().map(|r| r.t).collect();
         assert_eq!(ts, [3.0, 4.0, 2.0]);
-        let single = Node::leaf(tree.rhythm, ());
+        let on: Vec<_> = tree.leaves().iter().map(|&(_, &on)| on).collect();
+        assert_eq!(on, [true, false, true]);
+        let single = Node::leaf(tree.rhythm, true);
         assert_eq!(single.rhythms(), [tree.rhythm]);
 
         let mut next = 60;
         let mut tree = tree
-            .try_map_leaves(&mut |_, ()| {
+            .try_map_leaves(&mut |_, on| {
                 next += 1;
-                Ok::<_, ()>(next - 1)
+                Ok::<_, ()>(on.then_some(next - 1))
             })
             .unwrap();
-        assert_eq!(tree.pitches(), [60, 61, 62]);
+        assert_eq!(tree.pitches(), [Some(60), None, Some(62)]);
         for leaf in tree.leaves_mut() {
-            leaf.rhythm.is_note_on = false;
+            leaf.kind = NodeKind::Leaf(None);
         }
-        assert!(tree.rhythms().iter().all(|r| !r.is_note_on));
+        assert_eq!(tree.pitches(), [None; 3]);
         assert_eq!(tree.try_map_leaves(&mut |_, _| Err::<(), _>("e")), Err("e"));
     }
 
@@ -555,19 +571,25 @@ mod tests {
 
     #[test]
     fn note_node_to_timeline() {
-        let rhythm = Rhythm {
-            is_note_on: false,
-            t: 1.5,
+        let tree = Node::branch(
+            Rhythm::new(1.0, 1.0),
+            vec![
+                Node::leaf(Rhythm::new(1.0, 0.5), Some(64)),
+                Node::leaf(Rhythm::new(1.5, 0.5), None),
+            ],
+        );
+        let note = |pitch| Note {
+            pitch,
             duration: 0.5,
-        };
-        let expected = Note {
-            pitch: 64,
-            duration: 0.5,
-            is_note_on: false,
         };
         assert_eq!(
-            Node::leaf(rhythm, 64).to_timeline(),
-            Timeline::from_items([TimelineItem::new(1.5, expected)])
+            tree.to_timeline(),
+            Timeline::from_items([
+                TimelineItem::new(1.0, note(Some(64))),
+                TimelineItem::new(1.5, note(None))
+            ])
         );
+        assert!(note(Some(64)).is_note_on());
+        assert!(!note(None).is_note_on());
     }
 }

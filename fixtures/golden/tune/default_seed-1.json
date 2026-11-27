@@ -75,22 +75,22 @@
       {"t": 14, "root": 6, "tones": [0, 2, 4, 6], "notenums": [80, 83, 86, 90]}
     ],
     "notes": [
-      {"t": 0, "pitch": 66, "duration": 1, "is_note_on": false},
-      {"t": 1, "pitch": 69, "duration": 0.5, "is_note_on": true},
-      {"t": 1.5, "pitch": 66, "duration": 0.5, "is_note_on": false},
-      {"t": 2, "pitch": 66, "duration": 1, "is_note_on": true},
-      {"t": 3, "pitch": 69, "duration": 1, "is_note_on": true},
-      {"t": 4, "pitch": 69, "duration": 1, "is_note_on": true},
-      {"t": 5, "pitch": 69, "duration": 1, "is_note_on": true},
+      {"t": 0, "duration": 1, "is_note_on": false},
+      {"t": 1, "pitch": 66, "duration": 0.5, "is_note_on": true},
+      {"t": 1.5, "duration": 0.5, "is_note_on": false},
+      {"t": 2, "pitch": 69, "duration": 1, "is_note_on": true},
+      {"t": 3, "pitch": 66, "duration": 1, "is_note_on": true},
+      {"t": 4, "pitch": 64, "duration": 1, "is_note_on": true},
+      {"t": 5, "pitch": 64, "duration": 1, "is_note_on": true},
       {"t": 6, "pitch": 66, "duration": 2, "is_note_on": true},
       {"t": 8, "pitch": 64, "duration": 1, "is_note_on": true},
-      {"t": 9, "pitch": 69, "duration": 0.5, "is_note_on": true},
-      {"t": 9.5, "pitch": 69, "duration": 0.5, "is_note_on": true},
-      {"t": 10, "pitch": 69, "duration": 1, "is_note_on": true},
-      {"t": 11, "pitch": 69, "duration": 1, "is_note_on": true},
-      {"t": 12, "pitch": 68, "duration": 1, "is_note_on": true},
-      {"t": 13, "pitch": 68, "duration": 2, "is_note_on": true},
-      {"t": 15, "pitch": 71, "duration": 1, "is_note_on": true}
+      {"t": 9, "pitch": 64, "duration": 0.5, "is_note_on": true},
+      {"t": 9.5, "pitch": 62, "duration": 0.5, "is_note_on": true},
+      {"t": 10, "pitch": 66, "duration": 1, "is_note_on": true},
+      {"t": 11, "pitch": 64, "duration": 1, "is_note_on": true},
+      {"t": 12, "pitch": 64, "duration": 1, "is_note_on": true},
+      {"t": 13, "pitch": 64, "duration": 2, "is_note_on": true},
+      {"t": 15, "pitch": 66, "duration": 1, "is_note_on": true}
     ]
   }
 }

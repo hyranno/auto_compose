@@ -67,22 +67,22 @@
       {"t": 14, "root": 0, "tones": [0, 2, 4], "notenums": [69, 73, 76]}
     ],
     "notes": [
-      {"t": 0, "pitch": 69, "duration": 1, "is_note_on": false},
-      {"t": 1, "pitch": 73, "duration": 0.5, "is_note_on": true},
-      {"t": 1.5, "pitch": 69, "duration": 0.5, "is_note_on": false},
-      {"t": 2, "pitch": 66, "duration": 1, "is_note_on": true},
-      {"t": 3, "pitch": 69, "duration": 1, "is_note_on": true},
+      {"t": 0, "duration": 1, "is_note_on": false},
+      {"t": 1, "pitch": 64, "duration": 0.5, "is_note_on": true},
+      {"t": 1.5, "duration": 0.5, "is_note_on": false},
+      {"t": 2, "pitch": 69, "duration": 1, "is_note_on": true},
+      {"t": 3, "pitch": 66, "duration": 1, "is_note_on": true},
       {"t": 4, "pitch": 64, "duration": 1, "is_note_on": true},
-      {"t": 5, "pitch": 64, "duration": 1, "is_note_on": true},
+      {"t": 5, "pitch": 68, "duration": 1, "is_note_on": true},
       {"t": 6, "pitch": 64, "duration": 2, "is_note_on": true},
       {"t": 8, "pitch": 62, "duration": 1, "is_note_on": true},
-      {"t": 9, "pitch": 69, "duration": 0.5, "is_note_on": true},
-      {"t": 9.5, "pitch": 66, "duration": 0.5, "is_note_on": true},
+      {"t": 9, "pitch": 66, "duration": 0.5, "is_note_on": true},
+      {"t": 9.5, "pitch": 62, "duration": 0.5, "is_note_on": true},
       {"t": 10, "pitch": 68, "duration": 1, "is_note_on": true},
-      {"t": 11, "pitch": 68, "duration": 1, "is_note_on": true},
-      {"t": 12, "pitch": 68, "duration": 1, "is_note_on": true},
-      {"t": 13, "pitch": 68, "duration": 2, "is_note_on": true},
-      {"t": 15, "pitch": 73, "duration": 1, "is_note_on": true}
+      {"t": 11, "pitch": 64, "duration": 1, "is_note_on": true},
+      {"t": 12, "pitch": 64, "duration": 1, "is_note_on": true},
+      {"t": 13, "pitch": 64, "duration": 2, "is_note_on": true},
+      {"t": 15, "pitch": 64, "duration": 1, "is_note_on": true}
     ]
   }
 }

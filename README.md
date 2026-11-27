@@ -147,7 +147,8 @@ and follow smoothsteps with the edges of p_branch and p_note_on.
 Notes are not divided beyond the max beat division depth.
 
 ### Pitch
-Each note from the rhythm gets a pitch, which makes the melody.
+Each note from the rhythm gets a pitch, which makes the melody. Rests have no pitch,
+and the note after a rest follows the note before it.
 The pitch is a Markov chain that depends on the scale, the chord and the rhythm.
 Note that it is not time-homogeneous, since it depends on the chord and the rhythm, which change over time.
 Some pitches should depend on the resolution, but this is ignored because it would complicate the implementation.
@@ -186,4 +187,4 @@ and the effect of the rhythm and the chord is added only to the distribution of 
 
 ### Changing the rhythm
 The notes within the timespan are divided or merged at random, and whether each is a rest is drawn again.
-The pitches of the changed notes are generated again.
+The pitches of the changed notes, and of the rests that become notes, are generated again.

@@ -84,12 +84,12 @@
       {"t": 7.5, "pitch": 68, "duration": 0.5, "is_note_on": true},
       {"t": 8, "pitch": 64, "duration": 0.5, "is_note_on": true},
       {"t": 8.5, "pitch": 68, "duration": 0.5, "is_note_on": true},
-      {"t": 9, "pitch": 64, "duration": 1, "is_note_on": false},
+      {"t": 9, "duration": 1, "is_note_on": false},
       {"t": 10, "pitch": 66, "duration": 1, "is_note_on": true},
       {"t": 11, "pitch": 66, "duration": 0.5, "is_note_on": true},
       {"t": 11.5, "pitch": 66, "duration": 0.5, "is_note_on": true},
       {"t": 12, "pitch": 66, "duration": 1, "is_note_on": true},
-      {"t": 13, "pitch": 62, "duration": 1, "is_note_on": true},
+      {"t": 13, "pitch": 66, "duration": 1, "is_note_on": true},
       {"t": 14, "pitch": 64, "duration": 2, "is_note_on": true}
     ]
   }

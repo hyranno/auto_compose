@@ -39,11 +39,11 @@ export function itemAt<T extends { t: number }>(items: T[], t: number): T | unde
 /** A sound of a track: `time` and `duration` are in beats. */
 export type TrackNote = { time: number; notenum: number; duration: number };
 
-/** The melody: the notes that sound (not rests). */
+/** The melody: the notes that sound (not rests, which have no pitch). */
 export function melodyTrack(tune: TuneSnapshot): TrackNote[] {
-  return tune.notes
-    .filter((note) => note.is_note_on)
-    .map((note) => ({ time: note.t, notenum: note.pitch, duration: note.duration }));
+  return tune.notes.flatMap((note) =>
+    note.pitch === undefined ? [] : [{ time: note.t, notenum: note.pitch, duration: note.duration }],
+  );
 }
 
 /**

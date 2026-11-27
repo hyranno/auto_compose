@@ -141,11 +141,7 @@ mod tests {
             (69, 76, 1.0, 0.0, 0.0),
         ];
         for (prev, pitch, duration, t, expected) in cases {
-            let rhythm = Rhythm {
-                is_note_on: true,
-                t,
-                duration,
-            };
+            let rhythm = Rhythm::new(t, duration);
             assert_eq!(
                 calc(&tune, prev, pitch, &rhythm, &p),
                 Ok(expected),
@@ -159,11 +155,7 @@ mod tests {
         let p = default_params().pitch;
         let mut tune = tune();
         tune.chord = Timeline::new();
-        let rhythm = Rhythm {
-            is_note_on: true,
-            t: 0.0,
-            duration: 1.0,
-        };
+        let rhythm = Rhythm::new(0.0, 1.0);
         assert_eq!(
             calc(&tune, 69, 69, &rhythm, &p),
             Err(Error::NoItemAt { timeline: "chord" })

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::random::{Rng, Seed, chance};
-use crate::tune::{Node, Rhythm, RhythmNode, Tune};
+use crate::tune::{Node, NodeKind, Rhythm, RhythmNode, Tune};
 use crate::util::SmoothstepParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,15 +24,6 @@ pub struct Parameters {
     pub p_note_on: SmoothstepParams,
 }
 
-/// The rhythm of a note that is on.
-pub(crate) fn note_on(t: f64, duration: f64) -> Rhythm {
-    Rhythm {
-        is_note_on: true,
-        t,
-        duration,
-    }
-}
-
 const NUM_CHILDREN: u32 = 2;
 
 /// Divides a node of `rhythm` into two halves with the probability `p_branch`, recursively
@@ -51,26 +42,19 @@ pub fn generate_sub_tree(
         let children = (0..NUM_CHILDREN)
             .map(|i| {
                 let t = rhythm.t + f64::from(i) * sub_duration;
-                generate_sub_tree(note_on(t, sub_duration), rng, depthcount - 1, params)
+                generate_sub_tree(Rhythm::new(t, sub_duration), rng, depthcount - 1, params)
             })
             .collect();
         Node::branch(rhythm, children)
     } else {
         let p_note_on = params.p_note_on.eval(rhythm.duration);
-        let is_note_on = chance(rng, p_note_on);
-        Node::leaf(
-            Rhythm {
-                is_note_on,
-                ..rhythm
-            },
-            (),
-        )
+        Node::leaf(rhythm, chance(rng, p_note_on))
     }
 }
 
 /// Merges adjacent nodes with the probability `1 - p_branch` of the merged duration, drawing
-/// once per pair. A merge skips the next pair. The merged node is a leaf with the
-/// `is_note_on` of the first node.
+/// once per pair. A merge skips the next pair. The merged node is a leaf that is on if the
+/// first node is on or is a branch.
 pub fn merge_top_branches(
     nodes: Vec<RhythmNode>,
     rng: &mut impl Rng,
@@ -84,13 +68,11 @@ pub fn merge_top_branches(
             let p_merge = 1.0 - params.p_branch.eval(duration);
             if chance(rng, p_merge) {
                 nodes.next();
-                res.push(Node::leaf(
-                    Rhythm {
-                        duration,
-                        ..node.rhythm
-                    },
-                    (),
-                ));
+                let is_note_on = match node.kind {
+                    NodeKind::Leaf(on) => on,
+                    NodeKind::Branch(_) => true,
+                };
+                res.push(Node::leaf(Rhythm::new(node.rhythm.t, duration), is_note_on));
                 continue;
             }
         }
@@ -109,15 +91,15 @@ pub fn generate(tune: &Tune, params: &Parameters, rng: &mut impl Rng) -> RhythmN
             let t = f64::from(i * num_beats);
             let beats = (0..num_beats)
                 .map(|j| {
-                    let beat = note_on(t + f64::from(j), 1.0);
+                    let beat = Rhythm::new(t + f64::from(j), 1.0);
                     generate_sub_tree(beat, rng, params.max_beat_division_depth, params)
                 })
                 .collect();
             let beats = merge_top_branches(beats, rng, params);
-            Node::branch(note_on(t, f64::from(num_beats)), beats)
+            Node::branch(Rhythm::new(t, f64::from(num_beats)), beats)
         })
         .collect();
-    Node::branch(note_on(0.0, f64::from(num_beats * num_bars)), bars)
+    Node::branch(Rhythm::new(0.0, f64::from(num_beats * num_bars)), bars)
 }
 
 #[cfg(test)]
@@ -167,9 +149,9 @@ mod tests {
     }
 
     fn rhythms(root: &RhythmNode) -> Vec<(f64, f64, bool)> {
-        root.rhythms()
+        root.leaves()
             .iter()
-            .map(|r| (r.t, r.duration, r.is_note_on))
+            .map(|&(r, &on)| (r.t, r.duration, on))
             .collect()
     }
 

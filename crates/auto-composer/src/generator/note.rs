@@ -8,7 +8,7 @@ use crate::util::{WeightedItem, weighted_pick};
 use super::pitch_weight;
 
 /// Draws the pitch of a note of `rhythm` from `prev - 12 ..= prev + 11`, weighted by
-/// [`pitch_weight::calc`]. Rests draw too.
+/// [`pitch_weight::calc`].
 pub fn draw_pitch(
     tune: &Tune,
     rng: &mut impl Rng,
@@ -25,8 +25,8 @@ pub fn draw_pitch(
     Ok(*weighted_pick(&items, rng)?)
 }
 
-/// Draws the pitches of the leaves of `rhythm` from left to right. The first previous pitch
-/// is the key of the scale.
+/// Draws the pitches of the notes of `rhythm` from left to right, each after the previous
+/// note. The first previous pitch is the key of the scale. The rests draw nothing.
 pub fn pitch_tree(
     tune: &Tune,
     rhythm: RhythmNode,
@@ -34,9 +34,12 @@ pub fn pitch_tree(
     rng: &mut impl Rng,
 ) -> Result<NoteNode> {
     let mut prev = tune.scale.key;
-    rhythm.try_map_leaves(&mut |r, ()| {
+    rhythm.try_map_leaves(&mut |r, is_note_on| {
+        if !is_note_on {
+            return Ok(None);
+        }
         prev = draw_pitch(tune, rng, prev, &r, params)?;
-        Ok(prev)
+        Ok(Some(prev))
     })
 }
 
@@ -48,7 +51,8 @@ mod tests {
     use crate::generator::tune as tune_generator;
 
     #[test]
-    fn one_draw_per_leaf_and_pitches_near_the_previous_one() {
+    fn one_draw_per_note_and_pitches_near_the_previous_note() {
+        let mut rests = 0;
         for (name, base) in [("default", default_params()), ("simple", simple_params())] {
             for seed in SEEDS {
                 let params = tune_generator::Parameters {
@@ -57,25 +61,24 @@ mod tests {
                 };
                 let tune = tune_generator::generate(&params).unwrap();
                 let what = format!("{name} seed={seed}");
-                // One pitch draw per leaf, rests included.
+                // One pitch draw per note, none for the rests.
                 let tree = rhythm::generate(&tune, &params.rhythm, &mut seeded(seed));
-                let leaves = tree.rhythms().len();
+                let notes = tree.leaves().iter().filter(|&&(_, &on)| on).count();
+                rests += tree.leaves().len() - notes;
                 let mut rng = Counting {
                     inner: seeded(seed),
                     consumed: 0,
                 };
                 pitch_tree(&tune, tree, &params.pitch, &mut rng).unwrap();
-                assert_eq!(rng.consumed, leaves, "{what}");
+                assert_eq!(rng.consumed, notes, "{what}");
                 let mut prev = tune.scale.key;
-                for e in tune.notes.list() {
-                    assert!(
-                        prev - 12 <= e.value.pitch && e.value.pitch <= prev + 11,
-                        "{what}"
-                    );
-                    prev = e.value.pitch;
+                for pitch in tune.notes.list().iter().filter_map(|e| e.value.pitch) {
+                    assert!(prev - 12 <= pitch && pitch <= prev + 11, "{what}");
+                    prev = pitch;
                 }
             }
         }
+        assert!(rests > 0, "no rests to test");
     }
 
     #[test]

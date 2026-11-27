@@ -10,7 +10,8 @@ type Column = {
   cadence?: string;
   chordNotenums: number[];
   chordRoot?: number;
-  note?: { pitch: number; is_note_on: boolean };
+  /** The note or the rest; a rest has no pitch. */
+  note?: { pitch?: number };
   beat: boolean;
   bar: boolean;
   phrase: boolean;
@@ -73,7 +74,7 @@ export function PianoRoll(props: { tune: TuneSnapshot; noteBottom: number; noteT
                     classList={{
                       chord: includesPitchClass(col.chordNotenums, pitch),
                       chordroot: col.chordRoot !== undefined && pitchClass(col.chordRoot) === pitchClass(pitch),
-                      note: col.note?.is_note_on === true && col.note.pitch === pitch,
+                      note: col.note?.pitch === pitch,
                       beat: col.beat,
                       bar: col.bar,
                       phrase: col.phrase,
