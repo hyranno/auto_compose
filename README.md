@@ -23,13 +23,13 @@ The top of the page holds the parameter settings, the middle the piano roll, and
 
 ## Parameter settings
 Set the parameters used for the generation.
-See below for the meaning of each parameter.
-After changing the parameters, press the generate button to generate the tune again.
+See below for the meaning of each parameter; the `?` next to each field also explains it.
+After changing the parameters, press the generate button (or Enter in a field) to generate the tune again.
+A field whose value cannot be read is outlined in red, and the tune is not generated until it is fixed.
 
-Only some of the parameters have input forms.
-To set all the parameters, load a JSON file.
+Press the save JSON button to save the settings to a file, and the load JSON button to load them back.
+The load default button restores the settings the page starts with (`resources/TuneGenParams_minor.json` for the tune).
 Examples are in the `resources` folder, and the format (JSON Schema) is in the `schemas` folder.
-Press the save as file button to save the settings to a file.
 If a loaded file has an error, it is not applied and the error is shown.
 
 ## Piano roll
@@ -48,7 +48,7 @@ The MIDI file is meant to be loaded and edited in a DAW or other music software.
 
 
 ## Parameters overview
-An overview of the parameters that have input forms.
+An overview of the parameters.
 The goal of this section is just to get you started.
 To understand the parameters in detail, see the algorithm section.
 
@@ -65,10 +65,14 @@ To understand the parameters in detail, see the algorithm section.
 * Time Measure ... The time signature.
 * Cadence
     + duration ... How often the chord changes. 2 or 4 suit 4/4 time, and 3 suits 3/4 time.
+    + transitions ... The weights of the next cadence after each cadence.
+* Chord
+    + roots ... The weights of the root of the chord, as a degree of the scale, for each cadence.
+    + tones ... The weights of the chord tones, as degrees from the root (`0, 2, 4` is a triad).
 * Rhythm
     + max beat division depth ... The shortest note, a 2^x-th note.
     + p_branch edges ... How much the notes are divided.
-        A smaller left value gives more short notes, and a larger right value gives fewer long notes.
+        A smaller left value gives more short notes, and a smaller right value gives fewer long notes.
     + p_note_on edges ... How often notes become rests. Smaller values give more rests.
 * Pitch
     + abs_pitch_factor edges ... Larger values make notes far from the key note more likely.
@@ -76,6 +80,10 @@ To understand the parameters in detail, see the algorithm section.
     + factor_in_scale ... Larger values make notes in the scale more likely.
     + factor_in_chord ... Larger values make notes in the chord more likely.
     + rhythm_exponent_factor ... Larger values make the length of a note affect the choice of its pitch more.
+* Variant ... The variation played after the tune.
+    + seed, resolution ... As for the tune.
+    + timespan ... The weights of the span to vary, in beats.
+    + layer ... The weights of the layer to vary.
 
 
 # Structure and development

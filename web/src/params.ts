@@ -1,24 +1,34 @@
 import { createStore, reconcile, unwrap } from 'solid-js/store';
 import {
-  defaultTuneParameters,
   defaultVariantParameters,
   generateTune,
   generateVariant,
+  type Layer,
+  type PerCadence,
   type Resolution,
   type TuneParameters,
   type VariantParameters,
 } from 'auto-composer-wasm';
 
+import minorTuneParameters from '../../resources/TuneGenParams_minor.json';
+
 /**
  * All the parameters of the page, as the plain JSON the wasm functions take.
- * The defaults come from the wasm package, whose single source is `resources/*.json`.
+ * The defaults come from `resources/`: the tune parameters of the page are the minor example,
+ * and the variant parameters are the defaults of the wasm package.
  */
 export type PageParameters = { tune: TuneParameters; variant: VariantParameters };
 
+export const defaultTune = (): TuneParameters => structuredClone(minorTuneParameters) as TuneParameters;
+export const defaultVariant = (): VariantParameters => defaultVariantParameters();
+
+/** The tempo the page starts with. */
+export const DEFAULT_BPM = 120;
+
 export function createParameters() {
   const [params, setParams] = createStore<PageParameters>({
-    tune: defaultTuneParameters(),
-    variant: defaultVariantParameters(),
+    tune: defaultTune(),
+    variant: defaultVariant(),
   });
 
   /** A plain copy (not a store proxy) to pass to wasm or to `JSON.stringify`. */
@@ -59,3 +69,8 @@ export const RESOLUTIONS = Object.keys(RESOLUTION_LABELS) as Resolution[];
 
 export const MAJOR_TONES = [0, 2, 4, 5, 7, 9, 11];
 export const MINOR_TONES = [0, 2, 3, 5, 7, 8, 10];
+
+export type Cadence = keyof PerCadence<unknown>;
+export const CADENCES: readonly Cadence[] = ['tonic', 'dominant', 'subdominant'];
+
+export const LAYERS: readonly Layer[] = ['cadence', 'chord', 'rhythm', 'pitch'];
