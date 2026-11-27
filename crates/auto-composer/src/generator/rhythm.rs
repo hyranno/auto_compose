@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::random::{Rng, Seed, chance};
-use crate::tune::{NoteNode, Rhythm, Tune};
+use crate::tune::{Node, Rhythm, RhythmNode, Tune};
 use crate::util::SmoothstepParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,83 +24,100 @@ pub struct Parameters {
     pub p_note_on: SmoothstepParams,
 }
 
-/// A note that is on, without children.
-pub(crate) fn new_node(t: f64, duration: f64) -> NoteNode {
-    NoteNode::new(Rhythm {
+/// The rhythm of a note that is on.
+pub(crate) fn note_on(t: f64, duration: f64) -> Rhythm {
+    Rhythm {
         is_note_on: true,
         t,
         duration,
-    })
+    }
 }
 
-/// Divides `node` into two halves with the probability `p_branch`, recursively while
-/// `depthcount` is positive. At depth 0 no number is drawn for the branch.
+const NUM_CHILDREN: u32 = 2;
+
+/// Divides a node of `rhythm` into two halves with the probability `p_branch`, recursively
+/// while `depthcount` is positive. At depth 0 no number is drawn for the branch.
 /// A leaf draws once more for `is_note_on`.
 pub fn generate_sub_tree(
-    node: &mut NoteNode,
+    rhythm: Rhythm,
     rng: &mut impl Rng,
     depthcount: u32,
     params: &Parameters,
-) {
-    node.children.clear();
-    let p_branch = params.p_branch.eval(node.rhythm.duration);
+) -> RhythmNode {
+    let p_branch = params.p_branch.eval(rhythm.duration);
     let is_branch = 0 < depthcount && chance(rng, p_branch);
     if is_branch {
-        const NUM_CHILDREN: u32 = 2;
-        let sub_duration = node.rhythm.duration / f64::from(NUM_CHILDREN);
-        node.children = (0..NUM_CHILDREN)
-            .map(|i| new_node(node.rhythm.t + f64::from(i) * sub_duration, sub_duration))
+        let sub_duration = rhythm.duration / f64::from(NUM_CHILDREN);
+        let children = (0..NUM_CHILDREN)
+            .map(|i| {
+                let t = rhythm.t + f64::from(i) * sub_duration;
+                generate_sub_tree(note_on(t, sub_duration), rng, depthcount - 1, params)
+            })
             .collect();
-        for child in &mut node.children {
-            generate_sub_tree(child, rng, depthcount - 1, params);
-        }
+        Node::branch(rhythm, children)
     } else {
-        let p_note_on = params.p_note_on.eval(node.rhythm.duration);
-        node.rhythm.is_note_on = chance(rng, p_note_on);
+        let p_note_on = params.p_note_on.eval(rhythm.duration);
+        let is_note_on = chance(rng, p_note_on);
+        Node::leaf(
+            Rhythm {
+                is_note_on,
+                ..rhythm
+            },
+            (),
+        )
     }
 }
 
-/// Merges adjacent children of `root` with the probability `1 - p_branch` of the merged
-/// duration, drawing once per pair. A merge skips the next pair. The merged node loses its
-/// subtree and keeps its `is_note_on`.
-pub fn merge_top_branches(root: &mut NoteNode, rng: &mut impl Rng, params: &Parameters) {
-    let children = &mut root.children;
-    let mut i = 0;
-    while i + 1 < children.len() {
-        let duration = children[i].rhythm.duration + children[i + 1].rhythm.duration;
-        let p_merge = 1.0 - params.p_branch.eval(duration);
-        if chance(rng, p_merge) {
-            children[i].rhythm.duration = duration;
-            children[i].children.clear();
-            children[i + 1].rhythm.duration = 0.0;
-            children[i + 1].children.clear();
-            i += 1;
+/// Merges adjacent nodes with the probability `1 - p_branch` of the merged duration, drawing
+/// once per pair. A merge skips the next pair. The merged node is a leaf with the
+/// `is_note_on` of the first node.
+pub fn merge_top_branches(
+    nodes: Vec<RhythmNode>,
+    rng: &mut impl Rng,
+    params: &Parameters,
+) -> Vec<RhythmNode> {
+    let mut res = Vec::with_capacity(nodes.len());
+    let mut nodes = nodes.into_iter().peekable();
+    while let Some(node) = nodes.next() {
+        if let Some(next) = nodes.peek() {
+            let duration = node.rhythm.duration + next.rhythm.duration;
+            let p_merge = 1.0 - params.p_branch.eval(duration);
+            if chance(rng, p_merge) {
+                nodes.next();
+                res.push(Node::leaf(
+                    Rhythm {
+                        duration,
+                        ..node.rhythm
+                    },
+                    (),
+                ));
+                continue;
+            }
         }
-        i += 1;
+        res.push(node);
     }
-    children.retain(|n| n.rhythm.duration > 0.0);
+    res
 }
 
 /// A phrase of bars of beats. Each beat is divided by [`generate_sub_tree`], and then the
 /// beats of the bar are merged by [`merge_top_branches`].
-pub fn generate(tune: &Tune, params: &Parameters, rng: &mut impl Rng) -> NoteNode {
+pub fn generate(tune: &Tune, params: &Parameters, rng: &mut impl Rng) -> RhythmNode {
     let num_beats = tune.time_measure.beats_per_bar;
     let num_bars = tune.time_measure.bars;
-    let mut phrase = new_node(0.0, f64::from(num_beats * num_bars));
-    phrase.children = (0..num_bars)
+    let bars = (0..num_bars)
         .map(|i| {
-            let mut bar = new_node(f64::from(i * num_beats), f64::from(num_beats));
-            bar.children = (0..num_beats)
-                .map(|j| new_node(bar.rhythm.t + f64::from(j), 1.0))
+            let t = f64::from(i * num_beats);
+            let beats = (0..num_beats)
+                .map(|j| {
+                    let beat = note_on(t + f64::from(j), 1.0);
+                    generate_sub_tree(beat, rng, params.max_beat_division_depth, params)
+                })
                 .collect();
-            for beat in &mut bar.children {
-                generate_sub_tree(beat, rng, params.max_beat_division_depth, params);
-            }
-            merge_top_branches(&mut bar, rng, params);
-            bar
+            let beats = merge_top_branches(beats, rng, params);
+            Node::branch(note_on(t, f64::from(num_beats)), beats)
         })
         .collect();
-    phrase
+    Node::branch(note_on(0.0, f64::from(num_beats * num_bars)), bars)
 }
 
 #[cfg(test)]
@@ -123,18 +140,18 @@ mod tests {
                     let what = format!("{measure:?} depth={depth} seed={seed}");
                     let root = generate(&tune, &params, &mut seeded(seed));
                     assert_eq!(root.rhythm.duration, tune.length, "{what}");
-                    assert_eq!(root.children.len(), measure[1] as usize, "{what}");
-                    for (i, bar) in root.children.iter().enumerate() {
+                    assert_eq!(root.children().len(), measure[1] as usize, "{what}");
+                    for (i, bar) in root.children().iter().enumerate() {
                         assert_eq!(bar.rhythm.t, (i as u32 * measure[0]) as f64, "{what}");
-                        let sum: f64 = bar.children.iter().map(|n| n.rhythm.duration).sum();
+                        let sum: f64 = bar.children().iter().map(|n| n.rhythm.duration).sum();
                         assert_eq!(sum, f64::from(measure[0]), "{what}");
                     }
                     // Leaves tile the whole phrase without gaps or overlaps.
                     let mut t = 0.0;
-                    for leaf in root.leaves() {
-                        assert_eq!(leaf.rhythm.t, t, "{what}");
-                        assert!(leaf.rhythm.duration >= 2f64.powi(-(depth as i32)), "{what}");
-                        t += leaf.rhythm.duration;
+                    for leaf in root.rhythms() {
+                        assert_eq!(leaf.t, t, "{what}");
+                        assert!(leaf.duration >= 2f64.powi(-(depth as i32)), "{what}");
+                        t += leaf.duration;
                     }
                     assert_eq!(t, tune.length, "{what}");
                 }
@@ -149,7 +166,7 @@ mod tests {
         }
     }
 
-    fn rhythms(root: &NoteNode) -> Vec<(f64, f64, bool)> {
+    fn rhythms(root: &RhythmNode) -> Vec<(f64, f64, bool)> {
         root.rhythms()
             .iter()
             .map(|r| (r.t, r.duration, r.is_note_on))

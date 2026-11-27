@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::random::{Seed, layer_rng};
-use crate::tune::{NoteNode, Resolution, Scale, TimeMeasure, Tune};
+use crate::tune::{Cadence, Chord, NoteNode, Resolution, Scale, TimeMeasure, Tune};
+use crate::util::Timeline;
 
 use super::{cadence, chord, note, pitch_weight, rhythm};
 
@@ -51,18 +52,22 @@ impl Parameters {
 /// Generates the cadences, the chords and the notes in this order.
 pub fn generate(params: &Parameters) -> Result<Tune> {
     let mut tune = empty(params)?;
-    tune.cadence = cadence::generate(
-        &tune,
-        &params.cadence,
-        &mut params.layer_rng(params.cadence.seed, "cadence"),
-    )?;
-    tune.chord = chord::generate(
-        &tune,
-        &params.chord,
-        &mut params.layer_rng(params.chord.seed, "chord"),
-    )?;
-    tune.notes = note::tree_to_timeline(&generate_notes(&tune, params)?)?;
+    tune.cadence = generate_cadence(&tune, params)?;
+    tune.chord = generate_chord(&tune, params)?;
+    tune.notes = generate_notes(&tune, params)?.to_timeline();
     Ok(tune)
+}
+
+/// The cadences of the tune.
+pub fn generate_cadence(tune: &Tune, params: &Parameters) -> Result<Timeline<Cadence>> {
+    let rng = &mut params.layer_rng(params.cadence.seed, "cadence");
+    cadence::generate(tune, &params.cadence, rng)
+}
+
+/// The chords of the tune, on its cadences.
+pub fn generate_chord(tune: &Tune, params: &Parameters) -> Result<Timeline<Chord>> {
+    let rng = &mut params.layer_rng(params.chord.seed, "chord");
+    chord::generate(tune, &params.chord, rng)
 }
 
 /// The rhythm tree of the tune with the pitches of its leaves.

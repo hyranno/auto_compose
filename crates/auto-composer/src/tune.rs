@@ -232,54 +232,80 @@ pub struct Rhythm {
     pub duration: f64,
 }
 
-/// A node of the rhythm tree. The leaves are the notes.
+/// A node of the rhythm tree. The leaves are the notes and carry an `L`: nothing in the tree
+/// of the rhythm ([`RhythmNode`]), and the pitch once the pitches are drawn ([`NoteNode`]).
 #[derive(Debug, Clone, PartialEq)]
-pub struct NoteNode {
+pub struct Node<L> {
     pub rhythm: Rhythm,
-    pub pitch: Option<Notenum>,
-    pub children: Vec<NoteNode>,
+    pub kind: NodeKind<L>,
 }
 
-impl NoteNode {
-    pub fn new(rhythm: Rhythm) -> Self {
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeKind<L> {
+    Leaf(L),
+    Branch(Vec<Node<L>>),
+}
+
+/// A rhythm tree without pitches.
+pub type RhythmNode = Node<()>;
+/// A rhythm tree with the pitches of its leaves.
+pub type NoteNode = Node<Notenum>;
+
+impl<L> Node<L> {
+    pub fn leaf(rhythm: Rhythm, value: L) -> Self {
         Self {
             rhythm,
-            pitch: None,
-            children: Vec::new(),
+            kind: NodeKind::Leaf(value),
+        }
+    }
+
+    pub fn branch(rhythm: Rhythm, children: Vec<Node<L>>) -> Self {
+        Self {
+            rhythm,
+            kind: NodeKind::Branch(children),
         }
     }
 
     pub fn is_leaf(&self) -> bool {
-        self.children.is_empty()
+        matches!(self.kind, NodeKind::Leaf(_))
     }
 
-    fn visit<'a>(&'a self, f: &mut impl FnMut(&'a NoteNode)) {
-        f(self);
-        for c in &self.children {
-            c.visit(f);
+    /// Empty for a leaf.
+    pub fn children(&self) -> &[Node<L>] {
+        match &self.kind {
+            NodeKind::Leaf(_) => &[],
+            NodeKind::Branch(children) => children,
         }
     }
 
-    /// The leaves, depth first from the left.
-    pub fn leaves(&self) -> Vec<&NoteNode> {
-        let mut res = Vec::new();
-        self.visit(&mut |n| {
-            if n.is_leaf() {
-                res.push(n);
+    /// Empty for a leaf.
+    pub fn children_mut(&mut self) -> &mut [Node<L>] {
+        match &mut self.kind {
+            NodeKind::Leaf(_) => &mut [],
+            NodeKind::Branch(children) => children,
+        }
+    }
+
+    /// The rhythms and the values of the leaves, depth first from the left.
+    pub fn leaves(&self) -> Vec<(Rhythm, &L)> {
+        fn collect<'a, L>(n: &'a Node<L>, res: &mut Vec<(Rhythm, &'a L)>) {
+            match &n.kind {
+                NodeKind::Leaf(value) => res.push((n.rhythm, value)),
+                NodeKind::Branch(children) => children.iter().for_each(|c| collect(c, res)),
             }
-        });
+        }
+        let mut res = Vec::new();
+        collect(self, &mut res);
         res
     }
 
-    /// The leaves in the same order as [`NoteNode::leaves`].
-    pub fn leaves_mut(&mut self) -> Vec<&mut NoteNode> {
-        fn collect<'a>(n: &'a mut NoteNode, res: &mut Vec<&'a mut NoteNode>) {
+    /// The leaves in the same order as [`Node::leaves`].
+    pub fn leaves_mut(&mut self) -> Vec<&mut Node<L>> {
+        fn collect<'a, L>(n: &'a mut Node<L>, res: &mut Vec<&'a mut Node<L>>) {
             if n.is_leaf() {
                 res.push(n);
             } else {
-                for c in &mut n.children {
-                    collect(c, res);
-                }
+                n.children_mut().iter_mut().for_each(|c| collect(c, res));
             }
         }
         let mut res = Vec::new();
@@ -289,20 +315,49 @@ impl NoteNode {
 
     /// The rhythms of the leaves.
     pub fn rhythms(&self) -> Vec<Rhythm> {
-        self.leaves().into_iter().map(|n| n.rhythm).collect()
+        self.leaves().into_iter().map(|(r, _)| r).collect()
     }
 
-    /// `None` if the pitch is not set.
-    pub fn to_timeline_item(&self) -> Option<TimelineItem<Note>> {
-        let pitch = self.pitch?;
-        Some(TimelineItem::new(
-            self.rhythm.t,
-            Note {
-                pitch,
-                duration: self.rhythm.duration,
-                is_note_on: self.rhythm.is_note_on,
-            },
-        ))
+    /// The same tree with the values of the leaves replaced by `f` of their rhythms and values,
+    /// called on the leaves in the order of [`Node::leaves`].
+    pub fn try_map_leaves<M, E>(
+        self,
+        f: &mut impl FnMut(Rhythm, L) -> std::result::Result<M, E>,
+    ) -> std::result::Result<Node<M>, E> {
+        let kind = match self.kind {
+            NodeKind::Leaf(value) => NodeKind::Leaf(f(self.rhythm, value)?),
+            NodeKind::Branch(children) => NodeKind::Branch(
+                children
+                    .into_iter()
+                    .map(|c| c.try_map_leaves(f))
+                    .collect::<std::result::Result<_, _>>()?,
+            ),
+        };
+        Ok(Node {
+            rhythm: self.rhythm,
+            kind,
+        })
+    }
+}
+
+impl NoteNode {
+    /// The pitches of the leaves.
+    pub fn pitches(&self) -> Vec<Notenum> {
+        self.leaves().into_iter().map(|(_, &p)| p).collect()
+    }
+
+    /// The leaves as a timeline.
+    pub fn to_timeline(&self) -> Timeline<Note> {
+        Timeline::from_items(self.leaves().into_iter().map(|(r, &pitch)| {
+            TimelineItem::new(
+                r.t,
+                Note {
+                    pitch,
+                    duration: r.duration,
+                    is_note_on: r.is_note_on,
+                },
+            )
+        }))
     }
 }
 
@@ -448,65 +503,71 @@ mod tests {
     //   a     b
     //  / \
     // c   d
-    fn tree() -> NoteNode {
-        let node = |t: f64, children: Vec<NoteNode>| NoteNode {
-            children,
-            ..NoteNode::new(Rhythm {
-                is_note_on: true,
-                t,
-                duration: 1.0,
-            })
+    fn tree() -> RhythmNode {
+        let rhythm = |t: f64| Rhythm {
+            is_note_on: true,
+            t,
+            duration: 1.0,
         };
+        let leaf = |t| Node::leaf(rhythm(t), ());
         // The times are names: r = 0, a = 1, b = 2, c = 3, d = 4.
-        node(
-            0.0,
+        Node::branch(
+            rhythm(0.0),
             vec![
-                node(1.0, vec![node(3.0, vec![]), node(4.0, vec![])]),
-                node(2.0, vec![]),
+                Node::branch(rhythm(1.0), vec![leaf(3.0), leaf(4.0)]),
+                leaf(2.0),
             ],
         )
     }
 
-    fn names(nodes: &[&NoteNode]) -> Vec<f64> {
-        nodes.iter().map(|n| n.rhythm.t).collect()
-    }
-
     #[test]
-    fn note_node_leaves() {
-        let mut tree = tree();
-        assert_eq!(names(&tree.leaves()), [3.0, 4.0, 2.0]);
-        let single = NoteNode::new(tree.rhythm);
-        assert_eq!(names(&single.leaves()), [0.0]);
-
-        for (i, leaf) in tree.leaves_mut().into_iter().enumerate() {
-            leaf.pitch = Some(60 + i as Notenum);
-        }
-        let pitches: Vec<_> = tree.leaves().iter().map(|n| n.pitch).collect();
-        assert_eq!(pitches, [Some(60), Some(61), Some(62)]);
+    fn node_leaves() {
+        let tree = tree();
         let ts: Vec<_> = tree.rhythms().iter().map(|r| r.t).collect();
         assert_eq!(ts, [3.0, 4.0, 2.0]);
+        let single = Node::leaf(tree.rhythm, ());
+        assert_eq!(single.rhythms(), [tree.rhythm]);
+
+        let mut next = 60;
+        let mut tree = tree
+            .try_map_leaves(&mut |_, ()| {
+                next += 1;
+                Ok::<_, ()>(next - 1)
+            })
+            .unwrap();
+        assert_eq!(tree.pitches(), [60, 61, 62]);
+        for leaf in tree.leaves_mut() {
+            leaf.rhythm.is_note_on = false;
+        }
+        assert!(tree.rhythms().iter().all(|r| !r.is_note_on));
+        assert_eq!(tree.try_map_leaves(&mut |_, _| Err::<(), _>("e")), Err("e"));
     }
 
     #[test]
-    fn note_node_is_leaf() {
+    fn node_is_leaf() {
         let tree = tree();
-        assert_eq!([tree.is_leaf(), tree.children[1].is_leaf()], [false, true]);
+        assert_eq!(
+            [tree.is_leaf(), tree.children()[1].is_leaf()],
+            [false, true]
+        );
+        assert!(tree.children()[1].children().is_empty());
     }
 
     #[test]
-    fn note_node_to_timeline_item() {
-        let mut n = NoteNode::new(Rhythm {
+    fn note_node_to_timeline() {
+        let rhythm = Rhythm {
             is_note_on: false,
             t: 1.5,
             duration: 0.5,
-        });
-        assert_eq!(n.to_timeline_item(), None);
-        n.pitch = Some(64);
+        };
         let expected = Note {
             pitch: 64,
             duration: 0.5,
             is_note_on: false,
         };
-        assert_eq!(n.to_timeline_item(), Some(TimelineItem::new(1.5, expected)));
+        assert_eq!(
+            Node::leaf(rhythm, 64).to_timeline(),
+            Timeline::from_items([TimelineItem::new(1.5, expected)])
+        );
     }
 }

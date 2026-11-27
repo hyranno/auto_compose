@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, Result};
 use crate::markov::{Condition, MarkovChain};
 use crate::random::{Rng, Seed, chance, layer_rng};
-use crate::tune::{Cadence, Chord, Note, NoteNode, Notenum, Resolution, Rhythm, Tune};
+use crate::tune::{Cadence, Chord, Node, NodeKind, NoteNode, Notenum, Resolution, Rhythm, Tune};
 use crate::util::{Timeline, TimelineItem, WeightedItem, weighted_pick};
 
-use super::{cadence, chord, note, pitch_weight, rhythm, tune as tune_generator};
+use super::{cadence, chord, pitch_weight, rhythm, tune as tune_generator};
 
 /// The layer to vary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -96,16 +96,13 @@ pub fn generate_with(
         ..base.clone()
     };
     let p = &tune_params;
+    // The layers in the order of `tune_generator::generate`, each varied when chosen.
     let mut tune = tune_generator::empty(p)?;
-    tune.cadence = cadence::generate(
-        &tune,
-        &p.cadence,
-        &mut p.layer_rng(p.cadence.seed, "cadence"),
-    )?;
+    tune.cadence = tune_generator::generate_cadence(&tune, p)?;
     if layer == Layer::Cadence {
         tune.cadence = vary_cadence(&tune, timespan, rng, &p.cadence)?;
     }
-    tune.chord = chord::generate(&tune, &p.chord, &mut p.layer_rng(p.chord.seed, "chord"))?;
+    tune.chord = tune_generator::generate_chord(&tune, p)?;
     if layer == Layer::Chord {
         tune.chord = vary_chord(&tune, timespan, rng, &p.chord)?;
     }
@@ -115,7 +112,7 @@ pub fn generate_with(
         Layer::Rhythm => vary_rhythm(&tune, &mut tree, timespan, rng, p)?,
         Layer::Cadence | Layer::Chord => {}
     }
-    tune.notes = note::tree_to_timeline(&tree)?;
+    tune.notes = tree.to_timeline();
     Ok(tune)
 }
 
@@ -188,7 +185,7 @@ pub fn vary_chord(
     Ok(Timeline::from_items(items))
 }
 
-/// Draws the pitches of `dest` so that they lead from `start` to `end`.
+/// Draws the pitches of notes of `rhythms` so that they lead from `start` to `end`.
 ///
 /// The pitches move by a Markov chain on `key ± (ceil(abs_pitch_factor.edge1) - 1)` whose
 /// transition weights are [`pitch_weight::calc_time_homo_weight`] (made into probabilities by
@@ -204,9 +201,9 @@ pub fn interpolate(
     start: Notenum,
     end: Notenum,
     rng: &mut impl Rng,
-    dest: &mut [&mut NoteNode],
+    rhythms: &[Rhythm],
     params: &pitch_weight::Parameters,
-) -> Result<()> {
+) -> Result<Vec<Notenum>> {
     let max_length_to_key = params.abs_pitch_factor.edge1.ceil() as Notenum;
     let key = tune.scale.key;
     let candidates: Vec<Notenum> = (key - max_length_to_key + 1..key + max_length_to_key).collect();
@@ -230,34 +227,29 @@ pub fn interpolate(
     let nearest = |p: Notenum| p.clamp(candidates[0], candidates[candidates.len() - 1]);
     let end = nearest(end);
     let mut prev = nearest(start);
-    let len = dest.len();
-    for (i, note) in dest.iter_mut().enumerate() {
+    let len = rhythms.len();
+    let mut pitches = Vec::with_capacity(len);
+    for (i, rhythm) in rhythms.iter().enumerate() {
         // From the note `i`, `len - 1 - i` notes and then `end` follow.
         let dist = chain.next_distribution(&prev, &Condition::new(len - i + 1, end))?;
         let items = chain
             .vector_to_weighted_items(&dist)
             .into_iter()
             .map(|item| {
-                let candidate = Note {
-                    pitch: item.value,
-                    is_note_on: note.rhythm.is_note_on,
-                    duration: note.rhythm.duration,
-                };
                 let weight = pitch_weight::calc_with_time_homo_weight(
                     tune,
                     item.weight,
-                    &candidate,
-                    note.rhythm.t,
+                    item.value,
+                    rhythm,
                     params,
                 )?;
                 Ok(WeightedItem::new(weight, item.value))
             })
             .collect::<Result<Vec<_>>>()?;
-        let pitch = *weighted_pick(&items, rng)?;
-        note.pitch = Some(pitch);
-        prev = pitch;
+        prev = *weighted_pick(&items, rng)?;
+        pitches.push(prev);
     }
-    Ok(())
+    Ok(pitches)
 }
 
 /// Redraws the pitches of the leaves of `tree` strictly inside the timespan
@@ -269,21 +261,17 @@ pub fn vary_pitch(
     rng: &mut impl Rng,
     params: &pitch_weight::Parameters,
 ) -> Result<()> {
-    let [start, end] = span_indices(&note::tree_to_timeline(tree)?, timespan)?;
-    let mut leaves = tree.leaves_mut();
-    let pitch_at = |leaves: &[&mut NoteNode], i: usize| {
-        leaves
-            .get(i)
-            .and_then(|l| l.pitch)
-            .ok_or(Error::MissingPitch)
-    };
-    let start_pitch = pitch_at(&leaves, start)?;
-    let end_pitch = pitch_at(&leaves, end)?;
+    let [start, end] = span_indices(&tree.to_timeline(), timespan)?;
+    let pitches = tree.pitches();
     // `slice(start + 1, end)`: empty when the range is reversed.
-    let dest = leaves
-        .get_mut(start + 1..end.max(start + 1))
-        .unwrap_or_default();
-    interpolate(tune, start_pitch, end_pitch, rng, dest, params)
+    let inside = start + 1..end.max(start + 1);
+    let rhythms = &tree.rhythms()[inside.clone()];
+    let varied = interpolate(tune, pitches[start], pitches[end], rng, rhythms, params)?;
+    let leaves = tree.leaves_mut().into_iter().skip(inside.start);
+    for (leaf, pitch) in leaves.zip(varied) {
+        leaf.kind = NodeKind::Leaf(pitch);
+    }
+    Ok(())
 }
 
 /// Splits, merges and toggles the leaves of `tree` inside the timespan.
@@ -304,15 +292,10 @@ const NUM_CHILDREN: usize = 2;
 
 /// The pitch of the leaf `neighbour`, or of the leaf `own` when there is no such leaf
 /// (`neighbour` is out of range at either end of the tune).
-fn neighbour_pitch(
-    pitches: &[Option<Notenum>],
-    neighbour: Option<usize>,
-    own: usize,
-) -> Result<Notenum> {
+fn neighbour_pitch(pitches: &[Notenum], neighbour: Option<usize>, own: usize) -> Notenum {
     neighbour
         .and_then(|i| pitches.get(i))
-        .unwrap_or(&pitches[own])
-        .ok_or(Error::MissingPitch)
+        .map_or(pitches[own], |&p| p)
 }
 
 /// Splits each leaf inside the timespan into halves with the probability `p_branch` of its
@@ -326,10 +309,9 @@ pub fn split_rhythm(
     rng: &mut impl Rng,
     params: &tune_generator::Parameters,
 ) -> Result<()> {
-    let mut leaves = root.leaves_mut();
-    // Splitting a leaf does not change the pitches of the leaves.
-    let pitches: Vec<Option<Notenum>> = leaves.iter().map(|l| l.pitch).collect();
-    for (i, leaf) in leaves.iter_mut().enumerate() {
+    // Splitting a leaf does not change the pitches of the other leaves.
+    let pitches = root.pitches();
+    for (i, leaf) in root.leaves_mut().into_iter().enumerate() {
         let rhythm = leaf.rhythm;
         if !timespan.contains(rhythm.t) {
             continue;
@@ -337,14 +319,14 @@ pub fn split_rhythm(
         let p_split = params.rhythm.p_branch.eval(rhythm.duration);
         if chance(rng, p_split) {
             let sub_duration = rhythm.duration / NUM_CHILDREN as f64;
-            leaf.children.extend(
-                (0..NUM_CHILDREN)
-                    .map(|k| rhythm::new_node(rhythm.t + k as f64 * sub_duration, sub_duration)),
-            );
-            let start = neighbour_pitch(&pitches, i.checked_sub(1), i)?;
-            let end = neighbour_pitch(&pitches, Some(i + 1), i)?;
-            let mut children: Vec<&mut NoteNode> = leaf.children.iter_mut().collect();
-            interpolate(tune, start, end, rng, &mut children, &params.pitch)?;
+            let halves: Vec<Rhythm> = (0..NUM_CHILDREN)
+                .map(|k| rhythm::note_on(rhythm.t + k as f64 * sub_duration, sub_duration))
+                .collect();
+            let start = neighbour_pitch(&pitches, i.checked_sub(1), i);
+            let end = neighbour_pitch(&pitches, Some(i + 1), i);
+            let half_pitches = interpolate(tune, start, end, rng, &halves, &params.pitch)?;
+            let children = halves.into_iter().zip(half_pitches);
+            *leaf = Node::branch(rhythm, children.map(|(r, p)| Node::leaf(r, p)).collect());
         }
     }
     Ok(())
@@ -353,10 +335,10 @@ pub fn split_rhythm(
 /// The paths (indices of the children from `node`) of the nodes with `NUM_CHILDREN` children,
 /// in pre-order.
 fn branch_paths(node: &NoteNode, path: &mut Vec<usize>, res: &mut Vec<Vec<usize>>) {
-    if node.children.len() == NUM_CHILDREN {
+    if node.children().len() == NUM_CHILDREN {
         res.push(path.clone());
     }
-    for (i, child) in node.children.iter().enumerate() {
+    for (i, child) in node.children().iter().enumerate() {
         path.push(i);
         branch_paths(child, path, res);
         path.pop();
@@ -364,7 +346,8 @@ fn branch_paths(node: &NoteNode, path: &mut Vec<usize>, res: &mut Vec<Vec<usize>
 }
 
 fn node_at_mut<'a>(root: &'a mut NoteNode, path: &[usize]) -> Option<&'a mut NoteNode> {
-    path.iter().try_fold(root, |n, &i| n.children.get_mut(i))
+    path.iter()
+        .try_fold(root, |n, &i| n.children_mut().get_mut(i))
 }
 
 /// Merges each branch of two children inside the timespan into one note with the probability
@@ -381,8 +364,8 @@ pub fn merge_rhythm(
     rng: &mut impl Rng,
     params: &tune_generator::Parameters,
 ) -> Result<()> {
-    let leaves: Vec<Rhythm> = root.leaves().iter().map(|l| l.rhythm).collect();
-    let pitches: Vec<Option<Notenum>> = root.leaves().iter().map(|l| l.pitch).collect();
+    let leaves = root.rhythms();
+    let pitches = root.pitches();
     let mut paths = Vec::new();
     branch_paths(root, &mut Vec::new(), &mut paths);
     let mut merged_paths: Vec<Vec<usize>> = Vec::new();
@@ -401,14 +384,14 @@ pub fn merge_rhythm(
             let under = |l: &Rhythm| rhythm.t <= l.t && l.t < end_t;
             let i0 = leaves.iter().position(under).expect("a branch has leaves");
             let i1 = leaves.iter().rposition(under).expect("a branch has leaves");
-            let start = neighbour_pitch(&pitches, i0.checked_sub(1), i0)?;
-            let end = neighbour_pitch(&pitches, Some(i1 + 1), i1)?;
-            let mut merged = NoteNode::new(Rhythm {
+            let start = neighbour_pitch(&pitches, i0.checked_sub(1), i0);
+            let end = neighbour_pitch(&pitches, Some(i1 + 1), i1);
+            let merged = Rhythm {
                 is_note_on: leaves[i0..=i1].iter().any(|l| l.is_note_on),
                 ..rhythm
-            });
-            interpolate(tune, start, end, rng, &mut [&mut merged], &params.pitch)?;
-            *branch = merged;
+            };
+            let pitch = interpolate(tune, start, end, rng, &[merged], &params.pitch)?[0];
+            *branch = Node::leaf(merged, pitch);
             merged_paths.push(path);
         }
     }
@@ -437,7 +420,7 @@ mod tests {
     use super::*;
     use crate::generator::test_util::{ConstantRng, SEEDS, default_params, empty_tune, seeded};
     use crate::random::ScriptedRng;
-    use crate::tune::Scale;
+    use crate::tune::{Note, Scale};
 
     const TIMESPANS: [[f64; 2]; 5] = [
         [6.0, 11.0],
@@ -585,20 +568,19 @@ mod tests {
         assert!(generate_with(&params, &base(), &mut rng).is_ok());
     }
 
-    fn node(t: f64, duration: f64, pitch: Option<Notenum>, children: Vec<NoteNode>) -> NoteNode {
-        NoteNode {
-            rhythm: Rhythm {
-                is_note_on: true,
-                t,
-                duration,
-            },
-            pitch,
-            children,
-        }
+    fn node(t: f64, duration: f64, children: Vec<NoteNode>) -> NoteNode {
+        Node::branch(rhythm::note_on(t, duration), children)
     }
 
     fn leaf(t: f64, duration: f64, pitch: Notenum) -> NoteNode {
-        node(t, duration, Some(pitch), Vec::new())
+        Node::leaf(rhythm::note_on(t, duration), pitch)
+    }
+
+    fn pitch(node: &NoteNode) -> Option<Notenum> {
+        match node.kind {
+            NodeKind::Leaf(p) => Some(p),
+            NodeKind::Branch(_) => None,
+        }
     }
 
     fn tune_with_a_chord() -> Tune {
@@ -611,14 +593,9 @@ mod tests {
     #[test]
     fn a_branch_under_a_merged_branch_is_skipped() {
         // root: [L0, B, L3], B: [C, l2], C: [l1a, l1b]. B and C are the branches of two children.
-        let c = node(1.0, 1.0, None, vec![leaf(1.0, 0.5, 70), leaf(1.5, 0.5, 71)]);
-        let b = node(1.0, 2.0, None, vec![c, leaf(2.0, 1.0, 72)]);
-        let mut root = node(
-            0.0,
-            4.0,
-            None,
-            vec![leaf(0.0, 1.0, 69), b, leaf(3.0, 1.0, 73)],
-        );
+        let c = node(1.0, 1.0, vec![leaf(1.0, 0.5, 70), leaf(1.5, 0.5, 71)]);
+        let b = node(1.0, 2.0, vec![c, leaf(2.0, 1.0, 72)]);
+        let mut root = node(0.0, 4.0, vec![leaf(0.0, 1.0, 69), b, leaf(3.0, 1.0, 73)]);
         let mut rng = ConstantRng::new(0.0); // every merge happens
         let params = default_params();
         merge_rhythm(
@@ -631,13 +608,9 @@ mod tests {
         .unwrap();
         // B: one draw to merge and one for its pitch; C, no longer in the tree, draws nothing.
         assert_eq!(rng.consumed, 2);
-        let leaves: Vec<_> = root
-            .leaves()
-            .iter()
-            .map(|l| (l.rhythm.t, l.rhythm.duration))
-            .collect();
+        let leaves: Vec<_> = root.rhythms().iter().map(|r| (r.t, r.duration)).collect();
         assert_eq!(leaves, [(0.0, 1.0), (1.0, 2.0), (3.0, 1.0)]);
-        assert!(root.children[1].pitch.is_some());
+        assert!(root.children()[1].is_leaf());
     }
 
     #[test]
@@ -686,14 +659,9 @@ mod tests {
             n.rhythm.is_note_on = false;
             n
         };
-        let c = node(2.0, 1.0, None, vec![off(2.0, 0.5, 90), off(2.5, 0.5, 90)]);
-        let b = node(1.0, 2.0, None, vec![off(1.0, 1.0, 90), c]);
-        let mut root = node(
-            0.0,
-            4.0,
-            None,
-            vec![leaf(0.0, 1.0, 66), b, leaf(3.0, 1.0, 74)],
-        );
+        let c = node(2.0, 1.0, vec![off(2.0, 0.5, 90), off(2.5, 0.5, 90)]);
+        let b = node(1.0, 2.0, vec![off(1.0, 1.0, 90), c]);
+        let mut root = node(0.0, 4.0, vec![leaf(0.0, 1.0, 66), b, leaf(3.0, 1.0, 74)]);
         // Merge B, then draw its pitch from the middle of the distribution.
         let mut rng = ScriptedRng::new(vec![0.0, 0.5]);
         let params = default_params();
@@ -706,10 +674,12 @@ mod tests {
         )
         .unwrap();
         assert_eq!(rng.consumed(), 2);
-        let merged = &root.children[1];
-        assert!(merged.children.is_empty());
+        let merged = &root.children()[1];
         // Less than 6 semitones from both 66 and 74.
-        assert!((69..=70).contains(&merged.pitch.unwrap()), "{merged:?}");
+        assert!(
+            pitch(merged).is_some_and(|p| (69..=70).contains(&p)),
+            "{merged:?}"
+        );
         assert!(!merged.rhythm.is_note_on);
     }
 
@@ -718,7 +688,6 @@ mod tests {
         let mut root = node(
             0.0,
             3.0,
-            None,
             vec![leaf(0.0, 1.0, 69), leaf(1.0, 1.0, 71), leaf(2.0, 1.0, 73)],
         );
         let mut rng = ConstantRng::new(0.0);
@@ -733,12 +702,10 @@ mod tests {
         .unwrap();
         // One draw to split and one per half.
         assert_eq!(rng.consumed, 3);
-        let middle = &root.children[1];
-        assert_eq!(middle.pitch, Some(71));
-        let halves: Vec<_> = middle
-            .children
+        let halves: Vec<_> = root.children()[1]
+            .children()
             .iter()
-            .map(|n| (n.rhythm.t, n.rhythm.duration, n.pitch.is_some()))
+            .map(|n| (n.rhythm.t, n.rhythm.duration, n.is_leaf()))
             .collect();
         assert_eq!(halves, [(1.0, 0.5, true), (1.5, 0.5, true)]);
     }
@@ -748,7 +715,6 @@ mod tests {
         let mut root = node(
             0.0,
             3.0,
-            None,
             vec![leaf(0.0, 1.0, 62), leaf(1.0, 1.0, 62), leaf(2.0, 1.0, 76)],
         );
         // Split, then draw the pitches of the halves from the middle of their distributions.
@@ -763,10 +729,10 @@ mod tests {
         )
         .unwrap();
         // The halves lead from 62 to the own pitch 76 in 3 steps of less than 6 semitones.
-        let halves: Vec<_> = root.children[2]
-            .children
+        let halves: Vec<_> = root.children()[2]
+            .children()
             .iter()
-            .map(|n| n.pitch.unwrap())
+            .map(|n| pitch(n).unwrap())
             .collect();
         assert_eq!(rng.consumed(), 3);
         let path = [62, halves[0], halves[1], 76];
@@ -782,11 +748,10 @@ mod tests {
         let (start, end) = (63, 75);
         for seed in SEEDS {
             let mut rng = seeded(seed);
-            let mut notes: Vec<NoteNode> = (0..3).map(|i| leaf(f64::from(i), 1.0, 0)).collect();
-            let mut dest: Vec<&mut NoteNode> = notes.iter_mut().collect();
-            interpolate(&tune, start, end, &mut rng, &mut dest, &params).unwrap();
+            let rhythms: Vec<_> = (0..3).map(|i| rhythm::note_on(f64::from(i), 1.0)).collect();
+            let pitches = interpolate(&tune, start, end, &mut rng, &rhythms, &params).unwrap();
             let mut path = vec![start];
-            path.extend(notes.iter().map(|n| n.pitch.unwrap()));
+            path.extend(pitches);
             path.push(end);
             assert!(
                 path.windows(2).all(|w| (w[1] - w[0]).abs() < 6),
@@ -802,11 +767,8 @@ mod tests {
         let params = default_params().pitch;
         for seed in SEEDS {
             let run = |start, end| {
-                let mut notes = [leaf(0.0, 1.0, 0), leaf(1.0, 1.0, 0)];
-                let [a, b] = &mut notes;
-                let mut rng = seeded(seed);
-                interpolate(&tune, start, end, &mut rng, &mut [a, b], &params).unwrap();
-                notes
+                let rhythms = [rhythm::note_on(0.0, 1.0), rhythm::note_on(1.0, 1.0)];
+                interpolate(&tune, start, end, &mut seeded(seed), &rhythms, &params).unwrap()
             };
             assert_eq!(run(30, 100), run(62, 76));
         }
@@ -820,10 +782,8 @@ mod tests {
         let pitches: Vec<Notenum> = SEEDS
             .iter()
             .map(|&seed| {
-                let mut note = leaf(0.0, 1.0, 0);
-                let mut rng = seeded(seed);
-                interpolate(&tune, 62, 76, &mut rng, &mut [&mut note], &params).unwrap();
-                note.pitch.unwrap()
+                let rhythms = [rhythm::note_on(0.0, 1.0)];
+                interpolate(&tune, 62, 76, &mut seeded(seed), &rhythms, &params).unwrap()[0]
             })
             .collect();
         // Drawn one step from 62, not stuck at the lowest candidate as with NaN weights.
