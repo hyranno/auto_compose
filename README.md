@@ -2,10 +2,15 @@ English | [日本語](README.ja.md)
 
 # What is this
 A tool to help with composing music.
-Try it [here](https://hyranno.github.io/auto_compose/).
 It generates a musical phrase automatically from various parameters.
 It is based on Western music theory, but simplifies it and may contain mistakes.
 Use it when you want to compose but starting from nothing is hard.
+
+It comes in two forms:
+
+* A [web page](#web-page), to try it in the browser [here](https://hyranno.github.io/auto_compose/).
+* A [Rust library](#rust-library) (`auto-composer`), to generate tunes from your own program.
+  WebAssembly bindings with TypeScript declarations are also available.
 
 
 # Copyright
@@ -18,7 +23,7 @@ They are probably treated like works created by AI, but ask someone familiar wit
 Works arranged or composed from the output of the program are copyrighted by the people who arranged or composed them.
 
 
-# Usage
+# Web page
 The top of the page holds the parameter settings, the middle the piano roll, and the bottom the output panel.
 
 ## Parameter settings
@@ -30,6 +35,7 @@ A field whose value cannot be read is outlined in red, and the tune is not gener
 Press the save JSON button to save the settings to a file, and the load JSON button to load them back.
 The load default button restores the settings the page starts with (`resources/TuneGenParams_minor.json` for the tune).
 Examples are in the `resources` folder, and the format (JSON Schema) is in the `schemas` folder.
+The same files are read by the [Rust library](#rust-library).
 If a loaded file has an error, it is not applied and the error is shown.
 
 ## Piano roll
@@ -47,8 +53,76 @@ Listen to the generated tune with the play button, or export it as a MIDI file.
 The MIDI file is meant to be loaded and edited in a DAW or other music software.
 
 
-## Parameters overview
-An overview of the parameters.
+# Rust library
+The generation logic is the Rust crate `auto-composer` (`crates/auto-composer`).
+It is not published on crates.io; depend on it through Git:
+
+```toml
+[dependencies]
+auto-composer = { git = "https://github.com/hyranno/auto_compose" }
+serde_json = "1"  # to read the parameters from JSON
+```
+
+It needs Rust 1.85 or later (edition 2024).
+The following generates a tune and its variant, as the web page does, and prints the melody:
+
+```rust
+use auto_composer::generator::{tune, variant};
+use auto_composer::snapshot::TuneSnapshot;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // The parameters are in the JSON format of `resources/`, or start from the defaults.
+    let json = std::fs::read_to_string("TuneGenParams_minor.json")?;
+    let mut params: tune::Parameters = serde_json::from_str(&json)?;
+    params.seed = 42;
+    let variant_params = variant::Parameters::default();
+
+    // The tune followed by its variant.
+    let tune = tune::generate(&params)?;
+    let phrase = tune.merge(&variant::generate(&variant_params, &params)?);
+
+    // The times and durations are in beats, and the pitches are MIDI note numbers.
+    for note in phrase.notes.list() {
+        match note.value.pitch {
+            Some(pitch) => println!("{}: {pitch} for {} beats", note.t, note.value.duration),
+            None => println!("{}: rest for {} beats", note.t, note.value.duration),
+        }
+    }
+
+    // Or the whole tune (cadences, chords and notes) as plain JSON.
+    println!("{}", serde_json::to_string(&TuneSnapshot::from(&phrase))?);
+    Ok(())
+}
+```
+
+The main items:
+
+| Item | What it is |
+|---|---|
+| `generator::tune::Parameters` | The parameters of a tune (`resources/TuneGenParams_*.json`). `Default` is `TuneGenParams_default.json`. |
+| `generator::tune::generate` | Generates a `Tune` from the parameters. |
+| `generator::variant::Parameters` | The parameters of a variant (`resources/VariantGenParams_default.json`). |
+| `generator::variant::generate` | Generates a variant of the tune of the given tune parameters. |
+| `tune::Tune` | A generated tune: its scale, and the timelines of the cadences, the chords and the notes. `merge` joins two tunes. |
+| `snapshot::TuneSnapshot` | A plain, serializable form of a `Tune`. |
+| `error::Error` | Invalid parameters are returned as errors rather than panicking. |
+
+The same seed and parameters always give the same tune.
+The generators of each layer (cadence, chord, rhythm, pitch) are also available in `generator`
+to generate or vary a part of a tune; see the documentation (`cargo doc -p auto-composer --open`).
+
+The optional features are `schemars` (JSON Schemas of the parameters) and `tsify`
+(TypeScript declarations, for the WebAssembly bindings).
+
+## WebAssembly
+`crates/auto-composer-wasm` exposes the library to JavaScript (`generateTune`, `generateVariant`, `compose`, ...),
+taking and returning plain objects of the same shape as the JSON.
+See [doc/dev/wasm.md](doc/dev/wasm.md) for the API and how to build it.
+
+
+# Parameters overview
+An overview of the parameters, which are shared by the web page and the library.
+The labels are those of the web page; the field names in the JSON are in the `schemas` folder.
 The goal of this section is just to get you started.
 To understand the parameters in detail, see the algorithm section.
 
