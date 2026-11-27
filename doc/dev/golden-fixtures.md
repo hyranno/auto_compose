@@ -38,21 +38,18 @@ so the expected values are compared exactly.
 
 ## Random numbers
 
-Each `generate` in `auto_composer::generator` takes a `&dyn RngFactory` and asks it for its own
-`rand::Rng` with a label (`cadence`, `chord.root`, `chord.tone`, `rhythm`, `note.pitch`, `variant`).
-`SeededRngFactory`, the normal factory, mixes a hash of the label into the seed
-(`RandomSeed::for_label`), so layers given the same seed (as in the default parameters) still draw
-independent sequences.
+Each layer draws from a generator of its own, `random::layer_rng(seed, label)`, with the labels
+`cadence`, `chord`, `rhythm`, `pitch` and `variant`. The seed is the seed of the layer if it has one,
+or else the seed of the tune (`tune::Parameters::layer_rng`). The label is hashed into the seed, so
+layers given the same seed still draw independent sequences, and changing the seed of one layer
+changes only that layer and the layers generated from it.
 
-The steps inside a generator (`generate_with`, `generate_roots`, `merge_top_branches`, ...) take a
-`&mut impl Rng`, so that unit tests can give them specific draws: `ScriptedRng` returns a fixed list
-of values in `[0, 1)` (as words that `rand` turns back into those values), and the test helpers in
-`generator/mod.rs` return a constant value or count the words drawn.
-The variant draws from a single `Rng` (label `variant`) through all its steps
-(`vary_cadence`, `vary_chord`, `interpolate`, `split_rhythm`, `merge_rhythm`, `toggle_note_on`, ...).
-
-Seeds in the parameter JSON are read as JavaScript does: the number becomes a `f64` and then
-`BigInt(x) & U64_MASK`, so integers beyond 2^53 are rounded first and a fraction is an error.
+The steps inside a generator (`cadence::generate`, `rhythm::merge_top_branches`, `variant::interpolate`,
+...) take a `&mut impl Rng`, so that unit tests can give them specific draws: `ScriptedRng` returns
+a fixed list of values in `[0, 1)` (as words that `rand` turns back into those values), and the test
+helpers in `generator/mod.rs` return a constant value or count the words drawn.
+The variant draws from a single generator through all its steps (`vary_cadence`, `vary_chord`,
+`interpolate`, `split_rhythm`, `merge_rhythm`, `toggle_note_on`, ...); `variant::generate_with` takes it.
 
 ## Unit tests
 

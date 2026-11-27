@@ -24,13 +24,13 @@ table.pianoroll td.bar {
 table.pianoroll td.phrase {
   border-left: 3px double rgb(60% 60% 60%);
 }
-table.pianoroll td.Tonic {
+table.pianoroll td.tonic {
   background-color: rgb(80% 80% 100%);
 }
-table.pianoroll td.Dominant {
+table.pianoroll td.dominant {
   background-color: rgb(100% 80% 80%);
 }
-table.pianoroll td.Subdominant {
+table.pianoroll td.subdominant {
   background-color: rgb(100% 100% 80%);
 }
 table.pianoroll tr:not(.scale) {

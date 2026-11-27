@@ -32,16 +32,15 @@ impl<T: Clone + PartialEq> MarkovChain<T> {
     /// The weights are ratios: each row is divided by its sum to make the transition
     /// probabilities. A row with a negative or non-finite weight, or whose sum is 0, is an error.
     ///
-    /// It is read like `new Map(transition)` in TypeScript: the states are ordered by their
-    /// first appearance, and a later entry for the same state replaces the earlier one.
-    /// Every state needs a weight for every state.
+    /// The states are in the order of `transition`, and each of them needs a weight for every
+    /// state. A state listed twice is an error.
     pub fn new(transition: &[(T, Vec<WeightedItem<T>>)]) -> Result<Self> {
         let mut entries: Vec<(&T, &[WeightedItem<T>])> = Vec::new();
         for (state, items) in transition {
-            match entries.iter_mut().find(|(s, _)| *s == state) {
-                Some(entry) => entry.1 = items,
-                None => entries.push((state, items)),
+            if entries.iter().any(|(s, _)| *s == state) {
+                return Err(Error::DuplicateState);
             }
+            entries.push((state, items));
         }
         let states: Vec<T> = entries.iter().map(|(s, _)| (*s).clone()).collect();
         let n = states.len();
@@ -172,7 +171,7 @@ fn is_distribution(v: &[f64]) -> bool {
 mod tests {
     use super::*;
     use crate::generator::test_util::seeded;
-    use crate::tune::Cadence::{self, D, S, T};
+    use crate::tune::Cadence::{self, Dominant as D, Subdominant as S, Tonic as T};
 
     fn chain3() -> MarkovChain<u8> {
         let w = WeightedItem::new;
@@ -217,7 +216,7 @@ mod tests {
     fn check_walks(steps: &[Step]) {
         let chain = chain3();
         for s in 0..50 {
-            let mut rng = seeded(s, 1);
+            let mut rng = seeded(s);
             let walk = walk(&chain, &mut rng, steps.iter().cloned());
             let mut prev = 0;
             for (i, (step, &state)) in steps.iter().zip(&walk).enumerate() {
@@ -279,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    fn states_keep_the_order_of_the_map() {
+    fn states_keep_their_order() {
         assert_eq!(cadence_chain().states(), [T, D, S]);
     }
 
@@ -342,7 +341,7 @@ mod tests {
         assert_close(&d1, &w.map(|x| x / sum(&w)));
     }
 
-    // The values printed by the TypeScript implementation, up to rounding.
+    // Conditional distributions computed independently (by the former TypeScript implementation).
     #[test]
     fn known_values() {
         let chain = cadence_chain();
@@ -437,6 +436,11 @@ mod tests {
     #[test]
     fn errors() {
         let w = WeightedItem::new;
+        let duplicate = [(T, vec![w(1.0, T)]), (T, vec![w(1.0, T)])];
+        assert_eq!(
+            MarkovChain::new(&duplicate).unwrap_err(),
+            Error::DuplicateState
+        );
         let missing = [(T, vec![w(1.0, T)]), (D, vec![w(1.0, T), w(0.0, D)])];
         assert_eq!(
             MarkovChain::new(&missing).unwrap_err(),

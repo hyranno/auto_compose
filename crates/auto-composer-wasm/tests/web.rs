@@ -13,10 +13,10 @@ use serde_json::Value;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::wasm_bindgen_test;
 
-/// The seeds of this case exceed 2^32, and one is the largest safe integer of JavaScript.
+/// The seed of this case is the largest one.
 const TUNE_CASE: &str = include_str!("../../../fixtures/golden/tune/default_seed-large.json");
 const VARIANT_CASE: &str =
-    include_str!("../../../fixtures/golden/variant/default_layer-3_span-6-11.json");
+    include_str!("../../../fixtures/golden/variant/default_layer-rhythm_span-6-11.json");
 
 fn case(text: &str) -> Value {
     serde_json::from_str(text).unwrap()
@@ -74,8 +74,11 @@ fn the_defaults_are_the_resource_files() {
         serde_json::from_str::<Value>(&String::from(text)).unwrap(),
         tune
     );
-    assert_eq!(tune["time_measure"], serde_json::json!([4, 4]));
-    assert_eq!(variant["layer"][0]["value"], 3);
+    assert_eq!(
+        tune["time_measure"],
+        serde_json::json!({"beats_per_bar": 4, "bars": 4})
+    );
+    assert_eq!(variant["layer"][0]["value"], "rhythm");
     // They generate without errors.
     let tune = generate_tune(default_tune_parameters().unwrap());
     assert!(tune.is_ok());
@@ -86,7 +89,7 @@ fn invalid_parameters_throw() {
     let mut params = case(TUNE_CASE)["params"].clone();
     params["cadence"]["duration"] = 0.into();
     assert!(generate_tune(to_js(&params)).is_err());
-    params["resolution"] = "Unknown".into();
+    params["resolution"] = "Half".into();
     assert!(generate_tune(to_js(&params)).is_err());
     assert!(generate_tune(JsValue::NULL).is_err());
 }

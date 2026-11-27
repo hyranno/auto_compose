@@ -10,16 +10,17 @@ type Column = {
   cadence?: string;
   chordNotenums: number[];
   chordRoot?: number;
-  note?: { pitch: number; isNoteOn: boolean };
+  note?: { pitch: number; is_note_on: boolean };
   beat: boolean;
   bar: boolean;
   phrase: boolean;
 };
 
 function columns(tune: TuneSnapshot): Column[] {
-  const tick = 1 / (1 << tune.max_beat_division_depth);
-  const bar = tune.time_measure[0];
-  const phrase = bar * tune.time_measure[1];
+  // The shortest note, so that every note starts on a column.
+  const tick = Math.min(1, ...tune.notes.map((note) => note.duration));
+  const bar = tune.time_measure.beats_per_bar;
+  const phrase = bar * tune.time_measure.bars;
   const result: Column[] = [];
   // Counting ticks, rather than adding up `tick`, keeps `t` exact.
   for (let i = 0; i * tick < tune.length; i++) {
@@ -72,7 +73,7 @@ export function PianoRoll(props: { tune: TuneSnapshot; noteBottom: number; noteT
                     classList={{
                       chord: includesPitchClass(col.chordNotenums, pitch),
                       chordroot: col.chordRoot !== undefined && pitchClass(col.chordRoot) === pitchClass(pitch),
-                      note: col.note?.isNoteOn === true && col.note.pitch === pitch,
+                      note: col.note?.is_note_on === true && col.note.pitch === pitch,
                       beat: col.beat,
                       bar: col.bar,
                       phrase: col.phrase,

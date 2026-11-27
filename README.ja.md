@@ -53,8 +53,10 @@ midiファイルをDAWやDTMソフトで読み込んで編集することを想�
 パラメータの詳細を理解するにはアルゴリズムのセクションを参照してください。
 
 * 共通
-    + seed ... 乱数のシード値です。これを変えると似た感じの別の曲になります。
-        値自体に意味は無いので自由な数字を入れてかまいませんが、0付近は避けた方が無難です。
+    + seed ... 乱数のシード値です。0から4294967295までの整数を入れます。
+        これを変えると似た感じの別の曲になります。値自体に意味はありません。
+        各Generatorにもseed欄があり、入力するとそのGeneratorだけこの値の代わりに使います。
+        ほかの層を保ったまま一つの層だけを変えたいときに使います。
 * Scale
     + key ... キー音です。
     + tones ... スケールを、キー音からの相対音高で表します。 Major/minorのボタンで入力できます。
@@ -63,18 +65,17 @@ midiファイルをDAWやDTMソフトで読み込んで編集することを想�
 * Time Measure ... 拍子です。
 * Cadence
     + duration ... コードが切り替わる周期を設定します。4/4拍子なら2か4、3/4拍子なら3が適当です。
-* Note
-    + rhythm
-        - max beat division depth ... 最も短い音の長さを設定します。2^x分音符になります。
-        - pBranch edges ... 音をどれだけ分割するかを設定します。
-            左の値が小さいと短い音が多く、右の値が大きいと長い音が少なくなります。
-        - pNoteOn edges ... 音がどれくらい休符になるかを設定します。値が小さいと休符になりやすくなります。
-    + pitch weight
-        - absPitchFactor edges ... 大きいと、キー音から離れた音が出やすくなります。
-        - relPitchFactor edges ... 大きいと、直前の音から離れた音が出やすくなります。
-        - factorInScale ... 大きいと、スケール内の音が出やすくなります。
-        - factorInChord ... 大きいと、コード内の音が出やすくなります。
-        - rhythmExponentFactor ... 大きいと、音の長さが音高選択に与える影響が大きくなります。
+* Rhythm
+    + max beat division depth ... 最も短い音の長さを設定します。2^x分音符になります。
+    + p_branch edges ... 音をどれだけ分割するかを設定します。
+        左の値が小さいと短い音が多く、右の値が大きいと長い音が少なくなります。
+    + p_note_on edges ... 音がどれくらい休符になるかを設定します。値が小さいと休符になりやすくなります。
+* Pitch
+    + abs_pitch_factor edges ... 大きいと、キー音から離れた音が出やすくなります。
+    + rel_pitch_factor edges ... 大きいと、直前の音から離れた音が出やすくなります。
+    + factor_in_scale ... 大きいと、スケール内の音が出やすくなります。
+    + factor_in_chord ... 大きいと、コード内の音が出やすくなります。
+    + rhythm_exponent_factor ... 大きいと、音の長さが音高選択に与える影響が大きくなります。
 
 
 # 構成と開発
@@ -122,10 +123,10 @@ chordが持つ機能や性質を表すものを和声機能、
 このプログラムではcadenceを、上記3値を状態とした、斉時的有限状態マルコフ連鎖と考えて生成しています。
 ただしcadenceの末尾パターンはresolution(終止)で決定されます。
 
-斉時的有限状態マルコフ連鎖では、条件を満たせば定常状態を計算可能です。
-定常状態を用いて、後ろ向きの遷移確率や、
-時間上の2点で与えられた分布に対してその間の条件付き確率分布を求めることができます。
-このプログラムでは、現在の状態と末尾パターンから、条件付き確率分布を用いて次の状態(Cadence)を決定します。
+現在の状態と末尾パターンが与えられたとき、次の各状態の確率は、その状態への遷移確率と、
+その状態から残りの歩数で末尾パターンの先頭に到達する確率との積に比例します。
+このプログラムでは、この条件付き確率分布を用いて次の状態(Cadence)を決定します。
+末尾パターンに到達できない場合は、その条件を外します。
 
 ### Chord
 chordはroot(根音)とtones(構成音)からなり、cadenceに依存します。
@@ -142,7 +143,7 @@ rhythmについては音楽理論が手近で見当たらなかったので独�
 拍の長さを1として、各拍を再帰的かつ確率的に2分割し、
 そこで得られた音の長さそれぞれを確率で休符にします。
 分割する確率と休符にしない確率は現在の音の長さに依存し、
-それぞれpBranchとpNoteOnのエッジによるsmoothstepに従います。
+それぞれp_branchとp_note_onのエッジによるsmoothstepに従います。
 ただし、max beat division depth 以上には分割しません。
 
 ### Pitch
@@ -153,14 +154,14 @@ pitchはscale, chord, rhythmに依存するマルコフ連鎖として扱いま�
 
 pitchは候補の中から、対応付けられた重みに従い抽選され、それぞれの候補の重みは以下で計算されます。
 
-weight = (absPitchFactor * relPitchFactor * scaleFactor * chordFactor) ^ (1 + rhythmExponent)
+weight = (absFactor * relFactor * scaleFactor * chordFactor) ^ (1 + rhythmExponent)
 
-* absPitchFactor ... キー音からの距離に依存し、absPitchFactorのエッジによるsmoothstepで計算されます。
-* relPitchFactor ... 直前の音高からの距離に依存し、relPitchFactorのエッジによるsmoothstepで計算されます。
-* scaleFactor ... スケールに含まれる音ならfactorInScale、そうでないなら1です。
-* chordFactor ... コードに含まれる音ならfactorInChord、そうでないなら1です。
+* absFactor ... キー音からの距離に依存し、abs_pitch_factorのエッジによるsmoothstepで計算されます。
+* relFactor ... 直前の音高からの距離に依存し、rel_pitch_factorのエッジによるsmoothstepで計算されます。
+* scaleFactor ... スケールに含まれる音ならfactor_in_scale、そうでないなら1です。
+* chordFactor ... コードに含まれる音ならfactor_in_chord、そうでないなら1です。
 * rhythmExponent ... 短い音では奇抜な音を出しやすく、長い音では無難な音にするための項です。
-    rhythmExponent = rhythmExponentFactor * 音の長さ
+    rhythmExponent = rhythm_exponent_factor * 音の長さ
 
 ## Variant生成
 与えられた曲を基にアレンジを加えた曲を生成する部分です。

@@ -29,6 +29,19 @@ The same parameters no longer give the same tunes as the TypeScript version
 - The JSON Schemas under `schemas/` are generated from the Rust types.
 - The random numbers come from the standard PCG32 of `rand_pcg` instead of a reproduction of the
   npm package reliable-random, so the same seeds give different tunes.
+- The format of the parameter JSON changed, and files saved before cannot be loaded:
+  - The names are snake_case (`p_branch`, `abs_pitch_factor`, `is_note_on`, ...), and so are the
+    cadences, the resolutions (`perfect_authentic`, ...) and the layers of a variant
+    (`cadence`, `chord`, `pitch`, `rhythm`, which were numbers).
+  - A tune has one seed, an integer from 0 to 2^32 - 1. Each layer (`cadence`, `chord`, `rhythm`,
+    `pitch`) may have a seed of its own that replaces it; the web page has a field for each.
+    The variant has one seed of the same form.
+  - `note` is split into `rhythm` and `pitch` (the former `pitchWeight`), and `chord` has `roots`
+    for each cadence and `tones`.
+  - The weights of the cadence transitions and of the chord roots are objects keyed by cadence,
+    the time measure is `{beats_per_bar, bars}`, and a timespan of a variant is `{start, end}`.
+- The tunes given to the web page have a single resolution and no `max_beat_division_depth`;
+  the piano roll is as fine as the shortest note.
 
 ### Fixed
 

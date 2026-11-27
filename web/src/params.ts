@@ -48,14 +48,14 @@ export function createParameters() {
 export type Parameters = ReturnType<typeof createParameters>;
 
 // The keys list every resolution; the compiler reports a missing or unknown one.
-const resolutions: Record<Resolution, true> = {
-  'Perfect authentic': true,
-  'Imperfect authentic': true,
-  Deceptive: true,
-  Plagal: true,
-  Half: true,
+export const RESOLUTION_LABELS: Record<Resolution, string> = {
+  perfect_authentic: 'Perfect authentic',
+  imperfect_authentic: 'Imperfect authentic',
+  deceptive: 'Deceptive',
+  plagal: 'Plagal',
+  half: 'Half',
 };
-export const RESOLUTIONS = Object.keys(resolutions) as Resolution[];
+export const RESOLUTIONS = Object.keys(RESOLUTION_LABELS) as Resolution[];
 
 export const MAJOR_TONES = [0, 2, 4, 5, 7, 9, 11];
 export const MINOR_TONES = [0, 2, 3, 5, 7, 8, 10];

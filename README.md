@@ -53,8 +53,10 @@ The goal of this section is just to get you started.
 To understand the parameters in detail, see the algorithm section.
 
 * Common
-    + seed ... The seed of the random numbers. Changing it gives a different tune of a similar feel.
-        The value itself has no meaning, so any number will do, but values near 0 are better avoided.
+    + seed ... The seed of the random numbers, an integer from 0 to 4294967295.
+        Changing it gives a different tune of a similar feel. The value itself has no meaning.
+        Each generator also has a seed field: when it is filled in, it replaces the seed for that
+        generator only, so that one layer can be changed while the others are kept.
 * Scale
     + key ... The key note.
     + tones ... The scale, as pitches relative to the key note. The Major/minor buttons fill it in.
@@ -63,18 +65,17 @@ To understand the parameters in detail, see the algorithm section.
 * Time Measure ... The time signature.
 * Cadence
     + duration ... How often the chord changes. 2 or 4 suit 4/4 time, and 3 suits 3/4 time.
-* Note
-    + rhythm
-        - max beat division depth ... The shortest note, a 2^x-th note.
-        - pBranch edges ... How much the notes are divided.
-            A smaller left value gives more short notes, and a larger right value gives fewer long notes.
-        - pNoteOn edges ... How often notes become rests. Smaller values give more rests.
-    + pitch weight
-        - absPitchFactor edges ... Larger values make notes far from the key note more likely.
-        - relPitchFactor edges ... Larger values make notes far from the previous note more likely.
-        - factorInScale ... Larger values make notes in the scale more likely.
-        - factorInChord ... Larger values make notes in the chord more likely.
-        - rhythmExponentFactor ... Larger values make the length of a note affect the choice of its pitch more.
+* Rhythm
+    + max beat division depth ... The shortest note, a 2^x-th note.
+    + p_branch edges ... How much the notes are divided.
+        A smaller left value gives more short notes, and a larger right value gives fewer long notes.
+    + p_note_on edges ... How often notes become rests. Smaller values give more rests.
+* Pitch
+    + abs_pitch_factor edges ... Larger values make notes far from the key note more likely.
+    + rel_pitch_factor edges ... Larger values make notes far from the previous note more likely.
+    + factor_in_scale ... Larger values make notes in the scale more likely.
+    + factor_in_chord ... Larger values make notes in the chord more likely.
+    + rhythm_exponent_factor ... Larger values make the length of a note affect the choice of its pitch more.
 
 
 # Structure and development
@@ -122,10 +123,10 @@ and each one more or less determines which can come next.
 This program treats the cadence as a time-homogeneous finite-state Markov chain on these three states.
 The end of the cadence, however, is determined by the resolution.
 
-A time-homogeneous finite-state Markov chain has a stationary distribution under some conditions.
-From it, we can compute the backward transition probabilities,
-and the conditional distribution between two points of time with given distributions.
-This program picks the next state (cadence) from the conditional distribution given the current state and the end pattern.
+Given the current state and the end pattern, the probability of each next state is its transition
+probability times the probability of reaching the start of the end pattern from it in the remaining steps.
+This program picks the next state (cadence) from this conditional distribution.
+When the end pattern cannot be reached, the condition is dropped.
 
 ### Chord
 A chord consists of a root and tones, and depends on the cadence.
@@ -142,7 +143,7 @@ I could not find music theory about rhythm at hand, so the rhythm uses an origin
 With a beat of length 1, each beat is divided in half recursively at random,
 and each resulting note becomes a rest at random.
 The probabilities of dividing and of not becoming a rest depend on the length of the note,
-and follow smoothsteps with the edges of pBranch and pNoteOn.
+and follow smoothsteps with the edges of p_branch and p_note_on.
 Notes are not divided beyond the max beat division depth.
 
 ### Pitch
@@ -153,14 +154,14 @@ Some pitches should depend on the resolution, but this is ignored because it wou
 
 The pitch is drawn from the candidates by their weights, and the weight of each candidate is:
 
-weight = (absPitchFactor * relPitchFactor * scaleFactor * chordFactor) ^ (1 + rhythmExponent)
+weight = (absFactor * relFactor * scaleFactor * chordFactor) ^ (1 + rhythmExponent)
 
-* absPitchFactor ... Depends on the distance from the key note, by a smoothstep with the edges of absPitchFactor.
-* relPitchFactor ... Depends on the distance from the previous pitch, by a smoothstep with the edges of relPitchFactor.
-* scaleFactor ... factorInScale for a note in the scale, 1 otherwise.
-* chordFactor ... factorInChord for a note in the chord, 1 otherwise.
+* absFactor ... Depends on the distance from the key note, by a smoothstep with the edges of abs_pitch_factor.
+* relFactor ... Depends on the distance from the previous pitch, by a smoothstep with the edges of rel_pitch_factor.
+* scaleFactor ... factor_in_scale for a note in the scale, 1 otherwise.
+* chordFactor ... factor_in_chord for a note in the chord, 1 otherwise.
 * rhythmExponent ... Lets short notes be adventurous and keeps long notes safe.
-    rhythmExponent = rhythmExponentFactor * the length of the note
+    rhythmExponent = rhythm_exponent_factor * the length of the note
 
 ## The variant
 This part arranges a given tune into another.

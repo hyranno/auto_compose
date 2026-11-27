@@ -1,4 +1,4 @@
-//! Tunes, scales, chords and the note tree (`src/core/tune.ts`).
+//! Tunes, scales, chords and the note tree.
 
 use serde::{Deserialize, Serialize};
 
@@ -11,43 +11,63 @@ pub type Notenum = i32;
 #[cfg_attr(feature = "tsify", tsify::declare)]
 pub type Degree = i32;
 
+/// The length of a tune.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct TimeMeasure {
+    pub beats_per_bar: u32,
+    pub bars: u32,
+}
+
+impl TimeMeasure {
+    pub fn new(beats_per_bar: u32, bars: u32) -> Self {
+        Self {
+            beats_per_bar,
+            bars,
+        }
+    }
+
+    /// The number of beats.
+    pub fn beats(self) -> u32 {
+        self.beats_per_bar * self.bars
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tune {
+    /// In beats. A merged tune is longer than its time measure.
     pub length: f64,
-    pub time_measure: [u32; 2],
-    pub max_beat_division_depth: u32,
+    pub time_measure: TimeMeasure,
     pub scale: Scale,
-    pub resolution: Timeline<Resolution>,
+    /// The cadence at the end of the tune.
+    pub resolution: Resolution,
     pub cadence: Timeline<Cadence>,
     pub chord: Timeline<Chord>,
     pub notes: Timeline<Note>,
 }
 
-impl Default for Tune {
-    fn default() -> Self {
+impl Tune {
+    /// A tune with no cadences, chords or notes yet.
+    pub fn new(time_measure: TimeMeasure, scale: Scale, resolution: Resolution) -> Self {
         Self {
-            length: 0.0,
-            time_measure: [4, 4],
-            max_beat_division_depth: 3,
-            scale: Scale::major(64),
-            resolution: Timeline::new(),
+            length: f64::from(time_measure.beats()),
+            time_measure,
+            scale,
+            resolution,
             cadence: Timeline::new(),
             chord: Timeline::new(),
             notes: Timeline::new(),
         }
     }
-}
 
-impl Tune {
-    /// `self` followed by `src`. Like the TypeScript version, the resolution is not merged,
-    /// and the time measure, the depth and the scale are taken from `self`.
+    /// `self` followed by `src`. The time measure and the scale are taken from `self`,
+    /// and the resolution from `src`, which ends the merged tune.
     pub fn merge(&self, src: &Tune) -> Tune {
         let mut dest = Tune {
             length: self.length + src.length,
-            time_measure: self.time_measure,
-            max_beat_division_depth: self.max_beat_division_depth,
-            scale: self.scale.clone(),
-            ..Tune::default()
+            resolution: src.resolution,
+            ..Tune::new(self.time_measure, self.scale.clone(), src.resolution)
         };
         dest.cadence.merge(0.0, &self.cadence);
         dest.cadence.merge(self.length, &src.cadence);
@@ -132,11 +152,10 @@ impl Chord {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
 pub enum Resolution {
-    #[serde(rename = "Perfect authentic")]
-    Perfect,
-    #[serde(rename = "Imperfect authentic")]
-    Imperfect,
+    PerfectAuthentic,
+    ImperfectAuthentic,
     Deceptive,
     Plagal,
     Half,
@@ -144,30 +163,22 @@ pub enum Resolution {
 
 impl Resolution {
     pub const ALL: [Resolution; 5] = [
-        Self::Perfect,
-        Self::Imperfect,
+        Self::PerfectAuthentic,
+        Self::ImperfectAuthentic,
         Self::Deceptive,
         Self::Plagal,
         Self::Half,
     ];
 
-    /// The name used in the parameters and the fixtures.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Perfect => "Perfect authentic",
-            Self::Imperfect => "Imperfect authentic",
-            Self::Deceptive => "Deceptive",
-            Self::Plagal => "Plagal",
-            Self::Half => "Half",
-        }
-    }
-
-    /// The cadences at the end of a tune (`CadencePostfix` in TypeScript).
+    /// The cadences at the end of a tune.
     pub fn postfix(self) -> &'static [Cadence] {
+        use Cadence::*;
         match self {
-            Self::Perfect | Self::Imperfect | Self::Deceptive => &[Cadence::D, Cadence::T],
-            Self::Plagal => &[Cadence::S, Cadence::T],
-            Self::Half => &[Cadence::D],
+            Self::PerfectAuthentic | Self::ImperfectAuthentic | Self::Deceptive => {
+                &[Dominant, Tonic]
+            }
+            Self::Plagal => &[Subdominant, Tonic],
+            Self::Half => &[Dominant],
         }
     }
 }
@@ -175,22 +186,34 @@ impl Resolution {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
 pub enum Cadence {
-    #[serde(rename = "Tonic")]
-    T,
-    #[serde(rename = "Dominant")]
-    D,
-    #[serde(rename = "Subdominant")]
-    S,
+    Tonic,
+    Dominant,
+    Subdominant,
 }
 
 impl Cadence {
-    /// The name used in the parameters and the fixtures.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::T => "Tonic",
-            Self::D => "Dominant",
-            Self::S => "Subdominant",
+    pub const ALL: [Cadence; 3] = [Self::Tonic, Self::Dominant, Self::Subdominant];
+}
+
+/// A value for each cadence.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schemars", schemars(inline))]
+pub struct PerCadence<T> {
+    pub tonic: T,
+    pub dominant: T,
+    pub subdominant: T,
+}
+
+impl<T> PerCadence<T> {
+    pub fn get(&self, cadence: Cadence) -> &T {
+        match cadence {
+            Cadence::Tonic => &self.tonic,
+            Cadence::Dominant => &self.dominant,
+            Cadence::Subdominant => &self.subdominant,
         }
     }
 }
@@ -209,7 +232,7 @@ pub struct Rhythm {
     pub duration: f64,
 }
 
-/// A node of the rhythm tree (`NoteTreeNode` in TypeScript). The leaves are the notes.
+/// A node of the rhythm tree. The leaves are the notes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct NoteNode {
     pub rhythm: Rhythm,
@@ -269,7 +292,7 @@ impl NoteNode {
         self.leaves().into_iter().map(|n| n.rhythm).collect()
     }
 
-    /// `None` if the pitch is not set (the TypeScript version throws).
+    /// `None` if the pitch is not set.
     pub fn to_timeline_item(&self) -> Option<TimelineItem<Note>> {
         let pitch = self.pitch?;
         Some(TimelineItem::new(
@@ -286,8 +309,6 @@ impl NoteNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // Ported from src/core/tune.test.ts.
 
     #[test]
     fn scale_get_wraps_degrees_into_octaves() {
@@ -364,21 +385,22 @@ mod tests {
             duration,
             is_note_on,
         };
+        use Cadence::*;
         let a = Tune {
-            length: 4.0,
-            scale: scale.clone(),
-            cadence: tl(vec![(0.0, Cadence::T), (2.0, Cadence::D)]),
+            cadence: tl(vec![(0.0, Tonic), (2.0, Dominant)]),
             chord: tl(vec![(0.0, Chord::new(0, vec![0, 2, 4]))]),
             notes: tl(vec![(0.0, note(60, 4.0, true))]),
-            ..Tune::default()
+            ..Tune::new(
+                TimeMeasure::new(4, 1),
+                scale.clone(),
+                Resolution::PerfectAuthentic,
+            )
         };
         let b = Tune {
-            length: 2.0,
-            cadence: tl(vec![(0.0, Cadence::S)]),
+            cadence: tl(vec![(0.0, Subdominant)]),
             chord: tl(vec![(0.0, Chord::new(3, vec![0, 2, 4]))]),
             notes: tl(vec![(1.0, note(65, 1.0, false))]),
-            resolution: tl(vec![(0.0, Resolution::Half)]),
-            ..Tune::default()
+            ..Tune::new(TimeMeasure::new(2, 1), Scale::minor(60), Resolution::Half)
         };
 
         let m = a.merge(&b);
@@ -386,11 +408,7 @@ mod tests {
         assert_eq!(m.scale, a.scale);
         assert_eq!(
             m.cadence,
-            tl(vec![
-                (0.0, Cadence::T),
-                (2.0, Cadence::D),
-                (4.0, Cadence::S)
-            ])
+            tl(vec![(0.0, Tonic), (2.0, Dominant), (4.0, Subdominant)])
         );
         let roots: Vec<_> = m.chord.list().iter().map(|e| (e.t, e.value.root)).collect();
         assert_eq!(roots, [(0.0, 0), (4.0, 3)]);
@@ -401,30 +419,30 @@ mod tests {
             .map(|e| (e.t, e.value.pitch))
             .collect();
         assert_eq!(pitches, [(0.0, 60), (5.0, 65)]);
-        // The resolution is not merged.
-        assert!(m.resolution.is_empty());
+        assert_eq!(m.time_measure, a.time_measure);
+        assert_eq!(m.resolution, Resolution::Half);
     }
 
     #[test]
     fn resolution_postfix() {
         let names: Vec<_> = Resolution::ALL
             .iter()
-            .map(|r| (r.as_str(), r.postfix()))
+            .map(|r| (serde_json::to_string(r).unwrap(), r.postfix()))
             .collect();
         use Cadence::*;
         assert_eq!(
             names,
             [
-                ("Perfect authentic", &[D, T][..]),
-                ("Imperfect authentic", &[D, T][..]),
-                ("Deceptive", &[D, T][..]),
-                ("Plagal", &[S, T][..]),
-                ("Half", &[D][..]),
+                (r#""perfect_authentic""#.into(), &[Dominant, Tonic][..]),
+                (r#""imperfect_authentic""#.into(), &[Dominant, Tonic][..]),
+                (r#""deceptive""#.into(), &[Dominant, Tonic][..]),
+                (r#""plagal""#.into(), &[Subdominant, Tonic][..]),
+                (r#""half""#.into(), &[Dominant][..]),
             ]
         );
     }
 
-    // The TreeNode tests of src/core/util.test.ts, on NoteNode.
+    // A tree of nodes named by their times:
     //      r
     //    /   \
     //   a     b

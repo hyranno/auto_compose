@@ -1,8 +1,8 @@
 import { createSignal, Show } from 'solid-js';
 
-import { Field, Group, NumberInput, SeedInput, Select, SmoothstepInput } from './fields';
+import { Field, Group, LayerSeedInput, NumberInput, SeedInput, Select, SmoothstepInput } from './fields';
 import { download, readChosenFile } from './file';
-import { MAJOR_TONES, MINOR_TONES, RESOLUTIONS, type Parameters } from './params';
+import { MAJOR_TONES, MINOR_TONES, RESOLUTION_LABELS, RESOLUTIONS, type Parameters } from './params';
 
 /** Buttons to save a part of the parameters as JSON and to load it back. */
 function JsonFile(props: { filename: string; save: () => unknown; load: (json: unknown) => void }) {
@@ -47,6 +47,9 @@ export function TuneSettings(props: { parameters: Parameters }) {
         save={() => props.parameters.snapshot().tune}
         load={props.parameters.loadTune}
       />
+      <Field label="seed">
+        <SeedInput value={tune().seed} onChange={(v) => set('tune', 'seed', v)} />
+      </Field>
       <Group title="scale">
         <Field label="key">
           <NumberInput step={1} value={tune().scale.key} onChange={(v) => set('tune', 'scale', 'key', v)} />
@@ -62,93 +65,89 @@ export function TuneSettings(props: { parameters: Parameters }) {
         </Field>
       </Group>
       <Field label="resolution">
-        <Select options={RESOLUTIONS} value={tune().resolution} onChange={(v) => set('tune', 'resolution', v)} />
+        <Select
+          options={RESOLUTIONS}
+          labels={RESOLUTION_LABELS}
+          value={tune().resolution}
+          onChange={(v) => set('tune', 'resolution', v)}
+        />
       </Field>
-      <Field label="time measure">
-        <NumberInput step={1} value={tune().time_measure[0]} onChange={(v) => set('tune', 'time_measure', 0, v)} />
-        <NumberInput step={1} value={tune().time_measure[1]} onChange={(v) => set('tune', 'time_measure', 1, v)} />
+      <Field label="beats per bar, bars">
+        <NumberInput
+          step={1}
+          value={tune().time_measure.beats_per_bar}
+          onChange={(v) => set('tune', 'time_measure', 'beats_per_bar', v)}
+        />
+        <NumberInput
+          step={1}
+          value={tune().time_measure.bars}
+          onChange={(v) => set('tune', 'time_measure', 'bars', v)}
+        />
       </Field>
       <Group title="Cadence Generator">
-        <Field label="seeds">
-          <SeedInput value={tune().cadence.seed} onChange={(v) => set('tune', 'cadence', 'seed', v)} />
+        <Field label="seed">
+          <LayerSeedInput value={tune().cadence.seed} onChange={(v) => set('tune', 'cadence', 'seed', v)} />
         </Field>
         <Field label="duration">
           <NumberInput value={tune().cadence.duration} onChange={(v) => set('tune', 'cadence', 'duration', v)} />
         </Field>
       </Group>
       <Group title="Chord Generator">
-        <Field label="root seeds">
-          <SeedInput value={tune().chord.root.seed} onChange={(v) => set('tune', 'chord', 'root', 'seed', v)} />
-        </Field>
-        <Field label="tone seeds">
-          <SeedInput
-            value={tune().chord.tone.rand_tones.seed}
-            onChange={(v) => set('tune', 'chord', 'tone', 'rand_tones', 'seed', v)}
-          />
+        <Field label="seed">
+          <LayerSeedInput value={tune().chord.seed} onChange={(v) => set('tune', 'chord', 'seed', v)} />
         </Field>
       </Group>
-      <Group title="Note Generator">
-        <Group title="Rhythm">
-          <Field label="seeds">
-            <SeedInput
-              value={tune().note.rhythm.seed}
-              onChange={(v) => set('tune', 'note', 'rhythm', 'seed', v)}
-            />
-          </Field>
-          <Field label="max beat division depth">
-            <NumberInput
-              step={1}
-              value={tune().note.rhythm.max_beat_division_depth}
-              onChange={(v) => set('tune', 'note', 'rhythm', 'max_beat_division_depth', v)}
-            />
-          </Field>
-          <Field label="pBranch edges">
-            <SmoothstepInput
-              value={tune().note.rhythm.pBranch}
-              onChange={(v) => set('tune', 'note', 'rhythm', 'pBranch', v)}
-            />
-          </Field>
-          <Field label="pNoteOn edges">
-            <SmoothstepInput
-              value={tune().note.rhythm.pNoteOn}
-              onChange={(v) => set('tune', 'note', 'rhythm', 'pNoteOn', v)}
-            />
-          </Field>
-        </Group>
-        <Group title="Pitch Weight">
-          <Field label="absPitchFactor edges">
-            <SmoothstepInput
-              value={tune().note.pitchWeight.absPitchFactor}
-              onChange={(v) => set('tune', 'note', 'pitchWeight', 'absPitchFactor', v)}
-            />
-          </Field>
-          <Field label="relPitchFactor edges">
-            <SmoothstepInput
-              value={tune().note.pitchWeight.relPitchFactor}
-              onChange={(v) => set('tune', 'note', 'pitchWeight', 'relPitchFactor', v)}
-            />
-          </Field>
-          <Field label="factorInScale">
-            <NumberInput
-              value={tune().note.pitchWeight.factorInScale}
-              onChange={(v) => set('tune', 'note', 'pitchWeight', 'factorInScale', v)}
-            />
-          </Field>
-          <Field label="factorInChord">
-            <NumberInput
-              value={tune().note.pitchWeight.factorInChord}
-              onChange={(v) => set('tune', 'note', 'pitchWeight', 'factorInChord', v)}
-            />
-          </Field>
-          <Field label="rhythmExponentFactor">
-            <NumberInput
-              value={tune().note.pitchWeight.rhythmExponentFactor}
-              onChange={(v) => set('tune', 'note', 'pitchWeight', 'rhythmExponentFactor', v)}
-            />
-          </Field>
-        </Group>
-        <Field label="pitch seeds">
-          <SeedInput value={tune().note.seed} onChange={(v) => set('tune', 'note', 'seed', v)} />
+      <Group title="Rhythm Generator">
+        <Field label="seed">
+          <LayerSeedInput value={tune().rhythm.seed} onChange={(v) => set('tune', 'rhythm', 'seed', v)} />
+        </Field>
+        <Field label="max beat division depth">
+          <NumberInput
+            step={1}
+            value={tune().rhythm.max_beat_division_depth}
+            onChange={(v) => set('tune', 'rhythm', 'max_beat_division_depth', v)}
+          />
+        </Field>
+        <Field label="p_branch edges">
+          <SmoothstepInput value={tune().rhythm.p_branch} onChange={(v) => set('tune', 'rhythm', 'p_branch', v)} />
+        </Field>
+        <Field label="p_note_on edges">
+          <SmoothstepInput value={tune().rhythm.p_note_on} onChange={(v) => set('tune', 'rhythm', 'p_note_on', v)} />
+        </Field>
+      </Group>
+      <Group title="Pitch Generator">
+        <Field label="seed">
+          <LayerSeedInput value={tune().pitch.seed} onChange={(v) => set('tune', 'pitch', 'seed', v)} />
+        </Field>
+        <Field label="abs_pitch_factor edges">
+          <SmoothstepInput
+            value={tune().pitch.abs_pitch_factor}
+            onChange={(v) => set('tune', 'pitch', 'abs_pitch_factor', v)}
+          />
+        </Field>
+        <Field label="rel_pitch_factor edges">
+          <SmoothstepInput
+            value={tune().pitch.rel_pitch_factor}
+            onChange={(v) => set('tune', 'pitch', 'rel_pitch_factor', v)}
+          />
+        </Field>
+        <Field label="factor_in_scale">
+          <NumberInput
+            value={tune().pitch.factor_in_scale}
+            onChange={(v) => set('tune', 'pitch', 'factor_in_scale', v)}
+          />
+        </Field>
+        <Field label="factor_in_chord">
+          <NumberInput
+            value={tune().pitch.factor_in_chord}
+            onChange={(v) => set('tune', 'pitch', 'factor_in_chord', v)}
+          />
+        </Field>
+        <Field label="rhythm_exponent_factor">
+          <NumberInput
+            value={tune().pitch.rhythm_exponent_factor}
+            onChange={(v) => set('tune', 'pitch', 'rhythm_exponent_factor', v)}
+          />
         </Field>
       </Group>
     </Group>
@@ -165,11 +164,16 @@ export function VariantSettings(props: { parameters: Parameters }) {
         save={() => props.parameters.snapshot().variant}
         load={props.parameters.loadVariant}
       />
-      <Field label="seeds">
+      <Field label="seed">
         <SeedInput value={variant().seed} onChange={(v) => set('variant', 'seed', v)} />
       </Field>
       <Field label="resolution">
-        <Select options={RESOLUTIONS} value={variant().resolution} onChange={(v) => set('variant', 'resolution', v)} />
+        <Select
+          options={RESOLUTIONS}
+          labels={RESOLUTION_LABELS}
+          value={variant().resolution}
+          onChange={(v) => set('variant', 'resolution', v)}
+        />
       </Field>
     </Group>
   );

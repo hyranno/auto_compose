@@ -6,7 +6,6 @@
 //! Invalid parameters are reported as a thrown `Error`.
 
 use auto_composer::generator::{tune as tune_generator, variant};
-use auto_composer::random::SeededRngFactory;
 use auto_composer::snapshot::TuneSnapshot;
 use auto_composer::tune::Tune;
 use serde::Serialize;
@@ -55,13 +54,13 @@ pub fn compose(
 
 fn tune(params: JsValue) -> Result<Tune, JsError> {
     let params: tune_generator::Parameters = from_js(params, "tune parameters")?;
-    Ok(tune_generator::generate(&params, &SeededRngFactory)?)
+    Ok(tune_generator::generate(&params)?)
 }
 
 fn variant_of(params: JsValue, base: JsValue) -> Result<Tune, JsError> {
     let params: variant::Parameters = from_js(params, "variant parameters")?;
     let base: tune_generator::Parameters = from_js(base, "tune parameters")?;
-    Ok(variant::generate(&params, &base, &SeededRngFactory)?)
+    Ok(variant::generate(&params, &base)?)
 }
 
 fn from_js<T: DeserializeOwned>(value: JsValue, what: &str) -> Result<T, JsError> {
