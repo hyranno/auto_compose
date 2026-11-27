@@ -2,10 +2,15 @@
 
 # これは
 作曲補助プログラムです。
-[ここ](https://hyranno.github.io/auto_compose/)で試せます。
 各種パラメータに基づき楽節を自動生成します。
 西洋の音楽理論をベースにしていますが、簡略化や誤りを含みます。
 作曲したいがゼロから作るのは厳しい、という時にどうぞ。
+
+次の2つの形で使えます。
+
+* [Webページ](#webページ) ... ブラウザで[ここ](https://hyranno.github.io/auto_compose/)から試せます。
+* [Rustライブラリ](#rustライブラリ)(`auto-composer`) ... 自分のプログラムから曲を生成できます。
+  TypeScriptの型定義付きのWebAssemblyバインディングもあります。
 
 
 # 著作権について
@@ -18,7 +23,7 @@ AIによって生み出される創作物の取扱いに準ずるものと考え
 プログラムの出力を元に編曲・作曲されたものについては、編曲・作曲した人に著作権があります。
 
 
-# つかいかた
+# Webページ
 画面上部は各種パラメータ設定、 画面中央はピアノロール、 画面下部は出力パネルになっています。
 
 ## パラメータ設定
@@ -30,6 +35,7 @@ AIによって生み出される創作物の取扱いに準ずるものと考え
 設定はsave JSONボタンでファイルに保存し、load JSONボタンで読み込めます。
 load defaultボタンでページを開いたときの設定(曲は `resources/TuneGenParams_minor.json`)に戻せます。
 ファイルの例はresourcesフォルダにあり、書式(JSON Schema)はschemasフォルダにあります。
+同じファイルを[Rustライブラリ](#rustライブラリ)でも読み込めます。
 読み込んだファイルに誤りがある場合は、反映されずにエラーが表示されます。
 
 ## ピアノロール
@@ -47,8 +53,75 @@ load defaultボタンでページを開いたときの設定(曲は `resources/T
 midiファイルをDAWやDTMソフトで読み込んで編集することを想定しています。
 
 
-## パラメータ概説
-パラメータの概要を説明します。
+# Rustライブラリ
+生成ロジックはRustのcrate `auto-composer`(`crates/auto-composer`)です。
+crates.ioには公開していないので、Git経由で依存してください。
+
+```toml
+[dependencies]
+auto-composer = { git = "https://github.com/hyranno/auto_compose" }
+serde_json = "1"  # パラメータをJSONから読み込む場合
+```
+
+Rust 1.85以降(edition 2024)が必要です。
+次の例はWebページと同様に曲とその変奏を生成し、メロディを表示します。
+
+```rust
+use auto_composer::generator::{tune, variant};
+use auto_composer::snapshot::TuneSnapshot;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // パラメータは resources/ と同じJSONの書式です。既定値から始めることもできます。
+    let json = std::fs::read_to_string("TuneGenParams_minor.json")?;
+    let mut params: tune::Parameters = serde_json::from_str(&json)?;
+    params.seed = 42;
+    let variant_params = variant::Parameters::default();
+
+    // 曲の後にその変奏を続けます。
+    let tune = tune::generate(&params)?;
+    let phrase = tune.merge(&variant::generate(&variant_params, &params)?);
+
+    // 時刻と長さは拍、音高はMidiノートナンバーです。
+    for note in phrase.notes.list() {
+        match note.value.pitch {
+            Some(pitch) => println!("{}: {pitch} for {} beats", note.t, note.value.duration),
+            None => println!("{}: rest for {} beats", note.t, note.value.duration),
+        }
+    }
+
+    // 曲全体(cadence、chord、notes)をJSONにすることもできます。
+    println!("{}", serde_json::to_string(&TuneSnapshot::from(&phrase))?);
+    Ok(())
+}
+```
+
+主な項目は以下の通りです。
+
+| 項目 | 内容 |
+|---|---|
+| `generator::tune::Parameters` | 曲のパラメータ(`resources/TuneGenParams_*.json`)。`Default`は`TuneGenParams_default.json`です。 |
+| `generator::tune::generate` | パラメータから`Tune`を生成します。 |
+| `generator::variant::Parameters` | 変奏のパラメータ(`resources/VariantGenParams_default.json`)。 |
+| `generator::variant::generate` | 与えた曲のパラメータによる曲の変奏を生成します。 |
+| `tune::Tune` | 生成された曲。スケールと、cadence・chord・notesのタイムラインを持ちます。`merge`で2つの曲をつなげます。 |
+| `snapshot::TuneSnapshot` | `Tune`をシリアライズできる単純な形にしたものです。 |
+| `error::Error` | 不正なパラメータはpanicせずエラーとして返されます。 |
+
+同じseedとパラメータからは常に同じ曲が生成されます。
+`generator`には各層(cadence、chord、rhythm、pitch)の生成器もあり、曲の一部だけを生成・変更することもできます。
+詳しくはドキュメント(`cargo doc -p auto-composer --open`)を参照してください。
+
+オプションのfeatureとして、`schemars`(パラメータのJSON Schema)と`tsify`(WebAssemblyバインディング向けのTypeScript型定義)があります。
+
+## WebAssembly
+`crates/auto-composer-wasm`はライブラリをJavaScriptから使えるようにします(`generateTune`、`generateVariant`、`compose`など)。
+値はJSONと同じ形の素のオブジェクトでやり取りします。
+APIとビルド方法は[doc/dev/wasm.md](doc/dev/wasm.md)(英語)を参照してください。
+
+
+# パラメータ概説
+Webページとライブラリに共通する、パラメータの概要を説明します。
+名前はWebページの表示に従っています。JSONでのフィールド名はschemasフォルダを参照してください。
 このセクションではとりあえず使えることを目標とします。
 パラメータの詳細を理解するにはアルゴリズムのセクションを参照してください。
 
