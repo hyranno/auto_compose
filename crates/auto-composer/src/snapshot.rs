@@ -1,20 +1,20 @@
-//! Plain-JSON form of a [`Tune`], the format of the golden fixtures
-//! (the same as `src/core/snapshot.ts` of the TypeScript implementation).
+//! Plain-JSON form of a [`Tune`], the format of the golden fixtures and of the tunes given to
+//! the web page.
 
 use serde::{Deserialize, Serialize};
 
-use crate::tune::{Cadence, Degree, Notenum, Resolution, RootedTones, Scale, Tune};
+use crate::tune::{Cadence, Degree, Notenum, Resolution, Scale, TimeMeasure, Tune};
 use crate::util::TimelineItem;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct TuneSnapshot {
+    /// In beats.
     pub length: f64,
-    pub time_measure: [u32; 2],
-    pub max_beat_division_depth: u32,
+    pub time_measure: TimeMeasure,
     pub scale: Scale,
-    pub resolution: Vec<TimelineItem<Resolution>>,
+    pub resolution: Resolution,
     pub cadence: Vec<TimelineItem<Cadence>>,
     pub chord: Vec<ChordSnapshot>,
     pub notes: Vec<NoteSnapshot>,
@@ -27,7 +27,7 @@ pub struct ChordSnapshot {
     pub t: f64,
     pub root: Degree,
     pub tones: Vec<Degree>,
-    /// Redundant with `root` and `tones`; kept to cross-check [`RootedTones::notenums`].
+    /// The tones on the scale, from [`Chord::notenums`](crate::tune::Chord::notenums).
     pub notenums: Vec<Notenum>,
 }
 
@@ -38,7 +38,6 @@ pub struct NoteSnapshot {
     pub t: f64,
     pub pitch: Notenum,
     pub duration: f64,
-    #[serde(rename = "isNoteOn")]
     pub is_note_on: bool,
 }
 
@@ -47,9 +46,8 @@ impl From<&Tune> for TuneSnapshot {
         Self {
             length: tune.length,
             time_measure: tune.time_measure,
-            max_beat_division_depth: tune.max_beat_division_depth,
             scale: tune.scale.clone(),
-            resolution: tune.resolution.list().to_vec(),
+            resolution: tune.resolution,
             cadence: tune.cadence.list().to_vec(),
             chord: tune
                 .chord
@@ -59,7 +57,7 @@ impl From<&Tune> for TuneSnapshot {
                     t: e.t,
                     root: e.value.root,
                     tones: e.value.tones.clone(),
-                    notenums: e.value.notenums(),
+                    notenums: e.value.notenums(&tune.scale).collect(),
                 })
                 .collect(),
             notes: tune

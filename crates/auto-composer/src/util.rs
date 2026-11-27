@@ -1,26 +1,23 @@
-//! Small numeric helpers, weighted random choice and timelines (`src/core/util.ts`).
+//! Small numeric helpers, weighted random choice and timelines.
 
+use rand::distr::weighted::{Error as WeightError, WeightedIndex};
+use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
 
-use crate::random::Rng;
-
-/// `((x % y) + y) % y`, the same expression as the TypeScript version.
-///
-/// It is not replaced with `rem_euclid`, whose result differs for some floating point inputs.
-pub fn modulo(x: f64, y: f64) -> f64 {
-    ((x % y) + y) % y
-}
+use crate::error::{Error, Result};
 
 /// Hermite interpolation between `edge0` and `edge1`, clamped to `[0, 1]`.
 ///
-/// As in TypeScript, `edge0 == edge1` gives a step function that is `NaN` exactly at the edge
-/// (`f64::clamp` propagates `NaN` like `Math.min` / `Math.max`, unlike `f64::max`).
+/// `edge0 == edge1` gives a step function: 0 before the edge and 1 from it.
 pub fn smoothstep(edge0: f64, edge1: f64, x: f64) -> f64 {
+    if edge0 == edge1 {
+        return if x < edge0 { 0.0 } else { 1.0 };
+    }
     let xn = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
     xn * xn * (3.0 - 2.0 * xn)
 }
 
-/// The edges of a [`smoothstep`] (`SmoothstepParameters` in TypeScript).
+/// The edges of a [`smoothstep`].
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -35,12 +32,17 @@ impl SmoothstepParams {
     }
 }
 
-/// `start, start + tick, ...` while the value is less than `end`.
+/// `start, start + tick, ...` while the value is less than `end`. Each value is
+/// `start + i * tick`.
 ///
-/// The value is accumulated by addition, like the `for` loop of `rangeIterator` in TypeScript.
-/// It does not end if `tick` is not positive (and `start < end`).
+/// Panics if `tick` is not positive and finite.
 pub fn range_step(start: f64, end: f64, tick: f64) -> impl Iterator<Item = f64> {
-    std::iter::successors(Some(start), move |t| Some(t + tick)).take_while(move |&t| t < end)
+    assert!(
+        tick > 0.0 && tick.is_finite(),
+        "the step must be positive and finite"
+    );
+    let count = ((end - start) / tick).ceil().max(0.0) as usize;
+    (0..count).map(move |i| start + i as f64 * tick)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -58,47 +60,19 @@ impl<T> WeightedItem<T> {
     }
 }
 
-/// Picks an item with a probability proportional to its weight, drawing one random number.
+/// Picks an item with a probability proportional to its weight, drawing one word.
 ///
-/// The cumulative ratios are left-to-right sums divided by the total, and the first item whose
-/// ratio is greater than the draw (in `[0, 1)`) is chosen, so an item of weight 0 is never chosen.
-/// The first item is chosen when there is none (for example when every weight is 0 and the ratios
-/// are `NaN`). `WeightedRandom.get` of the TypeScript version chose the first ratio not less than
-/// the draw, which also picked a first item of weight 0 for a draw of 0.
-///
-/// Returns `None` if `items` is empty (the TypeScript version throws). A value is drawn anyway.
-pub fn weighted_pick<'a, T>(items: &'a [WeightedItem<T>], rng: &mut impl Rng) -> Option<&'a T> {
-    let randval = rng.random();
-    let first = items.first()?;
-    let total = items[1..]
-        .iter()
-        .fold(first.weight, |acc, w| acc + w.weight);
-    let mut accum = first.weight;
-    let index = items
-        .iter()
-        .enumerate()
-        .position(|(i, item)| {
-            if i > 0 {
-                accum += item.weight;
-            }
-            randval < accum / total
-        })
-        .unwrap_or(0);
-    Some(&items[index].value)
-}
-
-/// Sums the weights of items with equal values, keeping the order in which values first appear.
-pub fn merge_weighted_items<T: PartialEq + Clone>(
-    src: &[Vec<WeightedItem<T>>],
-) -> Vec<WeightedItem<T>> {
-    let mut res: Vec<WeightedItem<T>> = Vec::new();
-    for item in src.iter().flatten() {
-        match res.iter_mut().find(|wi| wi.value == item.value) {
-            Some(found) => found.weight += item.weight,
-            None => res.push(item.clone()),
-        }
-    }
-    res
+/// An item of weight 0 is never chosen. It is an error if `items` is empty (nothing is drawn
+/// then), or if a weight is negative or not finite, or the weights are all 0.
+pub fn weighted_pick<'a, T>(
+    items: &'a [WeightedItem<T>],
+    rng: &mut (impl Rng + ?Sized),
+) -> Result<&'a T> {
+    let dist = WeightedIndex::new(items.iter().map(|item| item.weight)).map_err(|e| match e {
+        WeightError::InvalidInput => Error::NoItems,
+        _ => Error::InvalidWeights,
+    })?;
+    Ok(&items[rng.sample(&dist)].value)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -116,8 +90,7 @@ impl<T> TimelineItem<T> {
     }
 }
 
-/// Items sorted by time. Items with equal times keep their insertion order (a stable sort,
-/// like JavaScript's `Array.prototype.sort`).
+/// Items sorted by time. Items with equal times keep their insertion order.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Timeline<T> {
     items: Vec<TimelineItem<T>>,
@@ -140,10 +113,12 @@ impl<T> Timeline<T> {
         res
     }
 
+    /// Inserts each item after the items whose time is not after it.
     pub fn add(&mut self, items: impl IntoIterator<Item = TimelineItem<T>>) {
-        self.items.extend(items);
-        self.items
-            .sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap_or(std::cmp::Ordering::Equal));
+        for item in items {
+            let i = self.upper_bound(item.t);
+            self.items.insert(i, item);
+        }
     }
 
     /// Adds the items of `src` shifted by `offset`.
@@ -158,23 +133,20 @@ impl<T> Timeline<T> {
         );
     }
 
-    /// The last item whose time is not after `t`. `None` before the first item
-    /// (the TypeScript version throws).
+    /// The last item whose time is not after `t`. `None` before the first item.
     pub fn get(&self, t: f64) -> Option<&TimelineItem<T>> {
         self.get_index(t).map(|i| &self.items[i])
     }
 
-    /// The index of [`Timeline::get`]. `None` before the first item
-    /// (the TypeScript version returned the length).
+    /// The index of [`Timeline::get`]. `None` before the first item.
     pub fn get_index(&self, t: f64) -> Option<usize> {
-        self.items.iter().rposition(|item| item.t <= t)
+        self.upper_bound(t).checked_sub(1)
     }
 
-    /// Removes the item at [`Timeline::get_index`] (nothing before the first item).
-    pub fn remove(&mut self, t: f64) {
-        if let Some(i) = self.get_index(t) {
-            self.items.remove(i);
-        }
+    /// The number of items whose time is not after `t`.
+    fn upper_bound(&self, t: f64) -> usize {
+        self.items
+            .partition_point(|item| item.t.total_cmp(&t).is_le())
     }
 
     pub fn list(&self) -> &[TimelineItem<T>] {
@@ -193,9 +165,9 @@ impl<T> Timeline<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::random::{ReliableRandom, ScriptedRng};
+    use rand_pcg::Pcg32;
 
-    // Ported from src/core/util.test.ts.
+    use crate::random::ScriptedRng;
 
     #[test]
     fn smoothstep_basic() {
@@ -227,42 +199,33 @@ mod tests {
     }
 
     #[test]
-    fn smoothstep_equal_edges_is_a_step_except_nan_at_the_edge() {
-        assert_eq!(smoothstep(1.0, 1.0, 0.0), 0.0);
-        assert_eq!(smoothstep(1.0, 1.0, 2.0), 1.0);
-        assert!(smoothstep(1.0, 1.0, 1.0).is_nan());
+    fn smoothstep_equal_edges_is_a_step() {
+        assert_eq!(
+            [0.0, 1.0, 2.0].map(|x| smoothstep(1.0, 1.0, x)),
+            [0.0, 1.0, 1.0]
+        );
     }
 
     #[test]
-    fn modulo_table() {
-        let cases = [
-            (0.0, 12.0, 0.0),
-            (5.0, 12.0, 5.0),
-            (12.0, 12.0, 0.0),
-            (13.0, 12.0, 1.0),
-            (-1.0, 12.0, 11.0),
-            (-12.0, 12.0, 0.0),
-            (-13.0, 12.0, 11.0),
-            (-1.0, 3.0, 2.0),
-        ];
-        for (x, y, expected) in cases {
-            assert_eq!(modulo(x, y), expected, "modulo({x}, {y})");
-        }
-    }
-
-    #[test]
-    fn range_step_accumulates() {
+    fn range_step_multiplies() {
         assert_eq!(
             range_step(0.0, 4.0, 1.0).collect::<Vec<_>>(),
             [0.0, 1.0, 2.0, 3.0]
         );
         assert_eq!(range_step(0.0, 3.0, 2.0).collect::<Vec<_>>(), [0.0, 2.0]);
         assert_eq!(range_step(0.0, 0.0, 1.0).count(), 0);
-        // Accumulated, not multiplied: 0.1 + 0.1 + 0.1 = 0.30000000000000004.
+        assert_eq!(range_step(1.0, 0.0, 1.0).count(), 0);
         assert_eq!(
             range_step(0.0, 0.35, 0.1).collect::<Vec<_>>(),
-            [0.0, 0.1, 0.2, 0.30000000000000004]
+            [0.0, 0.1, 0.2, 3.0 * 0.1]
         );
+        assert_eq!(range_step(2.0, 3.0, 0.5).collect::<Vec<_>>(), [2.0, 2.5]);
+    }
+
+    #[test]
+    #[should_panic(expected = "positive and finite")]
+    fn range_step_rejects_a_step_that_is_not_positive() {
+        let _ = range_step(0.0, 1.0, 0.0);
     }
 
     fn uniform(n: usize) -> Vec<WeightedItem<usize>> {
@@ -276,12 +239,19 @@ mod tests {
     }
 
     #[test]
-    fn weighted_pick_with_seeds() {
-        let items = uniform(5);
-        let mut r = ReliableRandom::new(754, 489);
-        assert_eq!(pick_with(&items, &mut r, 4), [3, 1, 0, 3]);
-        let mut r = ReliableRandom::new(222, 9643);
-        assert_eq!(pick_with(&items, &mut r, 4), [1, 2, 4, 0]);
+    fn weighted_pick_frequencies_follow_the_weights() {
+        let items = [
+            WeightedItem::new(1.0, 0),
+            WeightedItem::new(3.0, 1),
+            WeightedItem::new(0.0, 2),
+        ];
+        let mut rng = Pcg32::new(754, 489);
+        let mut counts = [0; 3];
+        for v in pick_with(&items, &mut rng, 10000) {
+            counts[v] += 1;
+        }
+        assert_eq!(counts[2], 0);
+        assert!((2300..2700).contains(&counts[0]), "{counts:?}");
     }
 
     fn pick_scripted<T: Clone>(items: &[WeightedItem<T>], values: &[f64]) -> Vec<T> {
@@ -296,7 +266,7 @@ mod tests {
             WeightedItem::new(2.0, 'b'),
             WeightedItem::new(1.0, 'c'),
         ];
-        let draws = [0.0, 0.25, 0.2500001, 0.75, 0.7500001, 1.0 - 2f64.powi(-32)];
+        let draws = [0.0, 0.25, 0.2500001, 0.75, 0.7500001, 1.0 - 2f64.powi(-52)];
         assert_eq!(
             pick_scripted(&items, &draws),
             ['a', 'b', 'b', 'c', 'c', 'c']
@@ -310,26 +280,26 @@ mod tests {
             WeightedItem::new(1.0, 'b'),
             WeightedItem::new(0.0, 'c'),
         ];
-        let draws = [0.0, 2f64.powi(-32), 0.5, 1.0 - 2f64.powi(-32)];
+        let draws = [0.0, 2f64.powi(-52), 0.5, 1.0 - 2f64.powi(-52)];
         assert_eq!(pick_scripted(&items, &draws), ['b', 'b', 'b', 'b']);
     }
 
     #[test]
-    fn weighted_pick_all_zero_falls_back_to_the_first_item() {
-        let items = [WeightedItem::new(0.0, 'a'), WeightedItem::new(0.0, 'b')];
-        assert_eq!(pick_scripted(&items, &[0.0, 0.5, 0.99]), ['a', 'a', 'a']);
-    }
-
-    #[test]
-    fn weighted_pick_ratios_are_left_to_right_sums() {
-        // 0.1 + 0.2 = 0.30000000000000004 > 0.3, so a draw of 0.3 still picks the second item.
-        let items = [
-            WeightedItem::new(0.1, 'a'),
-            WeightedItem::new(0.2, 'b'),
-            WeightedItem::new(0.7, 'c'),
-        ];
-        let draws = [0.3, 0.30000000000000004, 0.3000000000000001];
-        assert_eq!(pick_scripted(&items, &draws), ['b', 'c', 'c']);
+    fn weighted_pick_invalid_weights() {
+        for bad in [
+            [0.0, 0.0],
+            [-1.0, 2.0],
+            [f64::NAN, 1.0],
+            [f64::INFINITY, 1.0],
+        ] {
+            let items = bad.map(|w| WeightedItem::new(w, ()));
+            let mut rng = ScriptedRng::new([0.5]);
+            assert_eq!(
+                weighted_pick(&items, &mut rng),
+                Err(Error::InvalidWeights),
+                "{bad:?}"
+            );
+        }
     }
 
     #[test]
@@ -342,24 +312,8 @@ mod tests {
     #[test]
     fn weighted_pick_empty() {
         let mut rng = ScriptedRng::new([0.5]);
-        assert_eq!(weighted_pick::<i32>(&[], &mut rng), None);
-        assert_eq!(rng.consumed(), 1);
-    }
-
-    #[test]
-    fn merge_weighted_items_sums_equal_values() {
-        let merged = merge_weighted_items(&[
-            vec![WeightedItem::new(1.0, 'a'), WeightedItem::new(2.0, 'b')],
-            vec![WeightedItem::new(3.0, 'c'), WeightedItem::new(4.0, 'a')],
-        ]);
-        assert_eq!(
-            merged,
-            [
-                WeightedItem::new(5.0, 'a'),
-                WeightedItem::new(2.0, 'b'),
-                WeightedItem::new(3.0, 'c'),
-            ]
-        );
+        assert_eq!(weighted_pick::<i32>(&[], &mut rng), Err(Error::NoItems));
+        assert_eq!(rng.consumed(), 0);
     }
 
     fn timeline<T>(items: impl IntoIterator<Item = (f64, T)>) -> Timeline<T> {
@@ -424,18 +378,9 @@ mod tests {
     }
 
     #[test]
-    fn timeline_remove() {
-        let mut tl = events();
-        tl.remove(1.5);
-        assert_eq!(values(&tl), [0.0, 2.0, 3.0]);
-    }
-
-    #[test]
     fn timeline_before_the_first_item() {
-        let mut tl = timeline([(1.0, 'a'), (2.0, 'b')]);
+        let tl = timeline([(1.0, 'a'), (2.0, 'b')]);
         assert_eq!(tl.get_index(0.0), None);
         assert_eq!(tl.get(0.0), None);
-        tl.remove(0.0);
-        assert_eq!(tl.len(), 2);
     }
 }

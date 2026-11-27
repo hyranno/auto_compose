@@ -1,6 +1,13 @@
 {
-  "seed": {"state": 4649, "sequence": 459},
-  "resolution": "Perfect authentic",
-  "timespan": [{"value":[6,11], "weight":1}],
-  "layer": [{"value":3, "weight":1}]
+  "seed": 4649,
+  "resolution": "perfect_authentic",
+  "timespan": [
+    {
+      "value": {"start": 6, "end": 11},
+      "weight": 1
+    }
+  ],
+  "layer": [
+    {"value": "rhythm", "weight": 1}
+  ]
 }

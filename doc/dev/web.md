@@ -43,7 +43,7 @@ by restarting `npm run dev`.
 
 The defaults of the store come from `defaultTuneParameters()` and `defaultVariantParameters()`,
 so the page holds no defaults of its own. The forms cover only part of the parameters
-(seeds, scale, measures, rhythm, pitch weights, ...); the others, such as the probability tables,
+(seeds, scale, measures, rhythm, pitch, ...); the others, such as the probability tables,
 are changed by editing a saved JSON file and loading it.
 A loaded file replaces the parameters only if a tune (or a variant) can be generated from it;
 otherwise the page shows the error and keeps the current parameters.

@@ -7,7 +7,6 @@
 use std::path::{Path, PathBuf};
 
 use auto_composer::generator::{tune as tune_generator, variant};
-use auto_composer::random::ReliableRandomFactory;
 use auto_composer::snapshot::TuneSnapshot;
 use serde_json::Value;
 
@@ -49,12 +48,12 @@ pub fn generate(kind: &str, case: &Value) -> Result<TuneSnapshot, String> {
     let tune = match kind {
         "tune" => {
             let params: tune_generator::Parameters = field(case, "params")?;
-            tune_generator::generate(&params, &ReliableRandomFactory)
+            tune_generator::generate(&params)
         }
         "variant" => {
             let params: variant::Parameters = field(case, "params")?;
             let base: tune_generator::Parameters = field(case, "base")?;
-            variant::generate(&params, &base, &ReliableRandomFactory)
+            variant::generate(&params, &base)
         }
         _ => panic!("unknown kind {kind}"),
     }

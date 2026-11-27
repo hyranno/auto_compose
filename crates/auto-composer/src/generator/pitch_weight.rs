@@ -1,30 +1,30 @@
-//! The weights of the pitch candidates of a note (`src/core/pitch_weight.ts`).
+//! The weights of the pitch candidates of a note.
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::tune::{Note, Notenum, RootedTones, Tune};
+use crate::random::Seed;
+use crate::tune::{Note, Notenum, Tune};
 use crate::util::SmoothstepParams;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "tsify", tsify(rename = "PitchWeightParameters"))]
-#[cfg_attr(feature = "schemars", schemars(rename = "PitchWeightParameters"))]
+#[cfg_attr(feature = "tsify", tsify(rename = "PitchParameters"))]
+#[cfg_attr(feature = "schemars", schemars(rename = "PitchParameters"))]
 pub struct Parameters {
+    /// Replaces the seed of the tune for this layer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "tsify", tsify(optional))]
+    pub seed: Option<Seed>,
     /// Lowers the weight by the distance from the key of the scale.
-    #[serde(rename = "absPitchFactor")]
     pub abs_pitch_factor: SmoothstepParams,
     /// Lowers the weight by the distance from the previous pitch.
-    #[serde(rename = "relPitchFactor")]
     pub rel_pitch_factor: SmoothstepParams,
-    #[serde(rename = "factorInScale")]
     pub factor_in_scale: f64,
-    #[serde(rename = "factorInChord")]
     pub factor_in_chord: f64,
     /// Longer notes sharpen the distribution: the weight is raised to
-    /// `1 + duration * rhythmExponentFactor`.
-    #[serde(rename = "rhythmExponentFactor")]
+    /// `1 + duration * rhythm_exponent_factor`.
     pub rhythm_exponent_factor: f64,
 }
 
@@ -63,7 +63,7 @@ pub fn calc_with_time_homo_weight(
         .get(t)
         .ok_or(Error::NoItemAt { timeline: "chord" })?
         .value;
-    let factor_in_chord = if chord.includes(candidate.pitch) {
+    let factor_in_chord = if chord.includes(&tune.scale, candidate.pitch) {
         params.factor_in_chord
     } else {
         1.0
@@ -90,23 +90,21 @@ mod tests {
     use crate::tune::{Chord, Resolution, Scale};
     use crate::util::{Timeline, TimelineItem};
 
-    // Ported from src/core/generators.test.ts.
-
     fn tune() -> Tune {
-        let mut tune = empty_tune([4, 4], Resolution::Half, 3);
+        let mut tune = empty_tune([4, 4], Resolution::Half);
         tune.scale = Scale::major(69); // A major: 69 71 73 74 76 78 80
         tune.chord = Timeline::from_items([
-            TimelineItem::new(0.0, Chord::new(tune.scale.clone(), 0, vec![0, 2, 4])), // 69 73 76
-            TimelineItem::new(8.0, Chord::new(tune.scale.clone(), 4, vec![0, 2, 4])), // 76 80 83
+            TimelineItem::new(0.0, Chord::new(0, vec![0, 2, 4])), // 69 73 76
+            TimelineItem::new(8.0, Chord::new(4, vec![0, 2, 4])), // 76 80 83
         ]);
         tune
     }
 
     #[test]
     fn time_homo_weight() {
-        let p = default_params().note.pitch_weight;
+        let p = default_params().pitch;
         let tune = tune();
-        // (prev, candidate, expected) = absPitchFactor * relPitchFactor * factorInScale
+        // (prev, candidate, expected) = abs_pitch_factor * rel_pitch_factor * factor_in_scale
         let cases = [
             (69, 69, 8.0), // 1 * 1 * 8
             (69, 70, 1.0), // not in scale
@@ -129,7 +127,7 @@ mod tests {
 
     #[test]
     fn calc_raises_the_weight_with_the_chord_factor() {
-        let p = default_params().note.pitch_weight;
+        let p = default_params().pitch;
         let tune = tune();
         // (prev, pitch, duration, t, expected)
         let cases = [
@@ -156,7 +154,7 @@ mod tests {
 
     #[test]
     fn no_chord_yet_is_an_error() {
-        let p = default_params().note.pitch_weight;
+        let p = default_params().pitch;
         let mut tune = tune();
         tune.chord = Timeline::new();
         let note = Note {

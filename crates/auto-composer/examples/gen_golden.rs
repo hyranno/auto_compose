@@ -47,7 +47,7 @@ fn number(n: &Number) -> String {
 
 /// Like `JSON.stringify(data, null, 2)`, but objects and arrays that contain no nested
 /// objects or arrays (e.g. one timeline item) are kept on a single line to keep the diffs
-/// readable. The same layout as the fixtures written by the former TypeScript generator.
+/// readable.
 fn format(data: &Value, indent: &str) -> String {
     let entries: Vec<(Option<&String>, &Value)> = match data {
         Value::Array(a) => a.iter().map(|v| (None, v)).collect(),

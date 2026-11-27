@@ -42,7 +42,7 @@ export type TrackNote = { time: number; notenum: number; duration: number };
 /** The melody: the notes that sound (not rests). */
 export function melodyTrack(tune: TuneSnapshot): TrackNote[] {
   return tune.notes
-    .filter((note) => note.isNoteOn)
+    .filter((note) => note.is_note_on)
     .map((note) => ({ time: note.t, notenum: note.pitch, duration: note.duration }));
 }
 

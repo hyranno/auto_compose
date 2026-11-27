@@ -1,0 +1,92 @@
+{
+  "params": {
+    "seed": 0,
+    "scale": {"key": 64, "tones": [0, 2, 3, 5, 7, 8, 10]},
+    "time_measure": {"beats_per_bar": 3, "bars": 4},
+    "resolution": "half",
+    "cadence": {
+      "duration": 3,
+      "transitions": {
+        "tonic": {"tonic": 0.1, "dominant": 0.3, "subdominant": 0.6},
+        "dominant": {"tonic": 0.9, "dominant": 0.1, "subdominant": 0},
+        "subdominant": {"tonic": 0.4, "dominant": 0.5, "subdominant": 0.1}
+      }
+    },
+    "chord": {
+      "roots": {
+        "tonic": [
+          {"value": 0, "weight": 0.8},
+          {"value": 5, "weight": 0.1},
+          {"value": 2, "weight": 0.1}
+        ],
+        "dominant": [
+          {"value": 4, "weight": 0.7},
+          {"value": 6, "weight": 0.25},
+          {"value": 2, "weight": 0.05}
+        ],
+        "subdominant": [
+          {"value": 3, "weight": 0.6},
+          {"value": 1, "weight": 0.35},
+          {"value": 5, "weight": 0.05}
+        ]
+      },
+      "tones": [
+        {"value": [0, 2, 4], "weight": 0.8},
+        {"value": [0, 2, 4, 6], "weight": 0.15},
+        {"value": [0, 4], "weight": 0.05}
+      ]
+    },
+    "rhythm": {
+      "max_beat_division_depth": 3,
+      "p_branch": {"edge0": 0.25, "edge1": 1.5},
+      "p_note_on": {"edge0": -2, "edge1": 1}
+    },
+    "pitch": {
+      "abs_pitch_factor": {"edge0": 6, "edge1": 8},
+      "rel_pitch_factor": {"edge0": 4, "edge1": 6},
+      "factor_in_scale": 8,
+      "factor_in_chord": 4,
+      "rhythm_exponent_factor": 2
+    }
+  },
+  "expected": {
+    "length": 12,
+    "time_measure": {"beats_per_bar": 3, "bars": 4},
+    "scale": {"key": 64, "tones": [0, 2, 3, 5, 7, 8, 10]},
+    "resolution": "half",
+    "cadence": [
+      {"t": 0, "value": "tonic"},
+      {"t": 3, "value": "subdominant"},
+      {"t": 6, "value": "dominant"},
+      {"t": 9, "value": "dominant"}
+    ],
+    "chord": [
+      {"t": 0, "root": 0, "tones": [0, 2, 4], "notenums": [64, 67, 71]},
+      {"t": 3, "root": 1, "tones": [0, 2, 4, 6], "notenums": [66, 69, 72, 76]},
+      {"t": 6, "root": 4, "tones": [0, 4], "notenums": [71, 78]},
+      {"t": 9, "root": 4, "tones": [0, 2, 4], "notenums": [71, 74, 78]}
+    ],
+    "notes": [
+      {"t": 0, "pitch": 64, "duration": 0.5, "is_note_on": true},
+      {"t": 0.5, "pitch": 64, "duration": 0.5, "is_note_on": true},
+      {"t": 1, "pitch": 67, "duration": 1, "is_note_on": true},
+      {"t": 2, "pitch": 64, "duration": 1, "is_note_on": true},
+      {"t": 3, "pitch": 69, "duration": 1, "is_note_on": true},
+      {"t": 4, "pitch": 66, "duration": 0.25, "is_note_on": true},
+      {"t": 4.25, "pitch": 66, "duration": 0.25, "is_note_on": true},
+      {"t": 4.5, "pitch": 69, "duration": 0.5, "is_note_on": true},
+      {"t": 5, "pitch": 64, "duration": 0.25, "is_note_on": true},
+      {"t": 5.25, "pitch": 66, "duration": 0.25, "is_note_on": true},
+      {"t": 5.5, "pitch": 69, "duration": 0.5, "is_note_on": true},
+      {"t": 6, "pitch": 66, "duration": 1, "is_note_on": true},
+      {"t": 7, "pitch": 66, "duration": 1, "is_note_on": true},
+      {"t": 8, "pitch": 66, "duration": 0.5, "is_note_on": false},
+      {"t": 8.5, "pitch": 66, "duration": 0.5, "is_note_on": true},
+      {"t": 9, "pitch": 62, "duration": 1, "is_note_on": true},
+      {"t": 10, "pitch": 62, "duration": 0.25, "is_note_on": true},
+      {"t": 10.25, "pitch": 62, "duration": 0.25, "is_note_on": true},
+      {"t": 10.5, "pitch": 59, "duration": 0.5, "is_note_on": true},
+      {"t": 11, "pitch": 62, "duration": 1, "is_note_on": true}
+    ]
+  }
+}

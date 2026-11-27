@@ -5,14 +5,16 @@
   "type": "object",
   "properties": {
     "seed": {
-      "$ref": "#/$defs/RandomSeed"
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
     },
     "resolution": {
       "description": "Replaces the resolution of the base parameters.",
       "$ref": "#/$defs/Resolution"
     },
     "timespan": {
-      "description": "The weights of the timespans `[start, end]` in beats. Only the items strictly inside are\nchanged.",
+      "description": "The weights of the timespans.",
       "type": "array",
       "items": {
         "type": "object",
@@ -22,13 +24,7 @@
             "format": "double"
           },
           "value": {
-            "type": "array",
-            "items": {
-              "type": "number",
-              "format": "double"
-            },
-            "minItems": 2,
-            "maxItems": 2
+            "$ref": "#/$defs/Timespan"
           }
         },
         "required": [
@@ -38,6 +34,7 @@
       }
     },
     "layer": {
+      "description": "The weights of the layers.",
       "type": "array",
       "items": {
         "type": "object",
@@ -64,41 +61,42 @@
     "layer"
   ],
   "$defs": {
-    "RandomSeed": {
-      "description": "Seed of a [`ReliableRandom`].\n\nThe parts are read from JSON like JavaScript reads them: the number is taken\nas a `f64` (as `JSON.parse` does) and then converted like `BigInt(x) & U64_MASK`, i.e. to the\ntwo's complement of the integer modulo 2^64. A number that is not an integer is an error\n(`BigInt` throws).",
-      "type": "object",
-      "properties": {
-        "state": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "sequence": {
-          "type": "integer",
-          "format": "int64"
-        }
-      },
-      "required": [
-        "state",
-        "sequence"
-      ]
-    },
     "Resolution": {
       "type": "string",
       "enum": [
-        "Perfect authentic",
-        "Imperfect authentic",
-        "Deceptive",
-        "Plagal",
-        "Half"
+        "perfect_authentic",
+        "imperfect_authentic",
+        "deceptive",
+        "plagal",
+        "half"
+      ]
+    },
+    "Timespan": {
+      "description": "A span of time in beats. The items strictly inside it are varied.",
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "number",
+          "format": "double"
+        },
+        "end": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "start",
+        "end"
       ]
     },
     "Layer": {
-      "description": "The layer to vary: 0 cadence, 1 chord, 2 pitch, 3 rhythm.",
+      "description": "The layer to vary.",
+      "type": "string",
       "enum": [
-        0,
-        1,
-        2,
-        3
+        "cadence",
+        "chord",
+        "pitch",
+        "rhythm"
       ]
     }
   }

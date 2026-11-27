@@ -1,27 +1,11 @@
-//! Notes: a pitch for each leaf of the rhythm tree (`src/core/note.ts`).
-
-use serde::{Deserialize, Serialize};
+//! Notes: a pitch for each leaf of the rhythm tree.
 
 use crate::error::{Error, Result};
-use crate::random::{RandomSeed, Rng, RngFactory};
+use crate::random::Rng;
 use crate::tune::{Note, NoteNode, Notenum, Tune};
 use crate::util::{Timeline, WeightedItem, weighted_pick};
 
-use super::{pitch_weight, rhythm};
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "tsify", derive(tsify::Tsify))]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "tsify", tsify(rename = "NoteParameters"))]
-#[cfg_attr(feature = "schemars", schemars(rename = "NoteParameters"))]
-pub struct Parameters {
-    #[cfg_attr(feature = "tsify", tsify(type = "RhythmParameters"))]
-    pub rhythm: rhythm::Parameters,
-    #[serde(rename = "pitchWeight")]
-    #[cfg_attr(feature = "tsify", tsify(type = "PitchWeightParameters"))]
-    pub pitch_weight: pitch_weight::Parameters,
-    pub seed: RandomSeed,
-}
+use super::pitch_weight;
 
 /// Draws the pitch of `note` from `prev - 12 ..= prev + 11`, weighted by
 /// [`pitch_weight::calc`]. Rests draw too.
@@ -43,22 +27,8 @@ pub fn generate_pitch(
             Ok(WeightedItem::new(weight, pitch))
         })
         .collect::<Result<Vec<_>>>()?;
-    note.pitch = Some(*weighted_pick(&items, rng).ok_or(Error::NoItems)?);
+    note.pitch = Some(*weighted_pick(&items, rng)?);
     Ok(())
-}
-
-pub fn generate_tree(
-    tune: &Tune,
-    params: &Parameters,
-    factory: &dyn RngFactory,
-) -> Result<NoteNode> {
-    let notes = rhythm::generate(tune, &params.rhythm, factory);
-    pitch_tree(
-        tune,
-        notes,
-        params,
-        &mut factory.create(params.seed, "note.pitch"),
-    )
 }
 
 /// Sets the pitches of the leaves of `notes` from left to right. The first previous pitch is
@@ -66,12 +36,12 @@ pub fn generate_tree(
 pub fn pitch_tree(
     tune: &Tune,
     mut notes: NoteNode,
-    params: &Parameters,
+    params: &pitch_weight::Parameters,
     rng: &mut impl Rng,
 ) -> Result<NoteNode> {
     let mut prev = tune.scale.key;
     for note in notes.leaves_mut() {
-        generate_pitch(tune, rng, prev, note, &params.pitch_weight)?;
+        generate_pitch(tune, rng, prev, note, params)?;
         prev = note.pitch.ok_or(Error::MissingPitch)?;
     }
     Ok(notes)
@@ -87,43 +57,32 @@ pub fn tree_to_timeline(tree: &NoteNode) -> Result<Timeline<Note>> {
     Ok(Timeline::from_items(events))
 }
 
-pub fn generate(
-    tune: &Tune,
-    params: &Parameters,
-    factory: &dyn RngFactory,
-) -> Result<Timeline<Note>> {
-    tree_to_timeline(&generate_tree(tune, params, factory)?)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-
     use super::*;
-    use crate::generator::test_util::{SEEDS, default_params, simple_params};
+    use crate::generator::rhythm;
+    use crate::generator::test_util::{Counting, SEEDS, default_params, seeded, simple_params};
     use crate::generator::tune as tune_generator;
-    use crate::random::{RecordingRngFactory, ReliableRandomFactory};
-
-    // Ported from src/core/generators.test.ts.
 
     #[test]
     fn one_draw_per_leaf_and_pitches_near_the_previous_one() {
         for (name, base) in [("default", default_params()), ("simple", simple_params())] {
-            for (state, sequence) in SEEDS {
-                let mut params = base.clone();
-                params.note.seed = RandomSeed::new(state, sequence);
-                params.note.rhythm.seed = RandomSeed::new(state, sequence);
-                let log = RefCell::new(Vec::new());
-                let factory = RecordingRngFactory::new(ReliableRandomFactory, &log);
-                let tune = tune_generator::generate(&params, &factory).unwrap();
-                let what = format!("{name} seed={state}");
+            for seed in SEEDS {
+                let params = tune_generator::Parameters {
+                    seed,
+                    ..base.clone()
+                };
+                let tune = tune_generator::generate(&params).unwrap();
+                let what = format!("{name} seed={seed}");
                 // One pitch draw per leaf, rests included.
-                let draws = log
-                    .borrow()
-                    .iter()
-                    .filter(|r| r.label == "note.pitch")
-                    .count();
-                assert_eq!(draws, tune.notes.len(), "{what}");
+                let tree = rhythm::generate(&tune, &params.rhythm, &mut seeded(seed));
+                let leaves = tree.leaves().len();
+                let mut rng = Counting {
+                    inner: seeded(seed),
+                    consumed: 0,
+                };
+                pitch_tree(&tune, tree, &params.pitch, &mut rng).unwrap();
+                assert_eq!(rng.consumed, leaves, "{what}");
                 let mut prev = tune.scale.key;
                 for e in tune.notes.list() {
                     assert!(
@@ -139,8 +98,8 @@ mod tests {
     #[test]
     fn leaves_and_notes_match() {
         let params = default_params();
-        let tune = tune_generator::generate(&params, &ReliableRandomFactory).unwrap();
-        let tree = generate_tree(&tune, &params.note, &ReliableRandomFactory).unwrap();
+        let tune = tune_generator::generate(&params).unwrap();
+        let tree = tune_generator::generate_notes(&tune, &params).unwrap();
         assert_eq!(tree_to_timeline(&tree).unwrap(), tune.notes);
     }
 }

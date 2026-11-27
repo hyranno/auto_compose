@@ -17,9 +17,9 @@ The test is skipped without the feature (`required-features` in `Cargo.toml`).
 
 Notes:
 
-- The generic items (`WeightedItem`, `TimelineItem`, `WeightedRandomParameters`) are inlined
+- The generic items (`WeightedItem`, `TimelineItem`, `PerCadence`) are inlined
   (`#[schemars(inline)]`) instead of getting numbered definitions.
-- `Layer` is an integer in JSON (`#[serde(try_from = "u8")]`); its schema is written by hand
-  (`enum: [0, 1, 2, 3]`).
-- Seeds are integers of any size: the parts are reduced modulo 2^64 as JavaScript's `BigInt` would
-  (see `RandomSeed`), so the `int64` format is only a hint.
+- The field names and the enum values are snake_case.
+- A seed is an integer from 0 to 2^32 - 1, which a JavaScript number holds exactly. The seed of a
+  layer (`cadence.seed`, `chord.seed`, `rhythm.seed`, `pitch.seed`) is optional and replaces the seed
+  of the tune for that layer.

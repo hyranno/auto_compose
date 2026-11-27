@@ -1,5 +1,5 @@
 import { For, type JSX } from 'solid-js';
-import type { RandomSeed, SmoothstepParams } from 'auto-composer-wasm';
+import type { Seed, SmoothstepParams } from 'auto-composer-wasm';
 
 // Inputs bound to a value of the parameter store: each takes the current value and a setter.
 
@@ -20,24 +20,34 @@ export function NumberInput(props: FieldProps<number> & { step?: number }) {
   );
 }
 
-export function Select<T extends string>(props: FieldProps<T> & { options: readonly T[] }) {
+export function Select<T extends string>(
+  props: FieldProps<T> & { options: readonly T[]; labels?: Record<T, string> },
+) {
   return (
     <select value={props.value} onInput={(e) => props.onChange(e.currentTarget.value as T)}>
-      <For each={props.options}>{(option) => <option value={option}>{option}</option>}</For>
+      <For each={props.options}>{(option) => <option value={option}>{props.labels?.[option] ?? option}</option>}</For>
     </select>
   );
 }
 
-export function SeedInput(props: FieldProps<RandomSeed>) {
+/** A seed: an integer from 0 to 2^32 - 1. Other values are rejected by the generators. */
+export function SeedInput(props: FieldProps<Seed>) {
+  return <NumberInput step={1} value={props.value} onChange={props.onChange} />;
+}
+
+/** The seed of a layer. Left empty, the layer uses the seed of the tune. */
+export function LayerSeedInput(props: FieldProps<Seed | undefined>) {
   return (
-    <>
-      <NumberInput step={1} value={props.value.state} onChange={(state) => props.onChange({ ...props.value, state })} />
-      <NumberInput
-        step={1}
-        value={props.value.sequence}
-        onChange={(sequence) => props.onChange({ ...props.value, sequence })}
-      />
-    </>
+    <input
+      type="number"
+      step={1}
+      placeholder="tune seed"
+      value={props.value ?? ''}
+      onInput={(e) => {
+        const input = e.currentTarget;
+        props.onChange(input.value === '' ? undefined : input.valueAsNumber);
+      }}
+    />
   );
 }
 
