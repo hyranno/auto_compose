@@ -35,16 +35,20 @@ by restarting `npm run dev`.
 |---|---|
 | `src/params.ts` | The parameter store: all the parameters as one Solid store of the plain JSON the wasm functions take |
 | `src/Settings.tsx` | The forms of the tune and variant parameters, and saving and loading them as JSON |
-| `src/fields.tsx` | Inputs bound to a value of the store (number, seed, smoothstep, select) |
+| `src/fields.tsx` | Inputs bound to a value of the store (number, integer list, seed, smoothstep, select, weighted list) |
 | `src/PianoRoll.tsx` | The piano roll of a `TuneSnapshot` |
 | `src/Output.tsx` | Playing the tune (Tone.js) and exporting it as MIDI (@tonejs/midi) |
 | `src/tune.ts` | Helpers on `TuneSnapshot`: lookups on the timelines, pitch classes, the melody and chord tracks |
 | `src/file.ts` | Downloading and reading files |
 
 The defaults of the store come from `defaultTuneParameters()` and `defaultVariantParameters()`,
-so the page holds no defaults of its own. The forms cover only part of the parameters
-(seeds, scale, measures, rhythm, pitch, ...); the others, such as the probability tables,
-are changed by editing a saved JSON file and loading it.
+so the page holds no defaults of its own. The forms cover all the parameters.
+
+The text inputs (`ParsedInput` in `src/fields.tsx`) keep what the user types. A text that parses
+is written to the store at once; one that does not is marked with `setCustomValidity` and leaves the
+store at its last valid value, and `generate` refuses to run while such an input remains.
+Only the syntax (a number, an integer, the range of a seed) is checked there;
+the generators check the rest and report it as an error message.
 A loaded file replaces the parameters only if a tune (or a variant) can be generated from it;
 otherwise the page shows the error and keeps the current parameters.
 

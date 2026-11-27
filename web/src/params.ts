@@ -4,6 +4,8 @@ import {
   defaultVariantParameters,
   generateTune,
   generateVariant,
+  type Layer,
+  type PerCadence,
   type Resolution,
   type TuneParameters,
   type VariantParameters,
@@ -59,3 +61,8 @@ export const RESOLUTIONS = Object.keys(RESOLUTION_LABELS) as Resolution[];
 
 export const MAJOR_TONES = [0, 2, 4, 5, 7, 9, 11];
 export const MINOR_TONES = [0, 2, 3, 5, 7, 8, 10];
+
+export type Cadence = keyof PerCadence<unknown>;
+export const CADENCES: readonly Cadence[] = ['tonic', 'dominant', 'subdominant'];
+
+export const LAYERS: readonly Layer[] = ['cadence', 'chord', 'rhythm', 'pitch'];
